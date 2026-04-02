@@ -1,0 +1,20 @@
+services:
+  backend:
+    build: .
+    container_name: monpapa-backend
+    ports:
+      - "8001:8001"
+    volumes:
+      # Персистентное хранилище для SQLite БД
+      - monpapa_data:/data
+      # В dev-режиме монтируем код для hot-reload (убрать в prod)
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////data/monpapa.db
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+    restart: unless-stopped
+
+volumes:
+  monpapa_data:

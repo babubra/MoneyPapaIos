@@ -1,0 +1,61 @@
+// MonPapa iOS — Настройки приложения через UserDefaults
+
+import SwiftUI
+import Combine
+
+/// Централизованные настройки приложения.
+/// Используют UserDefaults — автоматически сохраняются.
+///
+/// Использование в View:
+/// ```
+/// @AppStorage("hideAmounts") var hideAmounts = false
+/// Toggle("Скрыть суммы", isOn: $hideAmounts)
+/// ```
+///
+/// Или через синглтон:
+/// ```
+/// if AppSettings.shared.hideAmounts { ... }
+/// ```
+final class AppSettings: ObservableObject {
+    static let shared = AppSettings()
+    
+    // MARK: - Внешний вид
+    
+    /// Тема приложения: "system" / "light" / "dark"
+    @Published var appTheme: String {
+        didSet { UserDefaults.standard.set(appTheme, forKey: "appTheme") }
+    }
+    
+    // MARK: - Приватность
+    
+    /// Скрывать ли суммы на главном экране (режим конфиденциальности)
+    @Published var hideAmounts: Bool {
+        didSet { UserDefaults.standard.set(hideAmounts, forKey: "hideAmounts") }
+    }
+    
+    // MARK: - Валюта
+    
+    /// Валюта по умолчанию
+    @Published var defaultCurrency: String {
+        didSet { UserDefaults.standard.set(defaultCurrency, forKey: "defaultCurrency") }
+    }
+    
+    // MARK: - Инициализатор
+    
+    init() {
+        self.appTheme = UserDefaults.standard.string(forKey: "appTheme") ?? "system"
+        self.hideAmounts = UserDefaults.standard.bool(forKey: "hideAmounts")
+        self.defaultCurrency = UserDefaults.standard.string(forKey: "defaultCurrency") ?? "RUB"
+    }
+    
+    // MARK: - Вычисляемые свойства
+    
+    /// Предпочтительная цветовая схема для SwiftUI
+    var preferredColorScheme: ColorScheme? {
+        switch appTheme {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil  // system
+        }
+    }
+}
