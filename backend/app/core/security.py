@@ -1,4 +1,9 @@
-"""JWT-безопасность и вспомогательные функции авторизации."""
+"""JWT-токены — создание и верификация.
+
+Поддерживает два типа токенов:
+- Access token (30 дней) — для device_id или user
+- Magic token (15 минут) — для верификации email
+"""
 
 from datetime import datetime, timedelta, timezone
 
@@ -29,10 +34,31 @@ def create_access_token(subject: str, expires_delta: timedelta | None = None) ->
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 
 
+def create_magic_token(email: str) -> str:
+    """Создаёт короткоживущий JWT для Magic Link (15 минут)."""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    payload = {
+        "sub": email,
+        "purpose": "magic_link",
+        "exp": expire,
+        "iat": datetime.now(timezone.utc),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
+
+
 def decode_access_token(token: str) -> str | None:
     """Декодирует JWT и возвращает subject, или None при невалидном токене."""
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
         return payload.get("sub")
+    except JWTError:
+        return None
+
+
+def verify_token(token: str) -> dict | None:
+    """Верифицирует JWT и возвращает полный payload. None при ошибке."""
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
     except JWTError:
         return None

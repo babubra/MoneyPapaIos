@@ -16,7 +16,7 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
 logger = logging.getLogger(__name__)
-settings = get_settings()
+app_settings = get_settings()
 
 
 @asynccontextmanager
@@ -27,19 +27,15 @@ async def lifespan(app: FastAPI):
     shutdown: корректное закрытие соединений.
     """
     # ── Startup ────────────────────────────────────────────────────
-    # Инициализируем БД
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("База данных инициализирована")
 
-    # Создаём singleton AsyncOpenAI-клиент — один на всё приложение.
-    # AsyncOpenAI использует httpx.AsyncClient внутри, который держит
-    # пул соединений → эффективно при сотнях одновременных запросов.
     app.state.ai_client = AsyncOpenAI(
-        api_key=settings.AITUNNEL_API_KEY,
-        base_url=settings.AITUNNEL_BASE_URL,
+        api_key=app_settings.AITUNNEL_API_KEY,
+        base_url=app_settings.AITUNNEL_BASE_URL,
     )
-    logger.info(f"AI-клиент инициализирован → {settings.AITUNNEL_BASE_URL}, модель: {settings.AI_MODEL}")
+    logger.info(f"AI-клиент инициализирован → {app_settings.AITUNNEL_BASE_URL}, модель: {app_settings.AI_MODEL}")
 
     yield  # приложение работает
 
@@ -52,36 +48,42 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="MonPapa API",
     description="Backend для iOS-приложения MonPapa — учёт личных финансов с AI-вводом.",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
 )
 
-# CORS — разрешаем iOS (и потенциально web в будущем)
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list + ["*"],  # * убрать в prod
+    allow_origins=app_settings.cors_origins_list + ["*"],  # * убрать в prod
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ── Роутеры (импорт после создания app чтобы избежать циклов) ─────
+# ── Роутеры ───────────────────────────────────────────────────────
 
-from app.api.v1 import auth, ai  # noqa: E402
+from app.api.v1 import auth, ai, categories, transactions, counterparts, debts, settings, sync  # noqa: E402
 
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
-app.include_router(ai.router,   prefix="/api/v1/ai",   tags=["ai"])
+app.include_router(auth.router,          prefix="/api/v1/auth",          tags=["auth"])
+app.include_router(ai.router,            prefix="/api/v1/ai",            tags=["ai"])
+app.include_router(categories.router,    prefix="/api/v1/categories",    tags=["categories"])
+app.include_router(transactions.router,  prefix="/api/v1/transactions",  tags=["transactions"])
+app.include_router(counterparts.router,  prefix="/api/v1/counterparts",  tags=["counterparts"])
+app.include_router(debts.router,         prefix="/api/v1/debts",         tags=["debts"])
+app.include_router(settings.router,      prefix="/api/v1/settings",      tags=["settings"])
+app.include_router(sync.router,          prefix="/api/v1/sync",          tags=["sync"])
 
 
 # ── Health check ──────────────────────────────────────────────────
 
 @app.get("/health", tags=["system"], summary="Проверка работоспособности")
 async def health() -> dict:
-    return {"status": "ok", "service": "monpapa-backend"}
+    return {"status": "ok", "service": "monpapa-backend", "version": "2.0.0"}
 
 
 @app.get("/", tags=["system"], include_in_schema=False)
 async def root() -> dict:
-    return {"message": "MonPapa API v1. Документация: /docs"}
+    return {"message": "MonPapa API v2. Документация: /docs"}
