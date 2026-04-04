@@ -102,11 +102,11 @@ backend/
 - [x] 🟢 **AI-провайдер**: переход на aitunnel.ru (AsyncOpenAI, убран google-genai)
 - [x] 🟢 **Async стек**: lifespan + singleton AsyncOpenAI в app.state + AsyncSession — всё concurrent-ready
 - [x] 🟢 **End-to-end тест**: auth/device → ai/parse → Gemini 200 OK ✅
-- [ ] 🟢 **iOS: AIService**: HTTP-клиент для вызова `/ai/parse` и `/ai/parse-audio`
-- [ ] 🟢 **iOS: AiParseResult**: модель ответа от AI
-- [ ] 🟢 **iOS: AIInputBar → реальный вызов**: заменить TODO-заглушки на вызовы AIService
-- [ ] 🔴 **iOS: Preview Sheet**: после AI-парсинга → заполненная форма AddTransactionSheet (UX-дизайн + edge cases)
-- [ ] 🟢 **iOS: AVAudioRecorder**: запись голоса + VAD
+- [x] 🟢 **iOS: AIService**: HTTP-клиент для вызова `/ai/parse` и `/ai/parse-audio`
+- [x] 🟢 **iOS: AiParseResult**: модель ответа от AI
+- [x] 🟢 **iOS: AIInputBar → реальный вызов**: заменить TODO-заглушки на вызовы AIService
+- [x] 🔴 **iOS: Preview Sheet**: после AI-парсинга → заполненная форма AddTransactionSheet (UX-дизайн + edge cases)
+- [x] 🟢 **iOS: AVAudioRecorder**: запись голоса + VAD
 
 
 ### Фаза 2 — Авторизация и синхронизация

@@ -40,12 +40,25 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(defaultCurrency, forKey: "defaultCurrency") }
     }
     
+    // MARK: - AI
+    
+    /// Самообучение категорий: если пользователь меняет категорию, предложенную AI,
+    /// автоматически добавляет подсказку (ai_hint) в выбранную категорию.
+    // TODO: Добавить Toggle в экран настроек (SettingsView)
+    @Published var aiAutoLearn: Bool {
+        didSet { UserDefaults.standard.set(aiAutoLearn, forKey: "aiAutoLearn") }
+    }
+    
     // MARK: - Инициализатор
     
     init() {
         self.appTheme = UserDefaults.standard.string(forKey: "appTheme") ?? "system"
         self.hideAmounts = UserDefaults.standard.bool(forKey: "hideAmounts")
         self.defaultCurrency = UserDefaults.standard.string(forKey: "defaultCurrency") ?? "RUB"
+        // По умолчанию включено
+        self.aiAutoLearn = UserDefaults.standard.object(forKey: "aiAutoLearn") == nil
+            ? true
+            : UserDefaults.standard.bool(forKey: "aiAutoLearn")
     }
     
     // MARK: - Вычисляемые свойства

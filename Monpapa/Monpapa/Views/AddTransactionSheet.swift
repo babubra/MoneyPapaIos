@@ -1,4 +1,4 @@
-// MonPapa iOS — Форма ручного добавления транзакции (Sheet)
+// MonPapa iOS — Форма добавления транзакции (ручная + AI)
 
 import SwiftUI
 import SwiftData
@@ -8,15 +8,27 @@ struct AddTransactionSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var settings: AppSettings
-    
+
+    // MARK: - AI Prefill (опционально)
+
+    /// Результат AI-парсинга. Если nil — обычное ручное создание.
+    var prefill: AiParseResult?
+
+    /// Данные о новой категории, предложенной AI
+    @State private var aiSuggestedCategoryName: String?
+    @State private var aiSuggestedCategoryIcon: String?
+    @State private var showAIGlow = false
+
     // MARK: - Поля формы
-    
+
     @State private var transactionType: TransactionType = .expense
     @State private var amountText = ""
     @State private var transactionDate = Date()
     @State private var selectedExpenseCategory: CategoryModel?
     @State private var selectedIncomeCategory: CategoryModel?
     @State private var comment = ""
+
+    @Query private var allCategories: [CategoryModel]
     
     /// Текущая категория в зависимости от выбранного типа
     private var selectedCategory: CategoryModel? {
@@ -60,19 +72,25 @@ struct AddTransactionSheet: View {
     
     // MARK: - Body
     
+    /// Есть ли предложенная AI новая категория
+    private var hasAISuggestedCategory: Bool {
+        aiSuggestedCategoryName != nil && selectedCategory == nil
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
                 MPColors.background.ignoresSafeArea()
-                
+
                 ScrollView {
                     VStack(spacing: MPSpacing.lg) {
                         // MARK: — Сегмент Расход / Доход
                         typeSegment
-                        
-                        // MARK: — Крупный ввод суммы
+
+                        // MARK: — Крупный ввод суммы (с AI glow)
                         amountInput
-                        
+                            .aiBorderGlow(isActive: showAIGlow, cornerRadius: MPCornerRadius.lg)
+
                         // MARK: — Дата + Категория + Комментарий (карточка)
                         formCard
                     }
@@ -82,12 +100,15 @@ struct AddTransactionSheet: View {
                 .scrollDismissesKeyboard(.interactively)
                 .dismissKeyboardOnTap()
             }
-            .navigationTitle("Новая операция")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Отмена") { dismiss() }
                         .foregroundColor(MPColors.accentCoral)
+                }
+                ToolbarItem(placement: .principal) {
+                    Text("Новая операция")
+                        .font(.system(size: 17, weight: .semibold))
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Сохранить") { saveTransaction() }
@@ -95,6 +116,10 @@ struct AddTransactionSheet: View {
                         .foregroundColor(canSave ? MPColors.accentCoral : MPColors.textSecondary)
                         .disabled(!canSave)
                 }
+            }
+            .task {
+                try? await Task.sleep(for: .milliseconds(100))
+                applyPrefill()
             }
         }
     }
@@ -186,26 +211,34 @@ struct AddTransactionSheet: View {
     
     private var amountInput: some View {
         VStack(spacing: MPSpacing.xs) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                TextField("0", text: $amountText)
-                    .font(.system(size: 48, weight: .bold, design: .rounded))
-                    .foregroundColor(MPColors.textPrimary)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.center)
-                    .focused($focusedField, equals: .amount)
-                    .minimumScaleFactor(0.5)
-                    .onChange(of: amountText) { _, newValue in
-                        let formatted = formatAmountText(newValue)
-                        if formatted != newValue {
-                            amountText = formatted
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    TextField("0", text: $amountText)
+                        .font(.system(size: 56, weight: .bold, design: .rounded))
+                        .foregroundColor(MPColors.textPrimary)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .focused($focusedField, equals: .amount)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .onChange(of: amountText) { _, newValue in
+                            // Ограничим случайный спам символов
+                            let limited = String(newValue.prefix(16))
+                            let formatted = formatAmountText(limited)
+                            if formatted != newValue {
+                                amountText = formatted
+                            }
                         }
-                    }
-                
-                Text(currencySymbol)
-                    .font(.system(size: 36, weight: .semibold, design: .rounded))
-                    .foregroundColor(MPColors.textSecondary)
+
+                    Text(currencySymbol)
+                        .font(.system(size: 46, weight: .medium, design: .rounded))
+                        .foregroundColor(MPColors.textSecondary)
+                        .fixedSize()
+                }
+                // Центрируем HStack внутри ScrollView
+                .containerRelativeFrame(.horizontal)
             }
-            .frame(maxWidth: .infinity)
+            // Авто-скролл к концу при печати (прилипает к правому краю)
+            .defaultScrollAnchor(.trailing)
             .padding(.vertical, MPSpacing.lg)
         }
         .onAppear {
@@ -271,36 +304,67 @@ struct AddTransactionSheet: View {
             } label: {
                 HStack(spacing: MPSpacing.sm) {
                     if let cat = selectedCategory {
-                        // Выбрана: показываем иконку категории + название
+                        // Выбрана существующая категория
                         if let icon = cat.effectiveIcon {
                             Text(icon)
                                 .font(.system(size: 20))
                                 .frame(width: 28)
                         }
-                        
-                        Text(cat.name)
+
+                        Text(categoryDisplayName(for: cat))
                             .font(MPTypography.body)
                             .foregroundColor(MPColors.textPrimary)
                             .lineLimit(1)
+
+                        Spacer()
+
+                    } else if let suggestedName = aiSuggestedCategoryName {
+                        // AI предложил новую категорию — показываем как выбранную
+                        Text(aiSuggestedCategoryIcon ?? "🏷️")
+                            .font(.system(size: 20))
+                            .frame(width: 28)
+
+                        Text(aiSuggestedCategoryDisplayName)
+                            .font(MPTypography.body)
+                            .foregroundColor(MPColors.textPrimary)
+                            .lineLimit(1)
+
+                        Spacer()
+
+                        Text("✨ Новая")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.55, green: 0.35, blue: 0.95),
+                                        Color(red: 0.30, green: 0.55, blue: 1.00),
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .clipShape(Capsule())
+
                     } else {
-                        // Не выбрана: показываем лейбл + placeholder
+                        // Не выбрана: лейбл + placeholder
                         Text("🏷️")
                             .font(.system(size: 20))
                             .frame(width: 28)
-                        
+
                         Text("Категория")
                             .font(MPTypography.body)
                             .foregroundColor(MPColors.textPrimary)
-                    }
-                    
-                    Spacer()
-                    
-                    if selectedCategory == nil {
+
+                        Spacer()
+
                         Text("Выберите")
                             .font(MPTypography.body)
                             .foregroundColor(MPColors.textSecondary)
                     }
-                    
+
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(MPColors.textSecondary.opacity(0.5))
@@ -379,28 +443,143 @@ struct AddTransactionSheet: View {
         .padding(.vertical, MPSpacing.sm)
     }
     
+    // MARK: - AI Prefill
+
+    private func applyPrefill() {
+        guard let result = prefill, result.status != .rejected else { return }
+
+        // Тип транзакции
+        if let typeStr = result.type {
+            switch typeStr {
+            case "income":  transactionType = .income
+            case "expense": transactionType = .expense
+            default: break
+            }
+        }
+
+        // Сумма
+        if let amount = result.amount, amount > 0 {
+            amountText = formatAmountText(String(format: "%.0f", amount))
+        }
+
+        // Дата
+        if let dateStr = result.date {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            if let date = formatter.date(from: dateStr) {
+                transactionDate = date
+            }
+        }
+
+        // Категория — ищем по имени в SwiftData
+        if let catName = result.categoryName {
+            if result.categoryIsNew == true {
+                // AI предложил новую категорию
+                aiSuggestedCategoryName = catName
+                aiSuggestedCategoryIcon = result.categoryIcon
+            } else {
+                // Ищем существующую
+                let match = allCategories.first { $0.name.lowercased() == catName.lowercased() }
+                if let match {
+                    switch transactionType {
+                    case .expense: selectedExpenseCategory = match
+                    case .income: selectedIncomeCategory = match
+                    }
+                }
+            }
+        }
+
+        // Комментарий — rawText от AI
+        if let rawText = result.rawText, !rawText.isEmpty {
+            comment = rawText
+        }
+
+        // Запускаем glow-эффекты
+        withAnimation(.easeIn(duration: 0.3)) {
+            showAIGlow = true
+        }
+    }
+
     // MARK: - Сохранение
-    
+
     private func saveTransaction() {
         guard canSave else { return }
-        
+
+        var categoryToSave = selectedCategory
+
+        // Если AI предложил новую категорию и пользователь не выбрал существующую
+        if categoryToSave == nil, let suggestedName = aiSuggestedCategoryName {
+            let newCategory = CategoryModel(
+                name: suggestedName,
+                type: transactionType,
+                icon: aiSuggestedCategoryIcon
+            )
+
+            // Привязка к родительской категории (если AI указал parent)
+            if let parentName = prefill?.categoryParentName {
+                let parentMatch = allCategories.first {
+                    $0.name.lowercased() == parentName.lowercased()
+                }
+                if let parent = parentMatch {
+                    newCategory.parent = parent
+                } else {
+                    // Родительская тоже новая — создаём
+                    let parentIcon = prefill?.categoryParentIcon
+                    let newParent = CategoryModel(
+                        name: parentName,
+                        type: transactionType,
+                        icon: parentIcon
+                    )
+                    modelContext.insert(newParent)
+                    newCategory.parent = newParent
+                }
+            }
+
+            modelContext.insert(newCategory)
+            categoryToSave = newCategory
+        }
+
+        // MARK: - Самообучение категорий (AI Auto-Learn)
+        // Если пользователь изменил AI-категорию → запоминаем это как подсказку
+        // Лимит: 200 символов на хинт (~20 ключевых слов, ~50 токенов)
+        if settings.aiAutoLearn,
+           let aiSuggested = prefill?.categoryName,
+           let chosen = categoryToSave,
+           chosen.name != aiSuggested {
+            let hint = aiSuggested.lowercased()
+            let maxHintLength = 200
+            if let existing = chosen.aiHint, !existing.isEmpty {
+                // Не дублируем и не превышаем лимит
+                if !existing.lowercased().contains(hint),
+                   existing.count + hint.count + 2 <= maxHintLength {
+                    chosen.aiHint = existing + ", " + hint
+                }
+            } else {
+                chosen.aiHint = String(hint.prefix(maxHintLength))
+            }
+        }
+
+        // TODO: Рассмотреть обязательность выбора категории перед сохранением.
+        // Возможно показывать бейдж "Без категории" и экран "Нераспределённые".
+
         let transaction = TransactionModel(
             type: transactionType,
             amount: amountValue,
             currency: settings.defaultCurrency,
             transactionDate: transactionDate,
             comment: comment.isEmpty ? nil : comment,
-            category: selectedCategory
+            rawText: prefill?.rawText,
+            category: categoryToSave
         )
-        
+
         modelContext.insert(transaction)
         try? modelContext.save()
-        
+
         dismiss()
     }
-    
+
     // MARK: - Helpers
-    
+
     private var currencySymbol: String {
         switch settings.defaultCurrency {
         case "USD": return "$"
@@ -408,32 +587,67 @@ struct AddTransactionSheet: View {
         default: return "₽"
         }
     }
+
+    private func categoryDisplayName(for category: CategoryModel) -> String {
+        if let parent = category.parent {
+            return "\(parent.name) › \(category.name)"
+        }
+        return category.name
+    }
+
+    private var aiSuggestedCategoryDisplayName: String {
+        guard let name = aiSuggestedCategoryName else { return "" }
+        if let parentName = prefill?.categoryParentName {
+            return "\(parentName) › \(name)"
+        }
+        return name
+    }
 }
 
 // MARK: - Preview
 
-#Preview("Добавить транзакцию — тёмная") {
+#Preview("Ручная — тёмная") {
     AddTransactionSheet()
         .environmentObject(AppSettings())
         .modelContainer(for: [
-            TransactionModel.self,
-            CategoryModel.self,
-            CounterpartModel.self,
-            DebtModel.self,
-            DebtPaymentModel.self,
+            TransactionModel.self, CategoryModel.self, CounterpartModel.self, DebtModel.self, DebtPaymentModel.self
         ], inMemory: true)
         .preferredColorScheme(.dark)
 }
 
-#Preview("Добавить транзакцию — светлая") {
+#Preview("Ручная — светлая") {
     AddTransactionSheet()
         .environmentObject(AppSettings())
         .modelContainer(for: [
-            TransactionModel.self,
-            CategoryModel.self,
-            CounterpartModel.self,
-            DebtModel.self,
-            DebtPaymentModel.self,
+            TransactionModel.self, CategoryModel.self, CounterpartModel.self, DebtModel.self, DebtPaymentModel.self
         ], inMemory: true)
         .preferredColorScheme(.light)
+}
+
+#Preview("AI — тёмная ✨") {
+    AddTransactionSheet(prefill: AiParseResult(
+        status: .ok, type: "expense", amount: 500, currency: "RUB", date: "2026-04-03",
+        rawText: "потратил 500 на обед", categoryId: nil, categoryName: "Кафе и рестораны",
+        categoryIsNew: true, categoryIcon: "🍽️", categoryParentName: nil, categoryParentId: nil, categoryParentIcon: nil,
+        counterpartId: nil, counterpartName: nil, counterpartIsNew: nil, message: nil
+    ))
+    .environmentObject(AppSettings())
+    .modelContainer(for: [
+        TransactionModel.self, CategoryModel.self, CounterpartModel.self, DebtModel.self, DebtPaymentModel.self
+    ], inMemory: true)
+    .preferredColorScheme(.dark)
+}
+
+#Preview("AI — светлая ✨") {
+    AddTransactionSheet(prefill: AiParseResult(
+        status: .ok, type: "expense", amount: 500, currency: "RUB", date: "2026-04-03",
+        rawText: "потратил 500 на обед", categoryId: nil, categoryName: "Кафе и рестораны",
+        categoryIsNew: true, categoryIcon: "🍽️", categoryParentName: nil, categoryParentId: nil, categoryParentIcon: nil,
+        counterpartId: nil, counterpartName: nil, counterpartIsNew: nil, message: nil
+    ))
+    .environmentObject(AppSettings())
+    .modelContainer(for: [
+        TransactionModel.self, CategoryModel.self, CounterpartModel.self, DebtModel.self, DebtPaymentModel.self
+    ], inMemory: true)
+    .preferredColorScheme(.light)
 }

@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # AiTunnel AI (OpenAI-совместимый прокси → Gemini)
     AITUNNEL_API_KEY: str = ""
     AITUNNEL_BASE_URL: str = "https://api.aitunnel.ru/v1/"
-    AI_MODEL: str = "gemini-3.1-flash-lite-preview"
+    AI_MODEL: str  # Обязательно задать в .env
 
     # База данных
     DATABASE_URL: str = "sqlite+aiosqlite:///./monpapa.db"

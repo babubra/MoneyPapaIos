@@ -137,46 +137,93 @@ async def _check_and_increment_audio_limit(device: Device, db: AsyncSession) -> 
 
 # ── Вызов AI (OpenAI-compatible) ──────────────────────────────────
 
+def _sanitize_json(text: str) -> str:
+    """Очищает ответ AI от типичных проблем с JSON.
+
+    - Убирает markdown-обёртки (```json ... ```)
+    - Убирает trailing commas перед } и ]
+    - Убирает комментарии // ...
+    """
+    import re
+
+    # Убираем markdown-обёртки
+    text = text.strip()
+    if text.startswith("```"):
+        # Убираем первую строку (```json) и последнюю (```)
+        lines = text.split("\n")
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines)
+
+    # Убираем однострочные комментарии (// ...)
+    text = re.sub(r'//[^\n]*', '', text)
+
+    # Убираем trailing commas: ,} → } и ,] → ]
+    text = re.sub(r',\s*}', '}', text)
+    text = re.sub(r',\s*]', ']', text)
+
+    return text.strip()
+
+
 async def _call_ai_text(client: AsyncOpenAI, user_prompt: str) -> dict:
-    """Вызывает aitunnel.ru с текстовым промтом, возвращает распарсенный JSON."""
+    """Вызывает aitunnel.ru с текстовым промтом, возвращает распарсенный JSON.
+    При невалидном ответе — автоматический retry (до 2 попыток)."""
     if not settings.AITUNNEL_API_KEY:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="AITUNNEL_API_KEY не настроен на сервере",
         )
 
-    try:
-        response = await client.chat.completions.create(
-            model=settings.AI_MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.1,
-            response_format={"type": "json_object"},
-        )
-        text = response.choices[0].message.content.strip()
-        return json.loads(text)
+    max_retries = 2
+    last_error = None
 
-    except APIStatusError as e:
-        logger.error(f"AiTunnel API ошибка {e.status_code}: {e.message}")
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Ошибка AI-сервиса: {e.message}",
-        )
-    except json.JSONDecodeError as e:
-        logger.error(f"AI вернул невалидный JSON: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="AI вернул невалидный ответ",
-        )
-    except Exception as e:
-        logger.error(f"Неожиданная ошибка вызова AI: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Ошибка AI-сервиса: {str(e)}",
-        )
+    for attempt in range(max_retries):
+        try:
+            response = await client.chat.completions.create(
+                model=settings.AI_MODEL,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.1,
+                max_tokens=1024,
+                response_format={"type": "json_object"},
+            )
+            text = response.choices[0].message.content.strip()
+            logger.info(f"   🤖 AI raw (попытка {attempt+1}): {text[:500]}")
 
+            # Парсинг JSON
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError:
+                sanitized = _sanitize_json(text)
+                logger.warning(f"AI невалидный JSON, очистка: {text[:200]}...")
+                try:
+                    return json.loads(sanitized)
+                except json.JSONDecodeError as e:
+                    last_error = e
+                    logger.warning(f"   ⚠️ Попытка {attempt+1}/{max_retries} не удалась: {e}")
+                    continue  # retry
+
+        except APIStatusError as e:
+            logger.error(f"AiTunnel API ошибка {e.status_code}: {e.message}")
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Ошибка AI-сервиса: {e.message}",
+            )
+        except Exception as e:
+            last_error = e
+            logger.warning(f"   ⚠️ Попытка {attempt+1}/{max_retries} ошибка: {e}")
+            continue
+
+    # Все попытки исчерпаны
+    logger.error(f"AI JSON невалиден после {max_retries} попыток: {last_error}")
+    raise HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail="AI вернул невалидный ответ. Попробуйте ещё раз.",
+    )
 
 async def _call_ai_audio(client: AsyncOpenAI, audio_data: bytes, mime_type: str, user_prompt: str) -> dict:
     """Вызывает aitunnel.ru с аудио (base64) + текстовым промтом.
@@ -245,12 +292,16 @@ async def parse_text(
     db: AsyncSession = Depends(get_db),
     ai_client: AsyncOpenAI = Depends(get_ai_client),
 ):
-    """Парсит текстовое описание транзакции через Gemini (via aitunnel.ru).
+    """Парсит текстовое описание транзакции через Gemini (via aitunnel.ru)."""
+    logger.info(f"\n{'='*60}")
+    logger.info(f"📝 PARSE TEXT | device={device.device_id[:8]}... locale={body.locale}")
+    logger.info(f"   Текст: \"{body.text}\"")
+    logger.info(f"   Категории ({len(body.categories)}): {[c.name for c in body.categories]}")
+    for c in body.categories:
+        if c.ai_hint:
+            logger.info(f"      📌 {c.name} → hint: \"{c.ai_hint}\"")
+    logger.info(f"   Контрагенты ({len(body.counterparts)}): {[cp.name for cp in body.counterparts]}")
 
-    Принимает текст + список категорий/контрагентов от клиента.
-    Возвращает структурированный JSON для preview-экрана iOS.
-    Лимит: 50 запросов/день на устройство.
-    """
     if len(body.text) > settings.AI_MAX_TEXT_LENGTH:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -264,9 +315,15 @@ async def parse_text(
         categories=[c.model_dump() for c in body.categories],
         counterparts=[cp.model_dump() for cp in body.counterparts],
         today=_today_str(),
+        locale=body.locale,
     )
 
-    return await _call_ai_text(ai_client, user_prompt)
+    result = await _call_ai_text(ai_client, user_prompt)
+    logger.info(f"   ✅ Результат: status={result.get('status')} type={result.get('type')} "
+                f"amount={result.get('amount')} cat=\"{result.get('category_name')}\" "
+                f"cat_id={result.get('category_id')} new={result.get('category_is_new')}")
+    logger.info(f"{'='*60}\n")
+    return result
 
 
 @router.post("/parse-audio", summary="Парсинг голосовой транзакции")
@@ -274,6 +331,7 @@ async def parse_audio(
     audio: UploadFile = File(..., description="Аудиофайл (m4a, wav, webm)"),
     categories: str = Form(default="[]", description="JSON-массив категорий"),
     counterparts: str = Form(default="[]", description="JSON-массив контрагентов"),
+    locale: str = Form(default="ru", description="Языковая локаль клиента"),
     device: Device = Depends(require_device),
     db: AsyncSession = Depends(get_db),
     ai_client: AsyncOpenAI = Depends(get_ai_client),
@@ -283,6 +341,10 @@ async def parse_audio(
     Принимает аудиофайл + категории/контрагенты как multipart/form-data.
     Лимит: 5 аудио-запросов/час на устройство.
     """
+    logger.info(f"\n{'='*60}")
+    logger.info(f"🎤 PARSE AUDIO | device={device.device_id[:8]}... locale={locale}")
+    logger.info(f"   Файл: {audio.filename}, size={audio.size}, type={audio.content_type}")
+
     await _check_and_increment_audio_limit(device, db)
 
     audio_data = await audio.read()
@@ -297,11 +359,21 @@ async def parse_audio(
             detail="Невалидный JSON в categories или counterparts",
         )
 
+    logger.info(f"   Категории ({len(categories_list)}): {[c.get('name') for c in categories_list]}")
+    for c in categories_list:
+        if c.get("ai_hint"):
+            logger.info(f"      📌 {c.get('name')} → hint: \"{c.get('ai_hint')}\"")
+
     user_prompt = build_ai_prompt(
         user_text="[аудиозапись — расшифруй и распарси]",
         categories=categories_list,
         counterparts=counterparts_list,
         today=_today_str(),
+        locale=locale,
     )
 
-    return await _call_ai_audio(ai_client, audio_data, mime_type, user_prompt)
+    result = await _call_ai_audio(ai_client, audio_data, mime_type, user_prompt)
+    logger.info(f"   ✅ Результат: status={result.get('status')} type={result.get('type')} "
+                f"amount={result.get('amount')} cat=\"{result.get('category_name')}\"")
+    logger.info(f"{'='*60}\n")
+    return result

@@ -10,9 +10,22 @@
 		084B67782F708C5C0020CD52 /* Monpapa.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Monpapa.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		08788B352F817F4D001B359A /* Exceptions for "Monpapa" folder in "Monpapa" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 084B67772F708C5C0020CD52 /* Monpapa */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		084B677A2F708C5C0020CD52 /* Monpapa */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				08788B352F817F4D001B359A /* Exceptions for "Monpapa" folder in "Monpapa" target */,
+			);
 			path = Monpapa;
 			sourceTree = "<group>";
 		};
@@ -252,6 +265,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Monpapa/Info.plist;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "MonPapa использует микрофон для голосового ввода транзакций";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -295,6 +310,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Monpapa/Info.plist;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "MonPapa использует микрофон для голосового ввода транзакций";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;

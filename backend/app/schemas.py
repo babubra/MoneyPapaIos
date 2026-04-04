@@ -38,6 +38,7 @@ class ParseTextRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=500)
     categories: list[CategoryContext] = Field(default_factory=list)
     counterparts: list[CounterpartContext] = Field(default_factory=list)
+    locale: str = Field(default="ru", max_length=5, description="Языковая локаль клиента (ru, en, de, ...)")
 
 
 class RateLimitInfo(BaseModel):

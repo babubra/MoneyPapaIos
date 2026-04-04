@@ -12,10 +12,18 @@ struct DashboardView: View {
     @Query(sort: \TransactionModel.transactionDate, order: .reverse)
     private var allTransactions: [TransactionModel]
     
+    @Query
+    private var allCategories: [CategoryModel]
+    
     @State private var aiInputText = ""
     @State private var showSettings = false
     @State private var showAddTransaction = false
     @State private var currentTime = Date()
+
+    // AI-парсинг
+    @State private var aiParseResult: AiParseResult?
+    @State private var aiErrorMessage: String?
+    @State private var showAiError = false
     
     /// Таймер для обновления часов каждую секунду
     private let clockTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -23,6 +31,18 @@ struct DashboardView: View {
     /// Последние 3 транзакции
     private var recentTransactions: [TransactionModel] {
         Array(allTransactions.prefix(3))
+    }
+    
+    /// Категории для AI (конвертируем SwiftData → DTO)
+    private var aiCategoryDTOs: [AICategoryDTO] {
+        allCategories.map { cat in
+            AICategoryDTO(
+                id: cat.persistentModelID.hashValue.description,
+                name: cat.name,
+                type: cat.typeRaw,
+                aiHint: cat.aiHint
+            )
+        }
     }
     
     /// Общий доход за текущий месяц
@@ -82,13 +102,16 @@ struct DashboardView: View {
                 // MARK: - AI Input Bar
                 AIInputBar(
                     text: $aiInputText,
-                    onSend: { message in
-                        // TODO: AI обработка текста → показать sheet с распознанной транзакцией
-                        print("📝 Отправлено: \(message)")
+                    categories: aiCategoryDTOs,
+                    onParseResult: { result in
+                        handleAIResult(result)
                     },
-                    onVoiceResult: { message in
-                        // TODO: Распознанный голос → AI парсинг → sheet
-                        print("🎤 Голос: \(message)")
+                    onVoiceResult: { result in
+                        handleAIResult(result)
+                    },
+                    onError: { error in
+                        aiErrorMessage = error
+                        showAiError = true
                     }
                 )
             }
@@ -98,6 +121,26 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $showAddTransaction) {
             AddTransactionSheet()
+        }
+        .sheet(item: $aiParseResult) { result in
+            AddTransactionSheet(prefill: result)
+        }
+        .alert("Ошибка", isPresented: $showAiError) {
+            Button("ОК", role: .cancel) {}
+        } message: {
+            Text(aiErrorMessage ?? "Неизвестная ошибка")
+        }
+    }
+
+    // MARK: - AI Обработка результата
+
+    private func handleAIResult(_ result: AiParseResult) {
+        switch result.status {
+        case .ok, .incomplete:
+            aiParseResult = result
+        case .rejected:
+            aiErrorMessage = result.message ?? "Не удалось распознать транзакцию. Попробуйте иначе."
+            showAiError = true
         }
     }
     

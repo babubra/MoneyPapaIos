@@ -31,14 +31,15 @@ struct MonpapaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            // TODO: Добавить логику авторизации (LoginView → MainTabView)
             MainTabView()
                 .preferredColorScheme(settings.preferredColorScheme)
                 .environmentObject(settings)
                 .onAppear {
-                    SeedData.seedIfNeeded(
-                        context: sharedModelContainer.mainContext
-                    )
+                    SeedData.seedIfNeeded(context: sharedModelContainer.mainContext)
+                }
+                .task {
+                    // Авторизуем устройство при запуске (получаем Bearer-токен для AI)
+                    await AIService.shared.authenticateIfNeeded()
                 }
         }
         .modelContainer(sharedModelContainer)
