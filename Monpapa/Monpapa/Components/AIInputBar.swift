@@ -3,6 +3,7 @@
 // Интегрирован AudioRecorderService для голосового ввода
 
 import SwiftUI
+import Combine
 
 // MARK: - Состояния кнопок
 
@@ -34,6 +35,18 @@ struct AIInputBar: View {
     @Namespace private var buttonAnimation
     @FocusState private var isFocused: Bool
     
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var currentHintIndex = 0
+    
+    private let aiHints = [
+        "Купил хлеб 150 рублей",
+        "Потратил 2000 на поход в кафе",
+        "Купил кофе на заправке. Выбери категорию Еда вне дома с родительской Еда",
+        "Получил 50 000 рублей премию. Запиши в категорию Зарплата.",
+        "Потратил 3000 на бензин.",
+        "Купил товаров для дома на 4500. Запиши в категорию Товары для дома."
+    ]
+    
     var body: some View {
         VStack(spacing: 0) {
             // Индикатор VAD-статуса при записи
@@ -43,44 +56,79 @@ struct AIInputBar: View {
             }
 
             HStack(alignment: .bottom, spacing: MPSpacing.xs) {
-                // Поле ввода текста (скрывается при записи)
-                if state != .recording {
-                    TextField("Потратил 500 на обед...", text: $text, axis: .vertical)
+                // Поле ввода текста (единый контейнер, который никогда не скачет по высоте)
+                ZStack(alignment: .topLeading) {
+                    
+                    // Резервируем высоту нативной формы ввода, даже при записи делаем её прозрачной
+                    // чтобы карточка не сжималась!
+                    TextField("", text: $text, axis: .vertical)
                         .font(MPTypography.input)
-                        .foregroundColor(MPColors.textPrimary)
-                        .lineLimit(1...5)
+                        .foregroundColor(state == .recording ? .clear : MPColors.textPrimary)
+                        .lineLimit(3...5)
                         .padding(.horizontal, MPSpacing.md)
                         .padding(.vertical, MPSpacing.sm)
-                        .background(MPColors.cardBackground)
-                        .cornerRadius(MPCornerRadius.lg)
+                        .disabled(state == .recording || state == .sending)
                         .overlay(
-                            RoundedRectangle(cornerRadius: MPCornerRadius.lg)
-                                .stroke(MPColors.separator, lineWidth: 1)
+                            Group {
+                                // Красивая визуализация записи поверх резерва TextField
+                                if state == .recording {
+                                    HStack(spacing: MPSpacing.md) {
+                                        // Таймер
+                                        HStack(spacing: 4) {
+                                            Circle()
+                                                .fill(Color.red)
+                                                .frame(width: 8, height: 8)
+                                                .opacity(pulseOpacity)
+                                            
+                                            Text(audioRecorder.formattedDuration)
+                                                .font(.system(size: 15, weight: .bold, design: .monospaced))
+                                                .foregroundColor(colorScheme == .dark ? .white : .black)
+                                        }
+                                        .frame(width: 55)
+                                        
+                                        // Эквалайзер (Waveform)
+                                        AIAudioWaveformView(audioLevel: audioRecorder.audioLevel)
+                                    }
+                                    .padding(.horizontal, MPSpacing.md)
+                                    // Без maxHeight: .infinity!
+                                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                                }
+                            }
                         )
-                        .focused($isFocused)
-                        .disabled(state == .sending)
-                        .transition(.move(edge: .leading).combined(with: .opacity))
-                }
-                
-                // Текст при записи
-                if state == .recording {
-                    HStack(spacing: MPSpacing.sm) {
-                        // Пульсирующий индикатор записи
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 8, height: 8)
-                            .opacity(pulseOpacity)
-                        
-                        Text(audioRecorder.formattedDuration)
-                            .font(.system(size: 17, weight: .medium, design: .monospaced))
-                            .foregroundColor(MPColors.textPrimary)
-
-                        // Визуализация уровня звука
-                        audioLevelIndicator
+                    
+                    // Анимированный плейсхолдер (уходит при записи)
+                    if text.isEmpty && state != .recording {
+                        Text(aiHints[currentHintIndex])
+                            .font(MPTypography.input)
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3))
+                            .transition(.asymmetric(insertion: .push(from: .bottom), removal: .push(from: .top)).combined(with: .opacity))
+                            .id(currentHintIndex)
+                            .padding(.horizontal, MPSpacing.md)
+                            .padding(.vertical, MPSpacing.sm)
+                            .allowsHitTesting(false)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, MPSpacing.md)
-                    .transition(.move(edge: .leading).combined(with: .opacity))
+                }
+                .background(MPColors.cardBackground)
+                .cornerRadius(MPCornerRadius.lg)
+                .overlay(
+                    RoundedRectangle(cornerRadius: MPCornerRadius.lg)
+                        .stroke(state == .recording ? AIColors.gradientColors[1].opacity(0.5) : MPColors.separator, lineWidth: 1)
+                )
+                // Свечение всей карточки (если идёт запись)
+                .shadow(
+                    color: state == .recording ? AIColors.gradientColors[1].opacity(0.3) : .clear,
+                    radius: 12, x: 0, y: 0
+                )
+                .focused($isFocused)
+                .transition(.move(edge: .leading).combined(with: .opacity))
+                .task {
+                    while !Task.isCancelled {
+                        try? await Task.sleep(nanoseconds: 15_000_000_000)
+                        guard text.isEmpty && state == .idle else { continue }
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            currentHintIndex = (currentHintIndex + 1) % aiHints.count
+                        }
+                    }
                 }
                 
                 // MARK: - Кнопки
@@ -157,7 +205,7 @@ struct AIInputBar: View {
                                 .clipShape(Circle())
                                 .matchedGeometryEffect(id: "sendButton", in: buttonAnimation)
                         }
-                        .frame(width: 56, height: 56)
+                        .frame(width: 40, height: 40)
                     }
                     .transition(.scale.combined(with: .opacity))
                     
@@ -190,33 +238,7 @@ struct AIInputBar: View {
         }
     }
 
-    // MARK: - Визуализация уровня звука
 
-    private var audioLevelIndicator: some View {
-        HStack(spacing: 2) {
-            ForEach(0..<12, id: \.self) { i in
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(barColor(for: i))
-                    .frame(width: 3, height: barHeight(for: i))
-            }
-        }
-        .frame(height: 20)
-        .animation(.easeOut(duration: 0.1), value: audioRecorder.audioLevel)
-    }
-
-    private func barHeight(for index: Int) -> CGFloat {
-        let threshold = Float(index) / 12.0
-        let active = audioRecorder.audioLevel > threshold
-        return active ? CGFloat(8 + index * 1) : 4
-    }
-
-    private func barColor(for index: Int) -> Color {
-        let threshold = Float(index) / 12.0
-        if audioRecorder.audioLevel > threshold {
-            return index < 8 ? MPColors.accentCoral : Color.red
-        }
-        return MPColors.separator
-    }
 
     // MARK: - Статус-бар записи
 
@@ -380,4 +402,70 @@ struct AIInputBar: View {
     }
     
     return PreviewWrapper()
+}
+
+
+// MARK: - AIAudioWaveformView (Анимированный эквалайзер с Apple Intelligence Glow)
+
+struct AIAudioWaveformView: View {
+    var audioLevel: Float
+    
+    // Храним 30 последних значений уровня звука для "бегущей волны"
+    @State private var history: [CGFloat] = Array(repeating: 0.05, count: 40)
+    
+    var body: some View {
+        let maxWaveHeight: CGFloat = 36
+        let barSpacing: CGFloat = 3
+        
+        // Сама форма волны (маска для градиента)
+        HStack(spacing: barSpacing) {
+            ForEach(0..<history.count, id: \.self) { i in
+                Capsule()
+                    // Динамическая высота столбика (минимум 4 пикселя)
+                    .frame(height: max(4, history[i] * maxWaveHeight))
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .frame(height: maxWaveHeight)
+        .frame(maxWidth: .infinity, alignment: .center)
+        
+        // Накладываем Apple Intelligence градиент поверх капсул
+        .overlay(
+            LinearGradient(
+                colors: AIColors.gradientColors,
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        )
+        // И маскируем градиент капсулами, чтобы он рисовался только ВНУТРИ них
+        .mask(
+            HStack(spacing: barSpacing) {
+                ForEach(0..<history.count, id: \.self) { i in
+                    Capsule()
+                        .frame(height: max(4, history[i] * maxWaveHeight))
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(height: maxWaveHeight)
+            .frame(maxWidth: .infinity, alignment: .center)
+        )
+        // Свечение самой волны (glow)
+        .shadow(color: AIColors.gradientColors[0].opacity(0.4), radius: 6, x: 0, y: 0)
+        
+        // Обновляем массив звука 20 раз в секунду
+        .onReceive(Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()) { _ in
+            withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.7)) {
+                history.removeFirst()
+                
+                // Умножаем уровень громкости, чтобы волна была более "живой" (от 0.05 до 1.0)
+                let target = min(1.0, max(0.05, CGFloat(audioLevel) * 1.5))
+                history.append(target)
+            }
+        }
+        .onAppear {
+            if history.count != 40 {
+                history = Array(repeating: 0.05, count: 40)
+            }
+        }
+    }
 }

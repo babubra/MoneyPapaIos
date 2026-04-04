@@ -18,6 +18,7 @@ struct DashboardView: View {
     @State private var aiInputText = ""
     @State private var showSettings = false
     @State private var showAddTransaction = false
+    @State private var manualTransactionType: TransactionType = .expense
     @State private var currentTime = Date()
 
     // AI-парсинг
@@ -89,8 +90,8 @@ struct DashboardView: View {
                         // MARK: - Последние операции
                         recentTransactionsSection
                         
-                        // MARK: - Кнопка «Добавить вручную»
-                        addTransactionButton
+                        // MARK: - Кнопки ручного добавления
+                        actionButtonsRow
                     }
                     .padding(.horizontal, MPSpacing.md)
                     .padding(.top, MPSpacing.sm)
@@ -120,7 +121,7 @@ struct DashboardView: View {
             SettingsPlaceholderView()
         }
         .sheet(isPresented: $showAddTransaction) {
-            AddTransactionSheet()
+            AddTransactionSheet(defaultType: manualTransactionType)
         }
         .sheet(item: $aiParseResult) { result in
             AddTransactionSheet(prefill: result)
@@ -343,30 +344,43 @@ struct DashboardView: View {
         }
     }
     
-    // MARK: - Кнопка «Добавить вручную»
+    // MARK: - Кнопки ручного добавления
     
-    private var addTransactionButton: some View {
-        Button {
-            showAddTransaction = true
-        } label: {
-            HStack(spacing: MPSpacing.sm) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 22))
-                Text("Добавить вручную")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+    private var actionButtonsRow: some View {
+        HStack(spacing: MPSpacing.sm) {
+            actionPillButton(title: "Долг", prefix: "🤝", color: MPColors.accentBlue) {
+                // TODO: Открытие экрана создания долга
+            }
+            
+            actionPillButton(title: "Доход", prefix: "➕", color: MPColors.accentGreen) {
+                manualTransactionType = .income
+                showAddTransaction = true
+            }
+            
+            actionPillButton(title: "Расход", prefix: "➖", color: MPColors.accentCoral) {
+                manualTransactionType = .expense
+                showAddTransaction = true
+            }
+        }
+    }
+    
+    private func actionPillButton(title: String, prefix: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Text(prefix)
+                    .font(.system(size: 14, weight: .bold))
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, MPSpacing.sm + 2)
+            .padding(.vertical, 12)
             .background(
                 ZStack {
                     RoundedRectangle(cornerRadius: MPCornerRadius.pill)
                         .fill(
                             LinearGradient(
-                                colors: [
-                                    MPColors.accentCoral.opacity(0.9),
-                                    MPColors.accentCoral.opacity(0.7),
-                                ],
+                                colors: [color.opacity(0.9), color.opacity(0.7)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -382,7 +396,7 @@ struct DashboardView: View {
                         )
                 }
             )
-            .shadow(color: MPColors.accentCoral.opacity(0.4), radius: 12, x: 0, y: 4)
+            .shadow(color: color.opacity(0.4), radius: 8, x: 0, y: 3)
         }
         .buttonStyle(.plain)
     }

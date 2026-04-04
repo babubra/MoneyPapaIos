@@ -6,7 +6,7 @@ import SwiftUI
 
 // MARK: - AI Gradient Colors (Apple Intelligence palette)
 
-private enum AIColors {
+enum AIColors {
     static let gradientColors: [Color] = [
         Color(red: 0.55, green: 0.35, blue: 0.95),  // Фиолетовый
         Color(red: 0.30, green: 0.55, blue: 1.00),  // Голубой

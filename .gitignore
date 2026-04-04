@@ -61,3 +61,7 @@ backend/*.log
 
 # macOS
 .DS_Store
+
+# Build logs
+*.log
+build.log

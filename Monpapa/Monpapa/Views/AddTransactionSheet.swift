@@ -13,15 +13,16 @@ struct AddTransactionSheet: View {
 
     /// Результат AI-парсинга. Если nil — обычное ручное создание.
     var prefill: AiParseResult?
-
-    /// Данные о новой категории, предложенной AI
     @State private var aiSuggestedCategoryName: String?
     @State private var aiSuggestedCategoryIcon: String?
     @State private var showAIGlow = false
 
-    // MARK: - Поля формы
+    @State private var transactionType: TransactionType
 
-    @State private var transactionType: TransactionType = .expense
+    init(prefill: AiParseResult? = nil, defaultType: TransactionType = .expense) {
+        self.prefill = prefill
+        self._transactionType = State(initialValue: defaultType)
+    }
     @State private var amountText = ""
     @State private var transactionDate = Date()
     @State private var selectedExpenseCategory: CategoryModel?
