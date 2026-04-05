@@ -1,76 +1,90 @@
 // MonPapa iOS — Настройки (Sheet)
 //
 // Открывается по нажатию на ⚙️ в заголовке DashboardView.
-// Стиль: нативный List с секциями (как старый SettingsPlaceholderView),
-// плюс новая секция «Аккаунт» с Magic Link flow.
+// Стиль: нативный List с секциями и иконками,
+// плюс вынос авторизации в отдельный Sheet (AuthCoverView).
 
 import SwiftUI
-
-// MARK: - Auth-состояние (конечный автомат)
-
-private enum FocusedField {
-    case email, pin
-}
-
-private enum AuthStep: Equatable {
-    case guest
-    case enterEmail
-    case enterPin
-    case loading
-    case authenticated
-}
-
-// MARK: - SettingsView
 
 struct SettingsView: View {
 
     @EnvironmentObject private var settings: AppSettings
     @ObservedObject private var auth = AuthService.shared
     @Environment(\.dismiss) private var dismiss
+    
+    @State private var isAuthPresented = false
 
-    // Auth flow
-    @State private var authStep: AuthStep = .guest
-    @FocusState private var focusedField: FocusedField?
-    @State private var email = ""
-    @State private var pin = ""
-    @State private var authError: String? = nil
-
-    // ─────────────────────────────────────────────
     var body: some View {
         NavigationStack {
             List {
-
-                // MARK: — Аккаунт
-                accountSection
-
+                // MARK: — Профиль (Аккаунт)
+                Section {
+                    if auth.isAuthenticated {
+                        authenticatedProfileView
+                    } else {
+                        guestProfileView
+                    }
+                }
+                
                 // MARK: — Внешний вид
-                Section("Внешний вид") {
-                    Picker("Тема", selection: $settings.appTheme) {
+                Section {
+                    pickerRow(title: "Тема", icon: "paintbrush.fill", color: .indigo, selection: $settings.appTheme) {
                         Text("Системная").tag("system")
                         Text("Светлая").tag("light")
                         Text("Тёмная").tag("dark")
                     }
-
-                    Toggle("Скрыть суммы", isOn: $settings.hideAmounts)
+                    
+                    toggleRow(title: "Скрыть суммы", icon: "eye.slash.fill", color: .gray, isOn: $settings.hideAmounts)
+                } header: {
+                    Text("Внешний вид")
                 }
-
+                
                 // MARK: — Валюта
-                Section("Валюта") {
-                    Picker("Валюта по умолчанию", selection: $settings.defaultCurrency) {
+                Section {
+                    pickerRow(title: "Валюта по умолчанию", icon: "dollarsign.circle.fill", color: .green, selection: $settings.defaultCurrency) {
                         Text("₽ Рубль").tag("RUB")
                         Text("$ Доллар").tag("USD")
                         Text("€ Евро").tag("EUR")
                     }
+                } header: {
+                    Text("Валюта")
                 }
-
-                // MARK: — Синхронизация (только для авторизованных)
+                
+                // MARK: — Синхронизация
                 if auth.isAuthenticated {
-                    syncSection
+                    Section {
+                        HStack {
+                            settingsIcon("arrow.triangle.2.circlepath", color: .blue)
+                            Text("Синхронизировано только что")
+                                .foregroundColor(.secondary)
+                        }
+                    } header: {
+                        Text("Синхронизация")
+                    }
                 }
-
+                
                 // MARK: — AI
-                Section("AI") {
-                    Toggle("Автообучение категорий", isOn: $settings.aiAutoLearn)
+                Section {
+                    toggleRow(title: "Автообучение категорий", icon: "sparkles", color: .purple, isOn: $settings.aiAutoLearn)
+                } header: {
+                    Text("Apple Intelligence")
+                } footer: {
+                    Text("Приложение будет запоминать ваши исправления, когда вы меняете предложенную ИИ категорию. Это поможет предлагать более точные категории в будущем.")
+                }
+                
+                // MARK: - Выход
+                if auth.isAuthenticated {
+                    Section {
+                        Button(role: .destructive) {
+                            withAnimation { auth.logout() }
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Text("Выйти из аккаунта")
+                                Spacer()
+                            }
+                        }
+                    }
                 }
             }
             .navigationTitle("Настройки")
@@ -81,202 +95,93 @@ struct SettingsView: View {
                         .fontWeight(.semibold)
                 }
             }
-            .onChange(of: auth.isAuthenticated) { _, newValue in
-                withAnimation {
-                    authStep = newValue ? .authenticated : .guest
-                }
-            }
-            .onAppear {
-                authStep = auth.isAuthenticated ? .authenticated : .guest
+            .sheet(isPresented: $isAuthPresented) {
+                AuthCoverView()
             }
         }
     }
-
-    // MARK: - Секция «Аккаунт»
-
-    @ViewBuilder
-    private var accountSection: some View {
-        Section {
-            switch authStep {
-            case .guest:
-                guestRow
-
-            case .enterEmail:
-                emailInputRows
-
-            case .enterPin:
-                pinInputRows
-
-            case .loading:
-                HStack {
-                    ProgressView()
-                        .tint(MPColors.accentCoral)
-                    Text("Подождите…")
+    
+    // MARK: - Подкомпоненты
+    
+    private var guestProfileView: some View {
+        Button {
+            isAuthPresented = true
+        } label: {
+            HStack(spacing: 16) {
+                Circle()
+                    .fill(Color(uiColor: .systemGray5))
+                    .frame(width: 60, height: 60)
+                    .overlay(
+                        Image(systemName: "person.crop.circle.badge.plus")
+                            .font(.system(size: 28))
+                            .foregroundColor(MPColors.accentCoral)
+                    )
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Войти в профиль")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    Text("Синхронизация и бэкап в облако")
+                        .font(.subheadline)
                         .foregroundColor(.secondary)
-                        .padding(.leading, 8)
                 }
-
-            case .authenticated:
-                authenticatedRows
             }
-        } header: {
-            Text("Аккаунт")
-        } footer: {
-            if let err = authError {
-                Text(err)
-                    .foregroundColor(.red)
-            } else if authStep == .enterEmail {
-                Text("Мы отправим 6-значный код на указанный email.")
-            } else if authStep == .enterPin {
-                Text("Введите код из письма. \(email)")
-            }
+            .padding(.vertical, 4)
         }
     }
-
-    // ── Не авторизован ────────────────────────────────────────────────
-
-    private var guestRow: some View {
-        Button {
-            withAnimation { authStep = .enterEmail }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                focusedField = .email
+    
+    private var authenticatedProfileView: some View {
+        HStack(spacing: 16) {
+            Circle()
+                .fill(MPColors.accentCoral.opacity(0.15))
+                .frame(width: 60, height: 60)
+                .overlay(
+                    Text(String(auth.userEmail?.prefix(1).uppercased() ?? "U"))
+                        .font(.title2.bold())
+                        .foregroundColor(MPColors.accentCoral)
+                )
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(auth.userEmail ?? "Аккаунт")
+                    .font(.headline)
+                    .lineLimit(1)
+                    .foregroundColor(.primary)
+                Text("Активен")
+                    .font(.subheadline)
+                    .foregroundColor(MPColors.accentGreen)
             }
-        } label: {
-            Label("Войти по email", systemImage: "envelope.fill")
-                .foregroundColor(MPColors.accentCoral)
         }
+        .padding(.vertical, 4)
     }
-
-    // ── Ввод email ────────────────────────────────────────────────────
-
-    @ViewBuilder
-    private var emailInputRows: some View {
-        #if os(iOS)
-        TextField("Email", text: $email)
-            .keyboardType(.emailAddress)
-            .autocorrectionDisabled()
-            .textInputAutocapitalization(.never)
-            .focused($focusedField, equals: .email)
-        #else
-        TextField("Email", text: $email)
-            .autocorrectionDisabled()
-            .focused($focusedField, equals: .email)
-        #endif
-
-        Button {
-            Task { await requestLink() }
-        } label: {
-            Label("Отправить код", systemImage: "paperplane.fill")
-                .foregroundColor(MPColors.accentCoral)
-        }
-        .disabled(email.trimmingCharacters(in: .whitespaces).isEmpty)
-
-        Button(role: .cancel) {
-            withAnimation { authStep = .guest; authError = nil; email = "" }
-        } label: {
-            Label("Отмена", systemImage: "xmark.circle")
-                .foregroundColor(.secondary)
-        }
+    
+    // Хелперы для красивых строк
+    
+    private func settingsIcon(_ systemName: String, color: Color) -> some View {
+        RoundedRectangle(cornerRadius: 8)
+            .fill(color)
+            .frame(width: 30, height: 30)
+            .overlay(
+                Image(systemName: systemName)
+                    .foregroundColor(.white)
+                    .font(.system(size: 14, weight: .semibold))
+            )
     }
-
-    // ── Ввод PIN ──────────────────────────────────────────────────────
-
-    @ViewBuilder
-    private var pinInputRows: some View {
-        #if os(iOS)
-        TextField("6-значный код", text: $pin)
-            .keyboardType(.numberPad)
-            .focused($focusedField, equals: .pin)
-        #else
-        TextField("6-значный код", text: $pin)
-            .focused($focusedField, equals: .pin)
-        #endif
-
-        Button {
-            Task { await verifyPin() }
-        } label: {
-            Label("Подтвердить", systemImage: "checkmark.circle.fill")
-                .foregroundColor(MPColors.accentGreen)
-        }
-        .disabled(pin.trimmingCharacters(in: .whitespaces).count != 6)
-
-        Button {
-            withAnimation { authStep = .enterEmail; authError = nil; pin = "" }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                focusedField = .pin
-            }
-        } label: {
-            Label("Назад", systemImage: "chevron.left")
-                .foregroundColor(MPColors.accentBlue)
-        }
-
-        Button {
-            Task { await requestLink() }
-        } label: {
-            Label("Отправить код повторно", systemImage: "arrow.clockwise")
-                .foregroundColor(.secondary)
-        }
-    }
-
-    // ── Авторизован ───────────────────────────────────────────────────
-
-    @ViewBuilder
-    private var authenticatedRows: some View {
+    
+    private func pickerRow<SelectionValue: Hashable, Content: View>(
+        title: String, icon: String, color: Color, selection: Binding<SelectionValue>, @ViewBuilder content: @escaping () -> Content
+    ) -> some View {
         HStack {
-            Label(auth.userEmail ?? "Аккаунт", systemImage: "checkmark.seal.fill")
-                .foregroundColor(.primary)
-            Spacer()
-            Text("Активен")
-                .foregroundColor(.secondary)
-                .font(.caption)
-        }
-
-        Button(role: .destructive) {
-            withAnimation { auth.logout() }
-        } label: {
-            Label("Выйти из аккаунта", systemImage: "rectangle.portrait.and.arrow.right")
-        }
-    }
-
-    // MARK: - Секция «Синхронизация»
-
-    private var syncSection: some View {
-        Section("Синхронизация") {
-            Label("Синхронизировано только что", systemImage: "checkmark.icloud.fill")
-                .foregroundColor(.secondary)
-        }
-    }
-
-    // MARK: - Auth логика
-
-    private func requestLink() async {
-        let trimmed = email.lowercased().trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { authError = "Введите корректный email"; return }
-
-        withAnimation { authStep = .loading; authError = nil }
-
-        do {
-            try await auth.requestMagicLink(email: trimmed)
-            withAnimation {
-                authStep = auth.isAuthenticated ? .authenticated : .enterPin
+            settingsIcon(icon, color: color)
+            Picker(title, selection: selection) {
+                content()
             }
-        } catch {
-            withAnimation { authStep = .enterEmail; authError = error.localizedDescription }
         }
     }
-
-    private func verifyPin() async {
-        let trimmedPin = pin.trimmingCharacters(in: .whitespaces)
-        let trimmedEmail = email.lowercased().trimmingCharacters(in: .whitespaces)
-        guard trimmedPin.count == 6 else { authError = "PIN-код должен содержать 6 цифр"; return }
-
-        withAnimation { authStep = .loading; authError = nil }
-
-        do {
-            try await auth.verifyPin(email: trimmedEmail, code: trimmedPin)
-            withAnimation { authStep = .authenticated }
-        } catch {
-            withAnimation { authStep = .enterPin; authError = error.localizedDescription }
+    
+    private func toggleRow(title: String, icon: String, color: Color, isOn: Binding<Bool>) -> some View {
+        HStack {
+            settingsIcon(icon, color: color)
+            Toggle(title, isOn: isOn)
         }
     }
 }

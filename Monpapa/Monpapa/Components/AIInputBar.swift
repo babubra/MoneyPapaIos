@@ -55,116 +55,9 @@ struct AIInputBar: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            HStack(alignment: .bottom, spacing: MPSpacing.xs) {
-                // Поле ввода текста (единый контейнер, который никогда не скачет по высоте)
-                ZStack(alignment: .topLeading) {
-                    
-                    // Резервируем высоту нативной формы ввода, даже при записи делаем её прозрачной
-                    // чтобы карточка не сжималась!
-                    TextField("", text: $text, axis: .vertical)
-                        .font(MPTypography.input)
-                        .foregroundColor(state == .recording ? .clear : MPColors.textPrimary)
-                        .lineLimit(3...5)
-                        .padding(.horizontal, MPSpacing.md)
-                        .padding(.vertical, MPSpacing.sm)
-                        .disabled(state == .recording || state == .sending)
-                        .overlay(
-                            Group {
-                                // Красивая визуализация записи поверх резерва TextField
-                                if state == .recording {
-                                    HStack(spacing: MPSpacing.md) {
-                                        // Таймер
-                                        HStack(spacing: 4) {
-                                            Circle()
-                                                .fill(Color.red)
-                                                .frame(width: 8, height: 8)
-                                                .opacity(pulseOpacity)
-                                            
-                                            Text(audioRecorder.formattedDuration)
-                                                .font(.system(size: 15, weight: .bold, design: .monospaced))
-                                                .foregroundColor(colorScheme == .dark ? .white : .black)
-                                        }
-                                        .frame(width: 55)
-                                        
-                                        // Эквалайзер (Waveform)
-                                        AIAudioWaveformView(audioLevel: audioRecorder.audioLevel)
-                                    }
-                                    .padding(.horizontal, MPSpacing.md)
-                                    // Без maxHeight: .infinity!
-                                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                                }
-                            }
-                        )
-                    
-                    // Анимированный плейсхолдер (уходит при записи)
-                    if text.isEmpty && state != .recording {
-                        Text(aiHints[currentHintIndex])
-                            .font(MPTypography.input)
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3))
-                            .transition(.asymmetric(insertion: .push(from: .bottom), removal: .push(from: .top)).combined(with: .opacity))
-                            .id(currentHintIndex)
-                            .padding(.horizontal, MPSpacing.md)
-                            .padding(.vertical, MPSpacing.sm)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .background(MPColors.cardBackground)
-                .cornerRadius(MPCornerRadius.lg)
-                .overlay(
-                    RoundedRectangle(cornerRadius: MPCornerRadius.lg)
-                        .stroke(state == .recording ? AIColors.gradientColors[1].opacity(0.5) : MPColors.separator, lineWidth: 1)
-                )
-                // Свечение всей карточки (если идёт запись)
-                .shadow(
-                    color: state == .recording ? AIColors.gradientColors[1].opacity(0.3) : .clear,
-                    radius: 12, x: 0, y: 0
-                )
-                .focused($isFocused)
-                .transition(.move(edge: .leading).combined(with: .opacity))
-                .task {
-                    while !Task.isCancelled {
-                        try? await Task.sleep(nanoseconds: 15_000_000_000)
-                        guard text.isEmpty && state == .idle else { continue }
-                        withAnimation(.easeInOut(duration: 0.5)) {
-                            currentHintIndex = (currentHintIndex + 1) % aiHints.count
-                        }
-                    }
-                }
-                
-                // MARK: - Кнопки
-                
-                switch state {
-                case .idle:
-                    // Кнопка микрофона
-                    Button(action: startRecording) {
-                        Image(systemName: "mic.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(width: 40, height: 40)
-                            .background(MPColors.accentCoral)
-                            .clipShape(Circle())
-                            .matchedGeometryEffect(id: "actionButton", in: buttonAnimation)
-                    }
-                    .transition(.scale.combined(with: .opacity))
-                    
-                    // Кнопка отправки
-                    Button(action: sendText) {
-                        Image(systemName: "arrow.up")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(width: 40, height: 40)
-                            .background(
-                                text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                    ? MPColors.accentCoral.opacity(0.4)
-                                    : MPColors.accentCoral
-                            )
-                            .clipShape(Circle())
-                            .matchedGeometryEffect(id: "sendButton", in: buttonAnimation)
-                    }
-                    .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .transition(.scale.combined(with: .opacity))
-                    
-                case .recording:
+            if state == .recording {
+                // MARK: - Состояние записи (полностью заменяет текстовое поле)
+                HStack(spacing: MPSpacing.md) {
                     // Кнопка отмены записи
                     Button(action: cancelRecording) {
                         Image(systemName: "xmark")
@@ -173,17 +66,29 @@ struct AIInputBar: View {
                             .frame(width: 40, height: 40)
                             .background(MPColors.cardBackground)
                             .clipShape(Circle())
-                            .overlay(
-                                Circle().stroke(MPColors.separator, lineWidth: 1)
-                            )
-                            .matchedGeometryEffect(id: "actionButton", in: buttonAnimation)
+                            .overlay(Circle().stroke(MPColors.separator, lineWidth: 1))
+                            .matchedGeometryEffect(id: "cancelButton", in: buttonAnimation)
                     }
                     .transition(.scale.combined(with: .opacity))
+                    
+                    // Таймер + Звуковая волна (по центру)
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 8, height: 8)
+                            .opacity(pulseOpacity)
+                        
+                        Text(audioRecorder.formattedDuration)
+                            .font(.system(size: 15, weight: .bold, design: .monospaced))
+                            .foregroundColor(colorScheme == .dark ? .white : .black)
+                            
+                        AIAudioWaveformView(audioLevel: audioRecorder.audioLevel)
+                    }
+                    .frame(maxWidth: .infinity)
                     
                     // Пульсирующая кнопка «Отправить запись»
                     Button(action: stopAndSend) {
                         ZStack {
-                            // Пульсирующие кольца (привязаны к уровню звука)
                             Circle()
                                 .stroke(MPColors.accentCoral.opacity(0.3), lineWidth: 2)
                                 .frame(width: 40, height: 40)
@@ -196,35 +101,126 @@ struct AIInputBar: View {
                                 .scaleEffect(1.0 + CGFloat(audioRecorder.audioLevel) * 0.5)
                                 .opacity(1.0 - Double(audioRecorder.audioLevel) * 0.3)
                             
-                            // Основная кнопка
                             Image(systemName: "arrow.up")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.white)
                                 .frame(width: 40, height: 40)
                                 .background(MPColors.accentCoral)
                                 .clipShape(Circle())
-                                .matchedGeometryEffect(id: "sendButton", in: buttonAnimation)
+                                .matchedGeometryEffect(id: "actionButton", in: buttonAnimation)
                         }
                         .frame(width: 40, height: 40)
                     }
                     .transition(.scale.combined(with: .opacity))
+                }
+                .padding(.horizontal, MPSpacing.md)
+                .padding(.vertical, MPSpacing.sm)
+                .background(MPColors.cardBackground)
+                .cornerRadius(MPCornerRadius.lg)
+                .overlay(
+                    RoundedRectangle(cornerRadius: MPCornerRadius.lg)
+                        .stroke(AIColors.gradientColors[1].opacity(0.5), lineWidth: 1)
+                )
+                .shadow(color: AIColors.gradientColors[1].opacity(0.3), radius: 12, x: 0, y: 0)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                
+            } else {
+                // MARK: - Состояние ввода текста (.idle и .sending)
+                ZStack(alignment: .bottomTrailing) {
                     
-                case .sending:
-                    // Спиннер загрузки
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .tint(.white)
-                        .frame(width: 40, height: 40)
-                        .background(MPColors.accentCoral.opacity(0.7))
-                        .clipShape(Circle())
-                        .matchedGeometryEffect(id: "sendButton", in: buttonAnimation)
-                        .transition(.scale.combined(with: .opacity))
+                    ZStack(alignment: .topLeading) {
+                        // Само поле ввода
+                        TextField("", text: $text, axis: .vertical)
+                            .font(MPTypography.input)
+                            .foregroundColor(MPColors.textPrimary)
+                            .lineLimit(3...5) // Резервируем место под 3 строки сразу
+                            .padding(.leading, MPSpacing.md)
+                            .padding(.trailing, 52) // Место под кнопку справа
+                            .padding(.top, MPSpacing.sm)
+                            .padding(.bottom, 16)
+                            .frame(minHeight: 80) // Фиксированная минимальная высота для длинных подсказок
+                            .disabled(state == .sending)
+                        
+                        // Анимированный плейсхолдер
+                        if text.isEmpty {
+                            Text(aiHints[currentHintIndex])
+                                .font(MPTypography.input)
+                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3))
+                                .transition(.asymmetric(insertion: .push(from: .bottom), removal: .push(from: .top)).combined(with: .opacity))
+                                .id(currentHintIndex)
+                                .padding(.leading, MPSpacing.md)
+                                .padding(.trailing, 52)
+                                .padding(.top, MPSpacing.sm)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    
+                    // КНОПКА внутри текстового поля
+                    Group {
+                        if state == .sending {
+                            // Спиннер загрузки
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .tint(.white)
+                                .frame(width: 40, height: 40)
+                                .background(MPColors.accentCoral.opacity(0.7))
+                                .clipShape(Circle())
+                                .matchedGeometryEffect(id: "actionButton", in: buttonAnimation)
+                                .transition(.scale.combined(with: .opacity))
+                        } else {
+                            // Кнопка-трансформер (.idle)
+                            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                // Микрофон
+                                Button(action: startRecording) {
+                                    Image(systemName: "mic.fill")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.white)
+                                        .frame(width: 40, height: 40)
+                                        .background(MPColors.accentCoral)
+                                        .clipShape(Circle())
+                                        .matchedGeometryEffect(id: "actionButton", in: buttonAnimation)
+                                }
+                                .transition(.scale.combined(with: .opacity))
+                            } else {
+                                // Стрелка
+                                Button(action: sendText) {
+                                    Image(systemName: "arrow.up")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .frame(width: 40, height: 40)
+                                        .background(MPColors.accentCoral)
+                                        .clipShape(Circle())
+                                        .matchedGeometryEffect(id: "actionButton", in: buttonAnimation)
+                                }
+                                .transition(.scale.combined(with: .opacity))
+                            }
+                        }
+                    }
+                    .padding(6) // Отступы для кнопки
+                }
+                .background(MPColors.cardBackground)
+                .cornerRadius(MPCornerRadius.lg)
+                .overlay(
+                    RoundedRectangle(cornerRadius: MPCornerRadius.lg)
+                        .stroke(MPColors.separator, lineWidth: 1)
+                )
+                .focused($isFocused)
+                .transition(.move(edge: .leading).combined(with: .opacity))
+                .task {
+                    while !Task.isCancelled {
+                        try? await Task.sleep(nanoseconds: 15_000_000_000)
+                        guard text.isEmpty && state == .idle else { continue }
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            currentHintIndex = (currentHintIndex + 1) % aiHints.count
+                        }
+                    }
                 }
             }
-            .padding(.horizontal, MPSpacing.md)
-            .padding(.vertical, MPSpacing.xs)
-            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: state)
         }
+        .padding(.horizontal, MPSpacing.md)
+        .padding(.vertical, MPSpacing.xs)
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: state)
+        
         .alert("Доступ к микрофону", isPresented: $showMicPermissionAlert) {
             Button("Открыть Настройки") {
                 audioRecorder.openSettings()

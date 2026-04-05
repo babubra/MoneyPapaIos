@@ -89,9 +89,6 @@ struct DashboardView: View {
                         
                         // MARK: - Последние операции
                         recentTransactionsSection
-                        
-                        // MARK: - Кнопки ручного добавления
-                        actionButtonsRow
                     }
                     .padding(.horizontal, MPSpacing.md)
                     .padding(.top, MPSpacing.sm)
@@ -99,6 +96,11 @@ struct DashboardView: View {
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .dismissKeyboardOnTap()
+                
+                // MARK: - Кнопки ручного добавления (всегда внизу)
+                actionButtonsRow
+                    .padding(.horizontal, MPSpacing.md)
+                    .padding(.bottom, MPSpacing.xs)
                 
                 // MARK: - AI Input Bar
                 AIInputBar(
@@ -328,18 +330,7 @@ struct DashboardView: View {
                     }
                 }
                 
-                // Ссылка «Все транзакции»
-                if allTransactions.count > 3 {
-                    Button {
-                        // TODO: Перейти на вкладку транзакций
-                    } label: {
-                        Text("Все транзакции →")
-                            .font(MPTypography.captionBold)
-                            .foregroundColor(MPColors.accentCoral)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, MPSpacing.xs)
-                    }
-                }
+                // Ссылка «Все транзакции» удалена по дизайну
             }
         }
     }

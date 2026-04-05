@@ -243,7 +243,10 @@ struct AddTransactionSheet: View {
             .padding(.vertical, MPSpacing.lg)
         }
         .onAppear {
-            focusedField = .amount
+            // Открываем клавиатуру только если сумму нужно вводить вручную
+            if prefill?.amount ?? 0 == 0 {
+                focusedField = .amount
+            }
         }
     }
     
