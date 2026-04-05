@@ -112,13 +112,23 @@ backend/
 ### Фаза 2 — Авторизация и синхронизация
 Цель: облачная синхронизация данных между устройствами.
 
-- [ ] 🔴 **Auth**: Sign in with Apple + Magic Link (архитектура, безопасность, edge cases)
-- [ ] 🔴 **DB models**: sync-ready (id, client_id, updated_at, deleted_at, user_id) — проектирование схемы
-- [ ] 🔴 **Sync endpoint**: `POST /api/v1/sync` — логика merge, конфликты
-- [ ] 🟢 **CRUD endpoints**: transactions, categories, counterparts, debts
+#### Backend (готово ✅)
+- [x] 🔴 **Auth**: Magic Link (request-link, verify-pin, verify, link-device, me, logout)
+- [x] 🔴 **DB models**: sync-ready (id, client_id, updated_at, deleted_at, user_id) — все модели
+- [x] 🔴 **Sync endpoint**: `POST /api/v1/sync` (batch LWW) + `GET /sync/changes` (delta)
+- [x] 🟢 **CRUD endpoints**: transactions, categories, counterparts, debts, settings
+
+#### iOS — Auth (в процессе 🔄)
+- [x] 🟢 **iOS: AuthService** — HTTP-клиент (requestMagicLink, verifyPin, logout, token)
+- [ ] 🟢 **iOS: SettingsView** — UI для входа по email + переключатель синхронизации
+- [ ] 🟢 **iOS: AuthService → Keychain** — перенос хранения токена из UserDefaults в Keychain
+
+#### iOS — Sync (ожидает auth ⏳)
 - [ ] 🔴 **iOS: SyncService**: фоновая синхронизация (offline queue, retry, merge)
-- [ ] 🟢 **iOS: Настройки**: включение/выключение синхронизации, вход в аккаунт
 - [ ] 🔴 **iOS: Conflict resolution**: стратегия "last write wins" — реализация и тестирование
+
+#### iOS — Прочее
+- [ ] 🔴 **Auth**: Sign in with Apple (позже, после Magic Link)
 - [ ] 🟢 **iOS: Подсказки AI**: механизм хранения, загрузки и локализации подсказок для `AIInputBar` (`aiHints`)
 
 ### Фаза 3 — Web-интерфейс
