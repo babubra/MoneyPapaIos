@@ -118,10 +118,13 @@ backend/
 - [x] 🔴 **Sync endpoint**: `POST /api/v1/sync` (batch LWW) + `GET /sync/changes` (delta)
 - [x] 🟢 **CRUD endpoints**: transactions, categories, counterparts, debts, settings
 
-#### iOS — Auth (в процессе 🔄)
+#### iOS — Auth (готово ✅)
 - [x] 🟢 **iOS: AuthService** — HTTP-клиент (requestMagicLink, verifyPin, logout, token)
-- [ ] 🟢 **iOS: SettingsView** — UI для входа по email + переключатель синхронизации
+- [x] 🟢 **iOS: SettingsView** — UI для входа по email + переключатель синхронизации (sheet из ⚙️ на Dashboard)
 - [ ] 🟢 **iOS: AuthService → Keychain** — перенос хранения токена из UserDefaults в Keychain
+
+#### Backend — фикс (готово ✅)
+- [x] 🟢 **SMTP SSL fix**: `validate_certs=False` в `aiosmtplib` — обход проблемы сертификатов Python на macOS
 
 #### iOS — Sync (ожидает auth ⏳)
 - [ ] 🔴 **iOS: SyncService**: фоновая синхронизация (offline queue, retry, merge)

@@ -3,6 +3,16 @@
 import SwiftUI
 import Combine
 
+// MARK: - AppColorScheme
+
+/// Типобезопасный enum темы приложения.
+/// Значение rawValue совпадает со строкой, хранимой в UserDefaults.
+enum AppColorScheme: String, CaseIterable {
+    case system = "system"
+    case light  = "light"
+    case dark   = "dark"
+}
+
 /// Централизованные настройки приложения.
 /// Используют UserDefaults — автоматически сохраняются.
 ///
@@ -24,6 +34,12 @@ final class AppSettings: ObservableObject {
     /// Тема приложения: "system" / "light" / "dark"
     @Published var appTheme: String {
         didSet { UserDefaults.standard.set(appTheme, forKey: "appTheme") }
+    }
+
+    /// Типобезопасный доступ к теме (для Picker в SettingsView)
+    var colorScheme: AppColorScheme {
+        get { AppColorScheme(rawValue: appTheme) ?? .system }
+        set { appTheme = newValue.rawValue }
     }
     
     // MARK: - Приватность

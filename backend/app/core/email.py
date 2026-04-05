@@ -75,6 +75,7 @@ async def send_magic_link(email: str, token: str, base_url: str = "", pin_code: 
             password=settings.SMTP_PASSWORD,
             use_tls=use_tls,
             start_tls=start_tls,
+            validate_certs=False,  # macOS: системные сертификаты Python не установлены
         )
         logger.info(f"Magic Link отправлен на {email}")
         return True

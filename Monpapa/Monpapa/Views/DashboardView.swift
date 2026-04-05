@@ -118,7 +118,7 @@ struct DashboardView: View {
             }
         }
         .sheet(isPresented: $showSettings) {
-            SettingsPlaceholderView()
+            SettingsView()
         }
         .sheet(isPresented: $showAddTransaction) {
             AddTransactionSheet(defaultType: manualTransactionType)
@@ -413,43 +413,7 @@ struct DashboardView: View {
     }
 }
 
-// MARK: - Заглушка настроек (sheet)
 
-struct SettingsPlaceholderView: View {
-    @EnvironmentObject private var settings: AppSettings
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationStack {
-            List {
-                Section("Внешний вид") {
-                    Picker("Тема", selection: $settings.appTheme) {
-                        Text("Системная").tag("system")
-                        Text("Светлая").tag("light")
-                        Text("Тёмная").tag("dark")
-                    }
-                    
-                    Toggle("Скрыть суммы", isOn: $settings.hideAmounts)
-                }
-                
-                Section("Валюта") {
-                    Picker("Валюта по умолчанию", selection: $settings.defaultCurrency) {
-                        Text("₽ Рубль").tag("RUB")
-                        Text("$ Доллар").tag("USD")
-                        Text("€ Евро").tag("EUR")
-                    }
-                }
-            }
-            .navigationTitle("Настройки")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Готово") { dismiss() }
-                }
-            }
-        }
-    }
-}
 
 // MARK: - Preview
 
