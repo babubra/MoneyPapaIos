@@ -11,8 +11,12 @@ import SwiftData
 @main
 struct MonpapaApp: App {
     @StateObject private var settings = AppSettings()
+    @StateObject private var syncService: SyncService
+    @Environment(\.scenePhase) private var scenePhase
     
-    var sharedModelContainer: ModelContainer = {
+    let sharedModelContainer: ModelContainer
+    
+    init() {
         let schema = Schema([
             CategoryModel.self,
             CounterpartModel.self,
@@ -23,17 +27,20 @@ struct MonpapaApp: App {
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
+            self.sharedModelContainer = container
+            _syncService = StateObject(wrappedValue: SyncService(modelContext: container.mainContext))
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
-    }()
+    }
 
     var body: some Scene {
         WindowGroup {
             MainTabView()
                 .preferredColorScheme(settings.preferredColorScheme)
                 .environmentObject(settings)
+                .environmentObject(syncService)
                 .onAppear {
                     SeedData.seedIfNeeded(context: sharedModelContainer.mainContext)
                 }
@@ -43,5 +50,14 @@ struct MonpapaApp: App {
                 }
         }
         .modelContainer(sharedModelContainer)
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase == .active {
+                if AuthService.shared.isAuthenticated {
+                    Task {
+                        await syncService.sync()
+                    }
+                }
+            }
+        }
     }
 }

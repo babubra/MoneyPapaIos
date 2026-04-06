@@ -5,10 +5,12 @@
 // плюс вынос авторизации в отдельный Sheet (AuthCoverView).
 
 import SwiftUI
+import SwiftData
 
 struct SettingsView: View {
 
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var syncService: SyncService
     @ObservedObject private var auth = AuthService.shared
     @Environment(\.dismiss) private var dismiss
     
@@ -55,8 +57,38 @@ struct SettingsView: View {
                     Section {
                         HStack {
                             settingsIcon("arrow.triangle.2.circlepath", color: .blue)
-                            Text("Синхронизировано только что")
-                                .foregroundColor(.secondary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Облачная синхронизация")
+                                switch syncService.status {
+                                case .idle:
+                                    Text("Готово")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                case .syncing:
+                                    Text("Синхронизация...")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                case .success(let date):
+                                    Text("Обновлено: \(date, format: .dateTime.hour().minute())")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                case .error(let msg):
+                                    Text(msg)
+                                        .font(.caption)
+                                        .foregroundColor(.red)
+                                        .lineLimit(1)
+                                }
+                            }
+                            Spacer()
+                            if syncService.status == .syncing {
+                                ProgressView()
+                            } else {
+                                Button("Sync") {
+                                    Task { await syncService.sync() }
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
                         }
                     } header: {
                         Text("Синхронизация")

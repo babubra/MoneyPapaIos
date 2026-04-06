@@ -10,6 +10,10 @@ final class CounterpartModel {
     @Attribute(.unique)
     var serverId: Int?
 
+    /// UUID для защиты от дубликатов при синхронизации
+    @Attribute(.unique)
+    var clientId: String?
+
     /// Имя: «Вася», «Тинькофф», «Мама»
     var name: String
 
@@ -21,6 +25,12 @@ final class CounterpartModel {
 
     /// Дата создания
     var createdAt: Date
+
+    /// Дата последнего обновления (для LWW sync)
+    var updatedAt: Date
+
+    /// Soft delete: nil = активен, Date = удалён
+    var deletedAt: Date?
 
     // MARK: - Связи
 
@@ -40,6 +50,8 @@ final class CounterpartModel {
         self.icon = icon
         self.aiHint = aiHint
         self.serverId = serverId
+        self.clientId = UUID().uuidString
         self.createdAt = Date()
+        self.updatedAt = Date()
     }
 }

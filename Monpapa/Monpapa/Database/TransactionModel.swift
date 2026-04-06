@@ -41,6 +41,9 @@ final class TransactionModel {
     /// Дата последнего обновления
     var updatedAt: Date
 
+    /// Soft delete: nil = активна, Date = удалена
+    var deletedAt: Date?
+
     // MARK: - Связи
 
     /// Категория (опционально)

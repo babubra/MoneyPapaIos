@@ -52,7 +52,7 @@ struct CreateCategoryView: View {
     
     // MARK: - Данные
     
-    @Query(sort: \CategoryModel.name)
+    @Query(filter: #Predicate<CategoryModel> { $0.deletedAt == nil }, sort: \CategoryModel.name)
     private var allCategories: [CategoryModel]
     
     /// Корневые категории того же типа (для выбора родителя)

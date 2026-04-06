@@ -9,10 +9,10 @@ struct DashboardView: View {
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var settings: AppSettings
     
-    @Query(sort: \TransactionModel.transactionDate, order: .reverse)
+    @Query(filter: #Predicate<TransactionModel> { $0.deletedAt == nil }, sort: \TransactionModel.transactionDate, order: .reverse)
     private var allTransactions: [TransactionModel]
     
-    @Query
+    @Query(filter: #Predicate<CategoryModel> { $0.deletedAt == nil })
     private var allCategories: [CategoryModel]
     
     @State private var aiInputText = ""

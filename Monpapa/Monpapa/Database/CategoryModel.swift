@@ -12,6 +12,10 @@ final class CategoryModel {
     @Attribute(.unique)
     var serverId: Int?
 
+    /// UUID для защиты от дубликатов при синхронизации
+    @Attribute(.unique)
+    var clientId: String?
+
     // MARK: - Данные
 
     /// Название: «Зарплата», «Продукты», «Транспорт»
@@ -28,6 +32,12 @@ final class CategoryModel {
 
     /// Дата создания
     var createdAt: Date
+
+    /// Дата последнего обновления (для LWW sync)
+    var updatedAt: Date
+
+    /// Soft delete: nil = активна, Date = удалена (не показывать в UI)
+    var deletedAt: Date?
 
     // MARK: - Связи
 
@@ -72,6 +82,8 @@ final class CategoryModel {
         self.aiHint = aiHint
         self.parent = parent
         self.serverId = serverId
+        self.clientId = UUID().uuidString
         self.createdAt = Date()
+        self.updatedAt = Date()
     }
 }

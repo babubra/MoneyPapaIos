@@ -49,6 +49,9 @@ final class DebtModel {
     /// Дата обновления
     var updatedAt: Date
 
+    /// Soft delete: nil = активен, Date = удалён
+    var deletedAt: Date?
+
     // MARK: - Связи
 
     /// Контрагент (с кем долг)
@@ -132,6 +135,10 @@ final class DebtPaymentModel {
     @Attribute(.unique)
     var serverId: Int?
 
+    /// UUID для защиты от дубликатов при синхронизации
+    @Attribute(.unique)
+    var clientId: String?
+
     /// Сумма платежа
     var amountString: String
 
@@ -143,6 +150,9 @@ final class DebtPaymentModel {
 
     /// Дата создания записи
     var createdAt: Date
+
+    /// Soft delete: nil = активен, Date = удалён
+    var deletedAt: Date?
 
     // MARK: - Связи
 
@@ -171,6 +181,7 @@ final class DebtPaymentModel {
         self.comment = comment
         self.debt = debt
         self.serverId = serverId
+        self.clientId = UUID().uuidString
         self.createdAt = Date()
     }
 }

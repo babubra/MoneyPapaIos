@@ -92,12 +92,16 @@ PROTECTED_FIELDS = {"id", "user_id", "created_at", "updated_at", "deleted_at"}
 # ── Утилиты ──────────────────────────────────────────────────────
 
 def _serialize_row(row) -> dict[str, Any]:
-    """Конвертирует SQLAlchemy-объект в словарь для JSON."""
+    """Конвертирует SQLAlchemy-объект в словарь для JSON.
+    
+    Даты нормализуются в формат RFC 3339 с 'Z' вместо '+00:00'
+    и без микросекунд — для совместимости с iOS ISO8601DateFormatter.
+    """
     result = {}
     for col in row.__table__.columns:
         value = getattr(row, col.name)
         if isinstance(value, datetime):
-            result[col.name] = value.isoformat()
+            result[col.name] = value.replace(microsecond=0).isoformat().replace("+00:00", "Z")
         elif isinstance(value, Decimal):
             result[col.name] = str(value)
         elif hasattr(value, 'isoformat'):  # date

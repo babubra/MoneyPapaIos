@@ -13,7 +13,7 @@ struct CategoryPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     
-    @Query(sort: \CategoryModel.name)
+    @Query(filter: #Predicate<CategoryModel> { $0.deletedAt == nil }, sort: \CategoryModel.name)
     private var allCategories: [CategoryModel]
     
     @State private var searchText = ""

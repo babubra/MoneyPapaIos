@@ -100,5 +100,7 @@ extension KeychainService {
         static let userEmail   = "monpapa.user.email"
         /// ID пользователя на сервере
         static let userId      = "monpapa.user.id"
+        /// Timestamp последней успешной синхронизации (ISO 8601)
+        static let lastSyncAt  = "monpapa.sync.last"
     }
 }

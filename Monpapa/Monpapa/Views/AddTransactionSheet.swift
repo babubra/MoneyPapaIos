@@ -29,7 +29,7 @@ struct AddTransactionSheet: View {
     @State private var selectedIncomeCategory: CategoryModel?
     @State private var comment = ""
 
-    @Query private var allCategories: [CategoryModel]
+    @Query(filter: #Predicate<CategoryModel> { $0.deletedAt == nil }) private var allCategories: [CategoryModel]
     
     /// Текущая категория в зависимости от выбранного типа
     private var selectedCategory: CategoryModel? {
