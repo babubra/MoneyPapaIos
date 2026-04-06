@@ -174,17 +174,11 @@ struct SettingsView: View {
             .sheet(isPresented: $isAuthPresented) {
                 AuthCoverView()
             }
-            .confirmationDialog(
-                "Удалить аккаунт?",
-                isPresented: $showDeleteConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Удалить аккаунт и все данные", role: .destructive) {
-                    performDeleteAccount()
-                }
-                Button("Отмена", role: .cancel) {}
-            } message: {
-                Text("Все транзакции, категории и настройки будут удалены безвозвратно. Это действие невозможно отменить.")
+            .sheet(isPresented: $showDeleteConfirmation) {
+                DeleteAccountConfirmView(
+                    isDeleting: $isDeletingAccount,
+                    onConfirm: { performDeleteAccount() }
+                )
             }
             .alert("Ошибка удаления", isPresented: $showDeleteError) {
                 Button("ОК", role: .cancel) {}
@@ -296,6 +290,68 @@ struct SettingsView: View {
             settingsIcon(icon, color: color)
             Toggle(title, isOn: isOn)
         }
+    }
+}
+
+// MARK: - Подтверждение удаления аккаунта (Bottom Sheet)
+
+struct DeleteAccountConfirmView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var isDeleting: Bool
+    var onConfirm: () -> Void
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 48))
+                    .foregroundColor(.red)
+                    .padding(.top, 24)
+                
+                VStack(spacing: 8) {
+                    Text("Удалить аккаунт?")
+                        .font(.title2.bold())
+                    Text("Все транзакции, категории и настройки\nбудут удалены безвозвратно.\nЭто действие невозможно отменить.")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                
+                VStack(spacing: 12) {
+                    Button {
+                        onConfirm()
+                        dismiss()
+                    } label: {
+                        Text("Удалить аккаунт и все данные")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.red)
+                            .cornerRadius(12)
+                    }
+                    .disabled(isDeleting)
+                    
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text("Отмена")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color(uiColor: .secondarySystemBackground))
+                            .cornerRadius(12)
+                    }
+                }
+                .padding(.horizontal)
+                
+                Spacer()
+            }
+        }
+        .presentationDetents([.height(340)])
+        .presentationCornerRadius(24)
+        .presentationDragIndicator(.visible)
     }
 }
 
