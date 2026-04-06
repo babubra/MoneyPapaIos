@@ -15,6 +15,11 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     
     @State private var isAuthPresented = false
+    @State private var isLoggingOut = false
+    @State private var isDeletingAccount = false
+    @State private var showDeleteConfirmation = false
+    @State private var showDeleteError = false
+    @State private var deleteErrorMessage = ""
 
     var body: some View {
         NavigationStack {
@@ -108,19 +113,53 @@ struct SettingsView: View {
                 if auth.isAuthenticated {
                     Section {
                         Button(role: .destructive) {
-                            withAnimation {
-                                // Очищаем локальные данные ПЕРЕД logout
+                            isLoggingOut = true
+                            Task {
+                                // 1. Принудительная синхронизация — push всех локальных изменений
+                                await syncService.sync()
+                                // 2. Очищаем локальные данные
                                 syncService.clearLocalData()
                                 syncService.resetSyncState()
+                                // 3. Logout
                                 auth.logout()
+                                isLoggingOut = false
                             }
                         } label: {
                             HStack {
                                 Spacer()
-                                Text("Выйти из аккаунта")
+                                if isLoggingOut {
+                                    ProgressView()
+                                        .padding(.trailing, 8)
+                                    Text("Синхронизация...")
+                                } else {
+                                    Text("Выйти из аккаунта")
+                                }
                                 Spacer()
                             }
                         }
+                        .disabled(isLoggingOut || isDeletingAccount)
+                    }
+                    
+                    // MARK: - Удалить аккаунт
+                    Section {
+                        Button(role: .destructive) {
+                            showDeleteConfirmation = true
+                        } label: {
+                            HStack {
+                                Spacer()
+                                if isDeletingAccount {
+                                    ProgressView()
+                                        .padding(.trailing, 8)
+                                    Text("Удаление...")
+                                } else {
+                                    Text("Удалить аккаунт")
+                                }
+                                Spacer()
+                            }
+                        }
+                        .disabled(isLoggingOut || isDeletingAccount)
+                    } footer: {
+                        Text("Все ваши данные будут безвозвратно удалены с сервера. Это действие невозможно отменить.")
                     }
                 }
             }
@@ -135,6 +174,43 @@ struct SettingsView: View {
             .sheet(isPresented: $isAuthPresented) {
                 AuthCoverView()
             }
+            .confirmationDialog(
+                "Удалить аккаунт?",
+                isPresented: $showDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Удалить аккаунт и все данные", role: .destructive) {
+                    performDeleteAccount()
+                }
+                Button("Отмена", role: .cancel) {}
+            } message: {
+                Text("Все транзакции, категории и настройки будут удалены безвозвратно. Это действие невозможно отменить.")
+            }
+            .alert("Ошибка удаления", isPresented: $showDeleteError) {
+                Button("ОК", role: .cancel) {}
+            } message: {
+                Text(deleteErrorMessage)
+            }
+        }
+    }
+    
+    // MARK: - Удаление аккаунта
+    
+    private func performDeleteAccount() {
+        isDeletingAccount = true
+        Task {
+            do {
+                // 1. Удаляем аккаунт на сервере (каскадно удалит все данные)
+                try await auth.deleteAccount()
+                // 2. Очищаем локальные данные
+                syncService.clearLocalData()
+                syncService.resetSyncState()
+                // auth.deleteAccount() уже вызывает logout()
+            } catch {
+                deleteErrorMessage = error.localizedDescription
+                showDeleteError = true
+            }
+            isDeletingAccount = false
         }
     }
     

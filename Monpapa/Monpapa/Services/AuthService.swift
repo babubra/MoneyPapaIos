@@ -187,6 +187,27 @@ final class AuthService: ObservableObject {
         KeychainService.delete(key: KeychainService.Keys.userId)
         print("[AuthService] 🚪 Пользователь вышел")
     }
+    
+    /// Полное удаление аккаунта на сервере + локальный logout.
+    /// Требование Apple App Store Review Guidelines 5.1.1(v).
+    func deleteAccount() async throws {
+        guard let token = userToken else {
+            throw AuthError.notAuthenticated
+        }
+        
+        let url = URL(string: "\(apiBase)/account")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let (data, response) = try await performRequest(request)
+        try validateResponse(response, data: data)
+        
+        print("[AuthService] 🗑️ Аккаунт удалён на сервере")
+        
+        // Локальный logout
+        logout()
+    }
 
     /// JWT-токен для использования в других сервисах (SyncService).
     /// Возвращает nil если пользователь не авторизован.

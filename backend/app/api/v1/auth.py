@@ -308,6 +308,35 @@ async def link_device(
     return {"message": "Устройство привязано к аккаунту", "user_id": user.id}
 
 
+@router.delete("/account", summary="Удаление аккаунта")
+async def delete_account(
+    user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Полное удаление аккаунта и всех данных пользователя.
+
+    Требование Apple App Store Review Guidelines 5.1.1(v):
+    приложение с авторизацией обязано поддерживать удаление аккаунта.
+
+    Каскадно удаляются: transactions, categories, counterparts,
+    debts, debt_payments, user_settings, devices.
+    """
+    user_id = user.id
+    user_email = user.email
+    logger.info(f"Удаление аккаунта: user_id={user_id}, email={user_email}")
+
+    # Удаляем magic codes для этого email
+    if user_email:
+        await db.execute(delete(MagicCode).where(MagicCode.email == user_email))
+
+    # Удаляем пользователя — каскад удалит все связанные данные
+    await db.delete(user)
+    await db.flush()
+
+    logger.info(f"Аккаунт удалён: user_id={user_id}, email={user_email}")
+    return {"message": "Аккаунт и все данные удалены"}
+
+
 @router.post("/logout", summary="Выход")
 async def logout():
     """Логаут — клиент удаляет токен локально."""
