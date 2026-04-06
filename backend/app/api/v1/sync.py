@@ -8,7 +8,7 @@ GET  /api/v1/sync/changes  — получить изменения с указа
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any
 
@@ -66,13 +66,105 @@ class SyncResponse(BaseModel):
 
 class SyncChangesResponse(BaseModel):
     """Ответ с изменениями с указанного времени."""
-    categories: list[dict[str, Any]] = []
-    transactions: list[dict[str, Any]] = []
-    counterparts: list[dict[str, Any]] = []
-    debts: list[dict[str, Any]] = []
-    debt_payments: list[dict[str, Any]] = []
-    settings: dict[str, Any] | None = None
+    categories: list["CategoryOut"] = []
+    transactions: list["TransactionOut"] = []
+    counterparts: list["CounterpartOut"] = []
+    debts: list["DebtOut"] = []
+    debt_payments: list["DebtPaymentOut"] = []
+    settings: "UserSettingsOut | None" = None
     server_time: datetime
+
+
+# ── Out-схемы (типизированные ответы) ─────────────────────────
+
+class CategoryOut(BaseModel):
+    """Схема категории для sync/changes."""
+    model_config = {"from_attributes": True}
+
+    id: int
+    client_id: str | None = None
+    name: str
+    type: str
+    icon: str | None = None
+    ai_hint: str | None = None
+    parent_id: int | None = None
+    updated_at: datetime
+    deleted_at: datetime | None = None
+
+
+class TransactionOut(BaseModel):
+    """Схема транзакции для sync/changes."""
+    model_config = {"from_attributes": True}
+
+    id: int
+    client_id: str | None = None
+    type: str
+    amount: Decimal
+    currency: str
+    transaction_date: date
+    comment: str | None = None
+    raw_text: str | None = None
+    category_id: int | None = None
+    updated_at: datetime
+    deleted_at: datetime | None = None
+
+
+class CounterpartOut(BaseModel):
+    """Схема контрагента для sync/changes."""
+    model_config = {"from_attributes": True}
+
+    id: int
+    client_id: str | None = None
+    name: str
+    icon: str | None = None
+    ai_hint: str | None = None
+    updated_at: datetime
+    deleted_at: datetime | None = None
+
+
+class DebtOut(BaseModel):
+    """Схема долга для sync/changes."""
+    model_config = {"from_attributes": True}
+
+    id: int
+    client_id: str | None = None
+    direction: str
+    amount: Decimal
+    paid_amount: Decimal
+    currency: str
+    debt_date: date
+    due_date: date | None = None
+    comment: str | None = None
+    raw_text: str | None = None
+    is_closed: bool
+    counterpart_id: int | None = None
+    updated_at: datetime
+    deleted_at: datetime | None = None
+
+
+class DebtPaymentOut(BaseModel):
+    """Схема платежа по долгу для sync/changes."""
+    model_config = {"from_attributes": True}
+
+    id: int
+    client_id: str | None = None
+    amount: Decimal
+    payment_date: date
+    comment: str | None = None
+    debt_id: int
+    created_at: datetime
+    deleted_at: datetime | None = None
+
+
+class UserSettingsOut(BaseModel):
+    """Схема настроек пользователя."""
+    model_config = {"from_attributes": True}
+
+    id: int
+    sync_enabled: bool
+    default_currency: str
+    theme: str
+    custom_prompt: str | None = None
 
 
 # ── Маппинг entity → модель ──────────────────────────────────────
@@ -395,28 +487,28 @@ async def get_changes(
     debt_payments = await _get_debt_payment_changes(db, user.id, since)
 
     # Настройки
-    settings_data = None
+    settings_out = None
     settings_result = await db.execute(
         select(UserSettings).where(UserSettings.user_id == user.id)
     )
     user_settings = settings_result.scalar_one_or_none()
     if user_settings:
-        settings_data = _serialize_row(user_settings)
+        settings_out = UserSettingsOut.model_validate(user_settings)
 
     return SyncChangesResponse(
-        categories=categories,
-        transactions=transactions,
-        counterparts=counterparts,
-        debts=debts,
-        debt_payments=debt_payments,
-        settings=settings_data,
+        categories=[CategoryOut.model_validate(r) for r in categories],
+        transactions=[TransactionOut.model_validate(r) for r in transactions],
+        counterparts=[CounterpartOut.model_validate(r) for r in counterparts],
+        debts=[DebtOut.model_validate(r) for r in debts],
+        debt_payments=[DebtPaymentOut.model_validate(r) for r in debt_payments],
+        settings=settings_out,
         server_time=now,
     )
 
 
 async def _get_entity_changes(
     db: AsyncSession, Model, user_id: int, since: datetime
-) -> list[dict[str, Any]]:
+):
     """Загружает записи сущности, изменённые/удалённые после since."""
     query = select(Model).where(
         Model.user_id == user_id,
@@ -426,13 +518,12 @@ async def _get_entity_changes(
         ),
     )
     result = await db.execute(query)
-    rows = result.scalars().all()
-    return [_serialize_row(r) for r in rows]
+    return result.scalars().all()
 
 
 async def _get_debt_payment_changes(
     db: AsyncSession, user_id: int, since: datetime
-) -> list[dict[str, Any]]:
+):
     """Загружает платежи по долгам, изменённые после since.
 
     DebtPayment не имеет user_id — фильтруем через debt.user_id.
@@ -446,5 +537,4 @@ async def _get_debt_payment_changes(
         )
     )
     result = await db.execute(query)
-    rows = result.scalars().all()
-    return [_serialize_row(r) for r in rows]
+    return result.scalars().all()
