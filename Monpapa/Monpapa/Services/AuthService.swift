@@ -4,6 +4,8 @@
 //
 // Не путать с device-auth в AIService — тот для анонимного AI-доступа.
 // AuthService = авторизация пользователя = доступ к синхронизации.
+//
+// Хранение: все секреты (token, email, userId) — в Keychain.
 
 import Foundation
 import Combine
@@ -40,9 +42,9 @@ final class AuthService: ObservableObject {
 
     static let shared = AuthService()
 
-    // MARK: - Ключи хранения
+    // MARK: - Устаревшие ключи UserDefaults (для миграции)
 
-    private enum Keys {
+    private enum LegacyKeys {
         static let userToken = "monpapa_user_token"
         static let userEmail = "monpapa_user_email"
         static let userId    = "monpapa_user_id"
@@ -56,21 +58,34 @@ final class AuthService: ObservableObject {
     /// Email авторизованного пользователя
     @Published private(set) var userEmail: String? = nil
 
-    // MARK: - Приватное хранение
+    // MARK: - Приватное хранение (Keychain)
 
-    /// JWT-токен пользователя (отличается от device-токена в AIService)
+    /// JWT-токен пользователя (хранится в Keychain)
     private var userToken: String? {
-        get { UserDefaults.standard.string(forKey: Keys.userToken) }
+        get { KeychainService.load(key: KeychainService.Keys.userToken) }
         set {
-            UserDefaults.standard.set(newValue, forKey: Keys.userToken)
+            if let value = newValue {
+                KeychainService.save(key: KeychainService.Keys.userToken, value: value)
+            } else {
+                KeychainService.delete(key: KeychainService.Keys.userToken)
+            }
             isAuthenticated = newValue != nil
         }
     }
 
-    /// device_id — берём тот же, что использует AIService
+    /// device_id — берём общий из Keychain (общий с AIService)
     private var deviceId: String {
-        // AIService хранит device_id под этим ключом
-        UserDefaults.standard.string(forKey: "monpapa_device_id") ?? UUID().uuidString
+        if let stored = KeychainService.load(key: KeychainService.Keys.deviceId) {
+            return stored
+        }
+        // Если AIService уже создал device_id в UserDefaults — мигрируем его
+        if let legacy = UserDefaults.standard.string(forKey: "monpapa_device_id") {
+            KeychainService.save(key: KeychainService.Keys.deviceId, value: legacy)
+            return legacy
+        }
+        let new = UUID().uuidString
+        KeychainService.save(key: KeychainService.Keys.deviceId, value: new)
+        return new
     }
 
     // MARK: - Конфигурация
@@ -88,9 +103,12 @@ final class AuthService: ObservableObject {
     // MARK: - Инициализация
 
     private init() {
-        // Восстанавливаем состояние из UserDefaults
-        self.isAuthenticated = UserDefaults.standard.string(forKey: Keys.userToken) != nil
-        self.userEmail = UserDefaults.standard.string(forKey: Keys.userEmail)
+        // Миграция: перенос данных из UserDefaults → Keychain (однократно)
+        migrateFromUserDefaults()
+
+        // Восстанавливаем состояние из Keychain
+        self.isAuthenticated = KeychainService.load(key: KeychainService.Keys.userToken) != nil
+        self.userEmail = KeychainService.load(key: KeychainService.Keys.userEmail)
     }
 
     // MARK: - Публичный API
@@ -114,10 +132,11 @@ final class AuthService: ObservableObject {
         if let devResponse = try? JSONDecoder().decode(DevModeResponse.self, from: data),
            let token = devResponse.token {
             userToken = token
-            userEmail = email.lowercased()
-            UserDefaults.standard.set(email.lowercased(), forKey: Keys.userEmail)
+            let normalizedEmail = email.lowercased()
+            userEmail = normalizedEmail
+            KeychainService.save(key: KeychainService.Keys.userEmail, value: normalizedEmail)
             if let userId = devResponse.userId {
-                UserDefaults.standard.set(userId, forKey: Keys.userId)
+                KeychainService.save(key: KeychainService.Keys.userId, value: String(userId))
             }
             print("[AuthService] ✅ DEV_MODE: пользователь авторизован напрямую")
             return
@@ -152,25 +171,52 @@ final class AuthService: ObservableObject {
 
         let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
         userToken = tokenResponse.accessToken
-        userEmail = email.lowercased()
-        UserDefaults.standard.set(email.lowercased(), forKey: Keys.userEmail)
+        let normalizedEmail = email.lowercased()
+        userEmail = normalizedEmail
+        KeychainService.save(key: KeychainService.Keys.userEmail, value: normalizedEmail)
 
         print("[AuthService] ✅ Пользователь авторизован: \(email)")
     }
 
-    /// Выход из аккаунта — очищает токен и email.
+    /// Выход из аккаунта — очищает все данные из Keychain.
     func logout() {
         userToken = nil
         userEmail = nil
-        UserDefaults.standard.removeObject(forKey: Keys.userToken)
-        UserDefaults.standard.removeObject(forKey: Keys.userEmail)
-        UserDefaults.standard.removeObject(forKey: Keys.userId)
+        KeychainService.delete(key: KeychainService.Keys.userToken)
+        KeychainService.delete(key: KeychainService.Keys.userEmail)
+        KeychainService.delete(key: KeychainService.Keys.userId)
         print("[AuthService] 🚪 Пользователь вышел")
     }
 
     /// JWT-токен для использования в других сервисах (SyncService).
     /// Возвращает nil если пользователь не авторизован.
     var token: String? { userToken }
+
+    // MARK: - Миграция UserDefaults → Keychain
+
+    /// Однократная миграция: если данные есть в UserDefaults — переносим в Keychain
+    /// и удаляем из UserDefaults (секреты не должны храниться в открытом виде).
+    private func migrateFromUserDefaults() {
+        let defaults = UserDefaults.standard
+
+        if let token = defaults.string(forKey: LegacyKeys.userToken) {
+            KeychainService.save(key: KeychainService.Keys.userToken, value: token)
+            defaults.removeObject(forKey: LegacyKeys.userToken)
+            print("[AuthService] 🔄 Мигрирован userToken → Keychain")
+        }
+
+        if let email = defaults.string(forKey: LegacyKeys.userEmail) {
+            KeychainService.save(key: KeychainService.Keys.userEmail, value: email)
+            defaults.removeObject(forKey: LegacyKeys.userEmail)
+            print("[AuthService] 🔄 Мигрирован userEmail → Keychain")
+        }
+
+        if let userId = defaults.string(forKey: LegacyKeys.userId) {
+            KeychainService.save(key: KeychainService.Keys.userId, value: userId)
+            defaults.removeObject(forKey: LegacyKeys.userId)
+            print("[AuthService] 🔄 Мигрирован userId → Keychain")
+        }
+    }
 
     // MARK: - Приватные хелперы
 

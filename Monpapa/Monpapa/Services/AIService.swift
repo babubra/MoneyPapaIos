@@ -1,6 +1,8 @@
 // MonPapa iOS — AI Service
 // HTTP-клиент для backend MonPapa API
 // Эндпоинты: POST /api/v1/auth/device, /api/v1/ai/parse, /api/v1/ai/parse-audio
+//
+// Хранение: device token и device_id — в Keychain (через KeychainService).
 
 import Foundation
 
@@ -16,8 +18,10 @@ private enum APIConfig {
     #endif
 
     static let apiVersion = "/api/v1"
-    static let tokenKey   = "monpapa_auth_token"
-    static let deviceIdKey = "monpapa_device_id"
+
+    // Устаревшие ключи UserDefaults (для миграции)
+    static let legacyTokenKey   = "monpapa_auth_token"
+    static let legacyDeviceIdKey = "monpapa_device_id"
 }
 
 // MARK: - Ошибки сервиса
@@ -73,21 +77,31 @@ struct AICounterpartDTO: Codable {
 final class AIService {
 
     static let shared = AIService()
-    private init() {}
 
-    // MARK: - Хранение токена
+    private init() {
+        // Миграция: перенос device_id и token из UserDefaults → Keychain
+        migrateFromUserDefaults()
+    }
+
+    // MARK: - Хранение токена (Keychain)
 
     private var authToken: String? {
-        get { UserDefaults.standard.string(forKey: APIConfig.tokenKey) }
-        set { UserDefaults.standard.set(newValue, forKey: APIConfig.tokenKey) }
+        get { KeychainService.load(key: KeychainService.Keys.deviceToken) }
+        set {
+            if let value = newValue {
+                KeychainService.save(key: KeychainService.Keys.deviceToken, value: value)
+            } else {
+                KeychainService.delete(key: KeychainService.Keys.deviceToken)
+            }
+        }
     }
 
     private var deviceId: String {
-        if let stored = UserDefaults.standard.string(forKey: APIConfig.deviceIdKey) {
+        if let stored = KeychainService.load(key: KeychainService.Keys.deviceId) {
             return stored
         }
         let new = UUID().uuidString
-        UserDefaults.standard.set(new, forKey: APIConfig.deviceIdKey)
+        KeychainService.save(key: KeychainService.Keys.deviceId, value: new)
         return new
     }
 
@@ -259,6 +273,25 @@ final class AIService {
 
         append("--\(boundary)--\(crlf)")
         return body
+    }
+
+    // MARK: - Миграция UserDefaults → Keychain
+
+    /// Однократная миграция: переносим device token и device_id из UserDefaults в Keychain.
+    private func migrateFromUserDefaults() {
+        let defaults = UserDefaults.standard
+
+        if let token = defaults.string(forKey: APIConfig.legacyTokenKey) {
+            KeychainService.save(key: KeychainService.Keys.deviceToken, value: token)
+            defaults.removeObject(forKey: APIConfig.legacyTokenKey)
+            print("[AIService] 🔄 Мигрирован deviceToken → Keychain")
+        }
+
+        if let deviceId = defaults.string(forKey: APIConfig.legacyDeviceIdKey) {
+            KeychainService.save(key: KeychainService.Keys.deviceId, value: deviceId)
+            defaults.removeObject(forKey: APIConfig.legacyDeviceIdKey)
+            print("[AIService] 🔄 Мигрирован deviceId → Keychain")
+        }
     }
 }
 

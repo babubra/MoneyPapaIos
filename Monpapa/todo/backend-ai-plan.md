@@ -162,7 +162,7 @@ backend/
 #### iOS — Auth (готово ✅)
 - [x] 🟢 **iOS: AuthService** — HTTP-клиент (requestMagicLink, verifyPin, logout, token)
 - [x] 🟢 **iOS: SettingsView** — UI для входа по email + переключатель синхронизации (sheet из ⚙️ на Dashboard)
-- [ ] 🟢 **iOS: AuthService → Keychain** — перенос хранения токена из UserDefaults в Keychain
+- [x] 🟢 **iOS: AuthService → Keychain** — перенос хранения токена из UserDefaults в Keychain (+ миграция + AIService)
 
 #### Backend — фикс (готово ✅)
 - [x] 🟢 **SMTP SSL fix**: `validate_certs=False` в `aiosmtplib` — обход проблемы сертификатов Python на macOS
