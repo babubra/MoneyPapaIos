@@ -191,16 +191,50 @@ final class SyncService: ObservableObject {
         await sync()
     }
     
-    /// Очистить все локальные данные (при смене аккаунта)
-    private func clearLocalData() {
+    /// Сброс состояния синхронизации (при logout)
+    /// Очищает lastSyncAt и email привязку, чтобы при следующем входе
+    /// под другим аккаунтом не было конфликтов.
+    func resetSyncState() {
+        lastSyncAt = nil
+        KeychainService.delete(key: "monpapa.sync.email")
+        status = .idle
+        print("[SyncService] ♻️ Состояние синхронизации сброшено")
+    }
+    
+    /// Очистить все локальные данные (при смене аккаунта / logout)
+    ///
+    /// Важно: `modelContext.delete(model:)` использует batch delete,
+    /// который НЕ умеет обрабатывать @Relationship constraints в SwiftData.
+    /// Поэтому удаляем записи по одной, в правильном порядке зависимостей:
+    /// 1. DebtPayments (зависят от Debts)
+    /// 2. Transactions (зависят от Categories)
+    /// 3. Debts (зависят от Counterparts)
+    /// 4. Categories (inverse → transactions)
+    /// 5. Counterparts
+    func clearLocalData() {
         do {
-            try modelContext.delete(model: TransactionModel.self)
-            try modelContext.delete(model: CategoryModel.self)
-            try modelContext.delete(model: CounterpartModel.self)
-            try modelContext.delete(model: DebtModel.self)
-            try modelContext.delete(model: DebtPaymentModel.self)
+            // DebtPayments → зависят от Debt
+            let payments = try modelContext.fetch(FetchDescriptor<DebtPaymentModel>())
+            for p in payments { modelContext.delete(p) }
+            
+            // Transactions → зависят от Category
+            let transactions = try modelContext.fetch(FetchDescriptor<TransactionModel>())
+            for tx in transactions { modelContext.delete(tx) }
+            
+            // Debts → зависят от Counterpart
+            let debts = try modelContext.fetch(FetchDescriptor<DebtModel>())
+            for d in debts { modelContext.delete(d) }
+            
+            // Categories
+            let categories = try modelContext.fetch(FetchDescriptor<CategoryModel>())
+            for c in categories { modelContext.delete(c) }
+            
+            // Counterparts
+            let counterparts = try modelContext.fetch(FetchDescriptor<CounterpartModel>())
+            for cp in counterparts { modelContext.delete(cp) }
+            
             try modelContext.save()
-            print("[SyncService] 🗑️ Локальные данные очищены")
+            print("[SyncService] 🗑️ Локальные данные очищены (\(payments.count) payments, \(transactions.count) txs, \(debts.count) debts, \(categories.count) cats, \(counterparts.count) cps)")
         } catch {
             print("[SyncService] ⚠️ Ошибка очистки: \(error)")
         }

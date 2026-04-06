@@ -108,7 +108,12 @@ struct SettingsView: View {
                 if auth.isAuthenticated {
                     Section {
                         Button(role: .destructive) {
-                            withAnimation { auth.logout() }
+                            withAnimation {
+                                // Очищаем локальные данные ПЕРЕД logout
+                                syncService.clearLocalData()
+                                syncService.resetSyncState()
+                                auth.logout()
+                            }
                         } label: {
                             HStack {
                                 Spacer()

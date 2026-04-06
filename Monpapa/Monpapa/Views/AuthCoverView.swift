@@ -3,6 +3,7 @@ import Combine
 
 struct AuthCoverView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var syncService: SyncService
     @ObservedObject private var auth = AuthService.shared
     
     @State private var email = ""
@@ -61,6 +62,8 @@ struct AuthCoverView: View {
             }
             .onChange(of: auth.isAuthenticated) { _, newValue in
                 if newValue {
+                    // Авторизация прошла — запускаем синхронизацию и закрываем экран
+                    Task { await syncService.sync() }
                     dismiss()
                 }
             }
