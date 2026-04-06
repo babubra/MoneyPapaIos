@@ -257,7 +257,14 @@ async def verify_pin(
         select(Device).where(Device.device_id == body.device_id)
     )
     device = result.scalar_one_or_none()
-    if device and device.user_id is None:
+    
+    if not device:
+        # Если устройства нет в БД (например, удалили вручную), создаём его
+        device = Device(device_id=body.device_id, user_id=user.id)
+        db.add(device)
+        await db.flush()
+        logger.info(f"Создано новое устройство {body.device_id} и привязано к {user.id}")
+    elif device.user_id is None:
         device.user_id = user.id
         await db.flush()
         logger.info(f"Устройство {body.device_id} привязано к пользователю {user.id}")
