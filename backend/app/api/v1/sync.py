@@ -509,12 +509,12 @@ async def get_changes(
 async def _get_entity_changes(
     db: AsyncSession, Model, user_id: int, since: datetime
 ):
-    """Загружает записи сущности, изменённые/удалённые после since."""
+    """Загружает записи сущности, изменённые/удалённые после since (включительно)."""
     query = select(Model).where(
         Model.user_id == user_id,
         or_(
-            Model.updated_at > since,
-            Model.deleted_at > since,
+            Model.updated_at >= since,
+            Model.deleted_at >= since,
         ),
     )
     result = await db.execute(query)
@@ -533,7 +533,7 @@ async def _get_debt_payment_changes(
         .join(Debt, DebtPayment.debt_id == Debt.id)
         .where(
             Debt.user_id == user_id,
-            DebtPayment.created_at > since,
+            DebtPayment.created_at >= since,
         )
     )
     result = await db.execute(query)

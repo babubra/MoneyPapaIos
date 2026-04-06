@@ -115,6 +115,17 @@ final class SyncService: ObservableObject {
         
         status = .syncing
         
+        // Детекция переустановки: Keychain на симуляторе сохраняется между установками.
+        // Если lastSyncAt есть, но локальных данных нет — сбрасываем для полной загрузки.
+        if lastSyncAt != nil {
+            let localTxCount = (try? modelContext.fetchCount(FetchDescriptor<TransactionModel>())) ?? 0
+            let localCatCount = (try? modelContext.fetchCount(FetchDescriptor<CategoryModel>())) ?? 0
+            if localTxCount == 0 && localCatCount == 0 {
+                print("[SyncService] 🔄 Обнаружена переустановка — сброс lastSyncAt для полной загрузки")
+                lastSyncAt = nil
+            }
+        }
+        
         do {
             let operations = try fetchLocalChanges(since: lastSyncAt)
             
