@@ -47,7 +47,9 @@ class User(Base):
     )
 
     # Связи
-    devices: Mapped[list["Device"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    # Devices: НЕ удаляем каскадом — устройство физическое, при удалении User
+    # просто отвязываем (user_id = NULL через ForeignKey ondelete="SET NULL")
+    devices: Mapped[list["Device"]] = relationship(back_populates="user", cascade="save-update, merge")
     categories: Mapped[list["Category"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     counterparts: Mapped[list["Counterpart"]] = relationship(back_populates="user", cascade="all, delete-orphan")

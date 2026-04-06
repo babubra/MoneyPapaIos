@@ -319,8 +319,11 @@ async def delete_account(
     приложение с авторизацией обязано поддерживать удаление аккаунта.
 
     Каскадно удаляются: transactions, categories, counterparts,
-    debts, debt_payments, user_settings, devices.
+    debts, debt_payments, user_settings.
+    Devices отвязываются (user_id = NULL), но НЕ удаляются.
     """
+    from sqlalchemy import update
+
     user_id = user.id
     user_email = user.email
     logger.info(f"Удаление аккаунта: user_id={user_id}, email={user_email}")
@@ -329,7 +332,12 @@ async def delete_account(
     if user_email:
         await db.execute(delete(MagicCode).where(MagicCode.email == user_email))
 
-    # Удаляем пользователя — каскад удалит все связанные данные
+    # Отвязываем devices — устройство физическое, продолжает жить
+    await db.execute(
+        update(Device).where(Device.user_id == user_id).values(user_id=None)
+    )
+
+    # Удаляем пользователя — каскад удалит все данные (кроме devices)
     await db.delete(user)
     await db.flush()
 
