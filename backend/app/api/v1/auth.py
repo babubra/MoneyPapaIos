@@ -264,10 +264,12 @@ async def verify_pin(
         db.add(device)
         await db.flush()
         logger.info(f"Создано новое устройство {body.device_id} и привязано к {user.id}")
-    elif device.user_id is None:
-        device.user_id = user.id
-        await db.flush()
-        logger.info(f"Устройство {body.device_id} привязано к пользователю {user.id}")
+    else:
+        # Устройство существует. Если оно было привязано к другому юзеру (или ни к кому), перепривязываем:
+        if device.user_id != user.id:
+            logger.info(f"Устройство {body.device_id} перепривязано от {device.user_id} к {user.id}")
+            device.user_id = user.id
+            await db.flush()
 
     # Выдаём access token
     access_token = create_access_token(subject=body.device_id)
