@@ -115,6 +115,21 @@ final class SyncService: ObservableObject {
         
         status = .syncing
         
+        // Детекция смены аккаунта: если текущий email отличается от последнего —
+        // очищаем ВСЕ локальные данные чтобы не утекли данные чужого аккаунта.
+        let currentEmail = AuthService.shared.userEmail
+        let lastSyncedEmail = KeychainService.load(key: "monpapa.sync.email")
+        
+        if let currentEmail = currentEmail, let lastEmail = lastSyncedEmail, currentEmail != lastEmail {
+            print("[SyncService] 🔄 Смена аккаунта: \(lastEmail) → \(currentEmail) — очистка локальных данных")
+            clearLocalData()
+            lastSyncAt = nil
+            KeychainService.save(key: "monpapa.sync.email", value: currentEmail)
+        } else if let currentEmail = currentEmail, lastSyncedEmail == nil {
+            // Первый sync — запоминаем email
+            KeychainService.save(key: "monpapa.sync.email", value: currentEmail)
+        }
+        
         // Детекция переустановки: Keychain на симуляторе сохраняется между установками.
         // Если lastSyncAt есть, но локальных данных нет — сбрасываем для полной загрузки.
         if lastSyncAt != nil {
@@ -174,6 +189,21 @@ final class SyncService: ObservableObject {
     func fullSync() async {
         lastSyncAt = nil
         await sync()
+    }
+    
+    /// Очистить все локальные данные (при смене аккаунта)
+    private func clearLocalData() {
+        do {
+            try modelContext.delete(model: TransactionModel.self)
+            try modelContext.delete(model: CategoryModel.self)
+            try modelContext.delete(model: CounterpartModel.self)
+            try modelContext.delete(model: DebtModel.self)
+            try modelContext.delete(model: DebtPaymentModel.self)
+            try modelContext.save()
+            print("[SyncService] 🗑️ Локальные данные очищены")
+        } catch {
+            print("[SyncService] ⚠️ Ошибка очистки: \(error)")
+        }
     }
     
     // MARK: - Push логика
