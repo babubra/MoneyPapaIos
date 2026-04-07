@@ -197,6 +197,7 @@ async def _call_ai_text(client: AsyncOpenAI, user_prompt: str) -> dict:
     max_retries = 2
     last_error = None
 
+    logger.info(f"\n{'='*20} FULL AI PROMPT {'='*20}\n[SYSTEM PROMPT]:\n{SYSTEM_PROMPT}\n\n[USER PROMPT]:\n{user_prompt}\n{'='*56}")
     for attempt in range(max_retries):
         try:
             response = await client.chat.completions.create(

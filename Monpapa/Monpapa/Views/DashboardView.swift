@@ -17,8 +17,13 @@ struct DashboardView: View {
     
     @State private var aiInputText = ""
     @State private var showSettings = false
-    @State private var showAddTransaction = false
-    @State private var manualTransactionType: TransactionType = .expense
+    
+    struct ManualTransactionParams: Identifiable {
+        let id = UUID()
+        let type: TransactionType
+    }
+    @State private var manualTransactionParams: ManualTransactionParams?
+    
     @State private var currentTime = Date()
 
     // AI-парсинг
@@ -123,8 +128,8 @@ struct DashboardView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
-        .sheet(isPresented: $showAddTransaction) {
-            AddTransactionSheet(defaultType: manualTransactionType)
+        .sheet(item: $manualTransactionParams) { params in
+            AddTransactionSheet(defaultType: params.type)
         }
         .sheet(item: $aiParseResult) { result in
             AddTransactionSheet(prefill: result)
@@ -345,13 +350,11 @@ struct DashboardView: View {
             }
             
             actionPillButton(title: "Доход", prefix: "➕", color: MPColors.accentGreen) {
-                manualTransactionType = .income
-                showAddTransaction = true
+                manualTransactionParams = ManualTransactionParams(type: .income)
             }
             
             actionPillButton(title: "Расход", prefix: "➖", color: MPColors.accentCoral) {
-                manualTransactionType = .expense
-                showAddTransaction = true
+                manualTransactionParams = ManualTransactionParams(type: .expense)
             }
         }
     }

@@ -559,7 +559,7 @@ struct AddTransactionSheet: View {
             Task {
                 await AIService.shared.sendMapping(
                     itemPhrase: itemPhrase,
-                    categoryId: chosen.clientId,
+                    categoryId: chosen.clientId ?? "",
                     categoryName: chosen.name,
                     isOverride: isOverride
                 )
@@ -654,7 +654,7 @@ struct AddTransactionSheet: View {
 #Preview("AI — тёмная ✨") {
     AddTransactionSheet(prefill: AiParseResult(
         status: .ok, type: "expense", amount: 500, currency: "RUB", date: "2026-04-03",
-        rawText: "потратил 500 на обед", categoryId: nil, categoryName: "Кафе и рестораны",
+        rawText: "потратил 500 на обед", itemPhrase: "обед", categoryId: nil, categoryName: "Кафе и рестораны",
         categoryIsNew: true, categoryIcon: "🍽️", categoryParentName: nil, categoryParentId: nil, categoryParentIcon: nil,
         counterpartId: nil, counterpartName: nil, counterpartIsNew: nil, message: nil
     ))
@@ -668,7 +668,7 @@ struct AddTransactionSheet: View {
 #Preview("AI — светлая ✨") {
     AddTransactionSheet(prefill: AiParseResult(
         status: .ok, type: "expense", amount: 500, currency: "RUB", date: "2026-04-03",
-        rawText: "потратил 500 на обед", categoryId: nil, categoryName: "Кафе и рестораны",
+        rawText: "потратил 500 на обед", itemPhrase: "обед", categoryId: nil, categoryName: "Кафе и рестораны",
         categoryIsNew: true, categoryIcon: "🍽️", categoryParentName: nil, categoryParentId: nil, categoryParentIcon: nil,
         counterpartId: nil, counterpartName: nil, counterpartIsNew: nil, message: nil
     ))

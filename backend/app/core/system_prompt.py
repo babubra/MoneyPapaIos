@@ -36,11 +36,13 @@ You may receive a list of user's learned preferences: item → category mappings
 
 # 6. item_phrase (REQUIRED in response)
 Always extract the core item/service noun phrase from the transaction text and return it as `item_phrase`.
+IMPORTANT: The `item_phrase` MUST ALWAYS be converted to its base dictionary form (Lemmatization: Nominative case, Singular form).
 Examples:
 - "купил хлеб за 400 рублей" → item_phrase: "хлеб"
+- "купил вкусную колбасу" → item_phrase: "вкусная колбаса"
 - "потратил 3000 на бензин" → item_phrase: "бензин"
 - "купил всякой мелочевки для дома на 4000" → item_phrase: "мелочевка для дома"
-- "оплатил подписку Netflix" → item_phrase: "Netflix"
+- "оплатил подписку Netflix" → item_phrase: "подписка Netflix"
 - "получил зарплату 50000" → item_phrase: "зарплата"
 
 # 7. Counterparts
