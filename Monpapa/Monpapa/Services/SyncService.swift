@@ -5,6 +5,14 @@ import Foundation
 import SwiftData
 import Combine
 
+// MARK: - Уведомление для автосинхронизации
+
+extension Notification.Name {
+    /// Постить после сохранения транзакции, категории и т.д.
+    /// SyncService подхватит и запустит sync с debounce.
+    static let dataDidChange = Notification.Name("monpapa.dataDidChange")
+}
+
 enum SyncStatus: Equatable {
     case idle
     case syncing
@@ -52,8 +60,30 @@ final class SyncService: ObservableObject {
     
     // MARK: - Инициализатор
     
+    private var syncDebounceTask: Task<Void, Never>?
+    
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
+        
+        // Подписка на автосинхронизацию с debounce 1.5 сек
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDataDidChange),
+            name: .dataDidChange,
+            object: nil
+        )
+    }
+    
+    @objc private func handleDataDidChange() {
+        // Debounce: отменяем предыдущий таск, ждём 1.5 сек тишины
+        syncDebounceTask?.cancel()
+        syncDebounceTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.5))
+            guard !Task.isCancelled else { return }
+            guard AuthService.shared.isAuthenticated else { return }
+            print("[SyncService] 🔄 Автосинхронизация после изменения данных")
+            await self.sync()
+        }
     }
     
     // MARK: - Гибкий декодер дат
@@ -142,13 +172,34 @@ final class SyncService: ObservableObject {
         }
         
         do {
-            let operations = try fetchLocalChanges(since: lastSyncAt)
+            let allOperations = try fetchLocalChanges(since: lastSyncAt)
             
             var currentServerTime: Date? = nil
-            if !operations.isEmpty {
-                let response = try await pushChanges(operations: operations, token: token)
+            
+            // Фаза 1: Push зависимости (Categories, Counterparts)
+            // Они должны получить serverId ДО отправки Transactions/Debts,
+            // чтобы FK (category_id, counterpart_id) были резолвлены.
+            let phase1 = allOperations.filter { $0.entity == "category" || $0.entity == "counterpart" }
+            if !phase1.isEmpty {
+                let response = try await pushChanges(operations: phase1, token: token)
                 updateLocalServerIds(from: response.results)
                 currentServerTime = response.serverTime
+                print("[SyncService] ✅ Push фаза 1: \(phase1.count) зависимостей")
+            }
+            
+            // Фаза 2: Push зависимые сущности (Transactions, Debts, DebtPayments)
+            // Теперь category.serverId / counterpart.serverId уже обновлены
+            let phase2Entities = Set(["transaction", "debt", "debt_payment"])
+            var phase2 = allOperations.filter { phase2Entities.contains($0.entity) }
+            
+            // Обновить FK-значения теперь когда serverId известны
+            phase2 = try refreshFKInOperations(phase2)
+            
+            if !phase2.isEmpty {
+                let response = try await pushChanges(operations: phase2, token: token)
+                updateLocalServerIds(from: response.results)
+                currentServerTime = response.serverTime
+                print("[SyncService] ✅ Push фаза 2: \(phase2.count) сущностей")
             }
             
             let changesDateStr = lastSyncAt.map { ISO8601DateFormatter().string(from: $0) } ?? "1970-01-01T00:00:00Z"
@@ -285,7 +336,9 @@ final class SyncService: ObservableObject {
                 "comment": tx.comment ?? NSNull(),
                 "raw_text": tx.rawText ?? NSNull(),
                 "transaction_date": ISO8601DateFormatter().string(from: tx.transactionDate).prefix(10),
-                "category_id": tx.category?.serverId ?? NSNull()
+                "category_id": tx.category?.serverId ?? NSNull(),
+                // Fallback: client_id категории для резолва на бэкенде
+                "category_client_id": tx.category?.clientId ?? NSNull()
             ]
             let action = tx.deletedAt != nil ? "delete" : (tx.serverId == nil ? "create" : "update")
             operations.append(SyncOperationDTO(entity: "transaction", action: action, clientId: clientId, data: data, updatedAt: tx.updatedAt))
@@ -304,7 +357,9 @@ final class SyncService: ObservableObject {
                 "debt_date": ISO8601DateFormatter().string(from: debt.debtDate).prefix(10),
                 "due_date": debt.dueDate.map { ISO8601DateFormatter().string(from: $0).prefix(10) } ?? NSNull(),
                 "is_closed": debt.isClosed,
-                "counterpart_id": debt.counterpart?.serverId ?? NSNull()
+                "counterpart_id": debt.counterpart?.serverId ?? NSNull(),
+                // Fallback: client_id контрагента для резолва на бэкенде
+                "counterpart_client_id": debt.counterpart?.clientId ?? NSNull()
             ]
             let action = debt.deletedAt != nil ? "delete" : (debt.serverId == nil ? "create" : "update")
             operations.append(SyncOperationDTO(entity: "debt", action: action, clientId: clientId, data: data, updatedAt: debt.updatedAt))
@@ -318,7 +373,9 @@ final class SyncService: ObservableObject {
                 "amount": p.amountString,
                 "payment_date": ISO8601DateFormatter().string(from: p.paymentDate).prefix(10),
                 "comment": p.comment ?? NSNull(),
-                "debt_id": p.debt?.serverId ?? NSNull()
+                "debt_id": p.debt?.serverId ?? NSNull(),
+                // Fallback: client_id долга для резолва на бэкенде
+                "debt_client_id": p.debt?.clientId ?? NSNull()
             ]
             let action = p.deletedAt != nil ? "delete" : (p.serverId == nil ? "create" : "update")
             // У платежей нет updatedAt, используем createdAt
@@ -370,6 +427,51 @@ final class SyncService: ObservableObject {
         }
     }
     
+    /// Обновляет FK-значения в операциях фазы 2 после получения serverId из фазы 1.
+    /// Перечитывает serverId у Category/Counterpart/Debt и подставляет в data.
+    private func refreshFKInOperations(_ operations: [SyncOperationDTO]) throws -> [SyncOperationDTO] {
+        return operations.map { op in
+            var data = op.data
+            
+            switch op.entity {
+            case "transaction":
+                // Обновить category_id: найти Category по clientId и взять свежий serverId
+                if let catClientId = data["category_client_id"] as? String {
+                    if let cat = try? modelContext.fetch(FetchDescriptor<CategoryModel>(
+                        predicate: #Predicate { $0.clientId == catClientId }
+                    )).first, let sid = cat.serverId {
+                        data["category_id"] = sid
+                    }
+                }
+                
+            case "debt":
+                // Обновить counterpart_id
+                if let cpClientId = data["counterpart_client_id"] as? String {
+                    if let cp = try? modelContext.fetch(FetchDescriptor<CounterpartModel>(
+                        predicate: #Predicate { $0.clientId == cpClientId }
+                    )).first, let sid = cp.serverId {
+                        data["counterpart_id"] = sid
+                    }
+                }
+                
+            case "debt_payment":
+                // Обновить debt_id
+                if let debtClientId = data["debt_client_id"] as? String {
+                    if let debt = try? modelContext.fetch(FetchDescriptor<DebtModel>(
+                        predicate: #Predicate { $0.clientId == debtClientId }
+                    )).first, let sid = debt.serverId {
+                        data["debt_id"] = sid
+                    }
+                }
+                
+            default:
+                break
+            }
+            
+            return SyncOperationDTO(entity: op.entity, action: op.action, clientId: op.clientId, data: data, updatedAt: op.updatedAt)
+        }
+    }
+    
     // MARK: - Pull логика
     
     private func pullChanges(since: String, token: String) async throws -> SyncChangesResponseDTO {
@@ -399,8 +501,11 @@ final class SyncService: ObservableObject {
         // 1. Categories
         let allCats = (try? modelContext.fetch(FetchDescriptor<CategoryModel>())) ?? []
         for catData in changes.categories {
-            guard let clientId = catData.client_id else { continue }
-            if let existing = allCats.first(where: { $0.clientId == clientId }) {
+            // Ищем по clientId или serverId (запись может прийти без client_id)
+            let existing = catData.client_id.flatMap { cid in allCats.first(where: { $0.clientId == cid }) }
+                            ?? allCats.first(where: { $0.serverId == catData.id })
+            
+            if let existing {
                 if catData.deleted_at != nil { existing.deletedAt = catData.deleted_at }
                 else {
                     existing.serverId = catData.id
@@ -409,6 +514,7 @@ final class SyncService: ObservableObject {
                     existing.icon = catData.icon
                     existing.aiHint = catData.ai_hint
                     existing.updatedAt = catData.updated_at
+                    if let cid = catData.client_id { existing.clientId = cid }
                 }
             } else if catData.deleted_at == nil {
                 let newCat = CategoryModel(
@@ -418,7 +524,7 @@ final class SyncService: ObservableObject {
                     aiHint: catData.ai_hint,
                     serverId: catData.id
                 )
-                newCat.clientId = clientId
+                if let cid = catData.client_id { newCat.clientId = cid }
                 newCat.updatedAt = catData.updated_at
                 modelContext.insert(newCat)
             }
@@ -426,7 +532,9 @@ final class SyncService: ObservableObject {
         // Восстанавливаем parent
         let updatedCats = (try? modelContext.fetch(FetchDescriptor<CategoryModel>())) ?? []
         for catData in changes.categories {
-            guard let clientId = catData.client_id, let existing = updatedCats.first(where: { $0.clientId == clientId }) else { continue }
+            let existing = catData.client_id.flatMap { cid in updatedCats.first(where: { $0.clientId == cid }) }
+                            ?? updatedCats.first(where: { $0.serverId == catData.id })
+            guard let existing else { continue }
             if let parentId = catData.parent_id {
                 existing.parent = updatedCats.first(where: { $0.serverId == parentId })
             }
@@ -435,8 +543,10 @@ final class SyncService: ObservableObject {
         // 2. Counterparts
         let allCps = (try? modelContext.fetch(FetchDescriptor<CounterpartModel>())) ?? []
         for cpData in changes.counterparts {
-            guard let clientId = cpData.client_id else { continue }
-            if let existing = allCps.first(where: { $0.clientId == clientId }) {
+            let existing = cpData.client_id.flatMap { cid in allCps.first(where: { $0.clientId == cid }) }
+                            ?? allCps.first(where: { $0.serverId == cpData.id })
+            
+            if let existing {
                 if cpData.deleted_at != nil { existing.deletedAt = cpData.deleted_at }
                 else {
                     existing.serverId = cpData.id
@@ -444,6 +554,7 @@ final class SyncService: ObservableObject {
                     existing.icon = cpData.icon
                     existing.aiHint = cpData.ai_hint
                     existing.updatedAt = cpData.updated_at
+                    if let cid = cpData.client_id { existing.clientId = cid }
                 }
             } else if cpData.deleted_at == nil {
                 let newCp = CounterpartModel(
@@ -452,17 +563,21 @@ final class SyncService: ObservableObject {
                     aiHint: cpData.ai_hint,
                     serverId: cpData.id
                 )
-                newCp.clientId = clientId
+                if let cid = cpData.client_id { newCp.clientId = cid }
                 newCp.updatedAt = cpData.updated_at
                 modelContext.insert(newCp)
             }
         }
         
         // 3. Transactions
+        // Перечитываем все категории (включая свежесозданные) для привязки
+        let allLocalCats = (try? modelContext.fetch(FetchDescriptor<CategoryModel>())) ?? []
         let allTxs = (try? modelContext.fetch(FetchDescriptor<TransactionModel>())) ?? []
         for txData in changes.transactions {
-            guard let clientId = txData.client_id else { continue }
-            if let existing = allTxs.first(where: { $0.clientId == clientId }) {
+            let existing = txData.client_id.flatMap { cid in allTxs.first(where: { $0.clientId == cid }) }
+                            ?? allTxs.first(where: { $0.serverId == txData.id })
+            
+            if let existing {
                 if txData.deleted_at != nil { existing.deletedAt = txData.deleted_at }
                 else {
                     existing.serverId = txData.id
@@ -472,8 +587,10 @@ final class SyncService: ObservableObject {
                     existing.comment = txData.comment
                     existing.rawText = txData.raw_text
                     if let txDate = txData.transaction_date { existing.transactionDate = txDate }
-                    if let catId = txData.category_id { existing.category = updatedCats.first(where: { $0.serverId == catId }) }
+                    // Привязка категории: ищем среди ВСЕХ локальных категорий по serverId
+                    if let catId = txData.category_id { existing.category = allLocalCats.first(where: { $0.serverId == catId }) }
                     existing.updatedAt = txData.updated_at
+                    if let cid = txData.client_id { existing.clientId = cid }
                 }
             } else if txData.deleted_at == nil {
                 let newTx = TransactionModel(
@@ -483,10 +600,11 @@ final class SyncService: ObservableObject {
                     transactionDate: txData.transaction_date ?? Date(),
                     comment: txData.comment,
                     rawText: txData.raw_text,
-                    category: txData.category_id.flatMap { catId in updatedCats.first(where: { $0.serverId == catId }) },
+                    // Привязка категории: ищем среди ВСЕХ локальных категорий
+                    category: txData.category_id.flatMap { catId in allLocalCats.first(where: { $0.serverId == catId }) },
                     serverId: txData.id
                 )
-                newTx.clientId = clientId
+                if let cid = txData.client_id { newTx.clientId = cid }
                 newTx.updatedAt = txData.updated_at
                 modelContext.insert(newTx)
             }
@@ -494,10 +612,12 @@ final class SyncService: ObservableObject {
         
         // 4. Debts
         let allDebts = (try? modelContext.fetch(FetchDescriptor<DebtModel>())) ?? []
-        let updatedCps = (try? modelContext.fetch(FetchDescriptor<CounterpartModel>())) ?? []
+        let allLocalCps = (try? modelContext.fetch(FetchDescriptor<CounterpartModel>())) ?? []
         for debtData in changes.debts {
-            guard let clientId = debtData.client_id else { continue }
-            if let existing = allDebts.first(where: { $0.clientId == clientId }) {
+            let existing = debtData.client_id.flatMap { cid in allDebts.first(where: { $0.clientId == cid }) }
+                            ?? allDebts.first(where: { $0.serverId == debtData.id })
+            
+            if let existing {
                 if debtData.deleted_at != nil { existing.deletedAt = debtData.deleted_at }
                 else {
                     existing.serverId = debtData.id
@@ -510,8 +630,9 @@ final class SyncService: ObservableObject {
                     if let dDate = debtData.debt_date { existing.debtDate = dDate }
                     existing.dueDate = debtData.due_date
                     existing.isClosed = debtData.is_closed
-                    if let cpId = debtData.counterpart_id { existing.counterpart = updatedCps.first(where: { $0.serverId == cpId }) }
+                    if let cpId = debtData.counterpart_id { existing.counterpart = allLocalCps.first(where: { $0.serverId == cpId }) }
                     existing.updatedAt = debtData.updated_at
+                    if let cid = debtData.client_id { existing.clientId = cid }
                 }
             } else if debtData.deleted_at == nil {
                 let newDebt = DebtModel(
@@ -522,10 +643,10 @@ final class SyncService: ObservableObject {
                     currency: debtData.currency,
                     comment: debtData.comment,
                     rawText: debtData.raw_text,
-                    counterpart: debtData.counterpart_id.flatMap { cpId in updatedCps.first(where: { $0.serverId == cpId }) },
+                    counterpart: debtData.counterpart_id.flatMap { cpId in allLocalCps.first(where: { $0.serverId == cpId }) },
                     serverId: debtData.id
                 )
-                newDebt.clientId = clientId
+                if let cid = debtData.client_id { newDebt.clientId = cid }
                 newDebt.paidAmountString = debtData.paid_amount
                 newDebt.isClosed = debtData.is_closed
                 newDebt.updatedAt = debtData.updated_at
@@ -535,27 +656,30 @@ final class SyncService: ObservableObject {
         
         // 5. DebtPayments
         let allPayments = (try? modelContext.fetch(FetchDescriptor<DebtPaymentModel>())) ?? []
-        let updatedDebts = (try? modelContext.fetch(FetchDescriptor<DebtModel>())) ?? []
+        let allLocalDebts = (try? modelContext.fetch(FetchDescriptor<DebtModel>())) ?? []
         for dpData in changes.debt_payments {
-            guard let clientId = dpData.client_id else { continue }
-            if let existing = allPayments.first(where: { $0.clientId == clientId }) {
+            let existing = dpData.client_id.flatMap { cid in allPayments.first(where: { $0.clientId == cid }) }
+                            ?? allPayments.first(where: { $0.serverId == dpData.id })
+            
+            if let existing {
                 if dpData.deleted_at != nil { existing.deletedAt = dpData.deleted_at }
                 else {
                     existing.serverId = dpData.id
                     existing.amountString = dpData.amount
                     if let pDate = dpData.payment_date { existing.paymentDate = pDate }
                     existing.comment = dpData.comment
-                    if let dbId = dpData.debt_id { existing.debt = updatedDebts.first(where: { $0.serverId == dbId }) }
+                    if let dbId = dpData.debt_id { existing.debt = allLocalDebts.first(where: { $0.serverId == dbId }) }
+                    if let cid = dpData.client_id { existing.clientId = cid }
                 }
             } else if dpData.deleted_at == nil {
                 let newDp = DebtPaymentModel(
                     amount: Decimal(string: dpData.amount) ?? 0,
                     paymentDate: dpData.payment_date ?? Date(),
                     comment: dpData.comment,
-                    debt: dpData.debt_id.flatMap { dbId in updatedDebts.first(where: { $0.serverId == dbId }) },
+                    debt: dpData.debt_id.flatMap { dbId in allLocalDebts.first(where: { $0.serverId == dbId }) },
                     serverId: dpData.id
                 )
-                newDp.clientId = clientId
+                if let cid = dpData.client_id { newDp.clientId = cid }
                 modelContext.insert(newDp)
             }
         }

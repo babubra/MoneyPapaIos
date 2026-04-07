@@ -80,22 +80,22 @@ struct CategoryPickerView: View {
                     .foregroundColor(MPColors.accentCoral)
             }
         }
-        .navigationDestination(isPresented: $showCreateCategory) {
-            CreateCategoryView(
-                initialType: transactionType,
-                onCreated: { newCategory in
-                    if newCategory.type == transactionType {
-                        selectedCategory = newCategory
-                        // Закрываем весь sheet одной анимацией вместо двух последовательных dismiss
-                        if let onDismissAll {
-                            onDismissAll()
-                        } else {
-                            dismiss()
+        .sheet(isPresented: $showCreateCategory) {
+            NavigationStack {
+                CreateCategoryView(
+                    initialType: transactionType,
+                    onCreated: { newCategory in
+                        if newCategory.type == transactionType {
+                            selectedCategory = newCategory
+                            if let onDismissAll {
+                                onDismissAll()
+                            } else {
+                                dismiss()
+                            }
                         }
                     }
-                    // Иначе — категория сохранена, но тип не совпадает — остаёмся
-                }
-            )
+                )
+            }
         }
     }
     
@@ -103,7 +103,13 @@ struct CategoryPickerView: View {
     
     private var createCategoryButton: some View {
         Button {
-            showCreateCategory = true
+            // Принудительно скрываем клавиатуру (особенно от search bar) перед пушем
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            
+            // Даем системе кадр на скрытие клавиатуры, чтобы не вызывать конфликт констрейнтов
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                showCreateCategory = true
+            }
         } label: {
             HStack(spacing: MPSpacing.sm) {
                 ZStack {

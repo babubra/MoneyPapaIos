@@ -161,7 +161,15 @@ final class AIService {
         )
         request.httpBody = try JSONEncoder().encode(body)
 
+        #if DEBUG
+        print("[AIService] 📤 parseText запрос: \"\(text)\" | категорий: \(categories.count)")
+        #endif
+
         let (data, response) = try await URLSession.shared.data(for: request)
+
+        #if DEBUG
+        print("[AIService] 📥 parseText raw response: \(String(data: data, encoding: .utf8)?.prefix(800) ?? "nil")")
+        #endif
 
         // Токен мог протухнуть → переавторизуемся и повторяем
         if let http = response as? HTTPURLResponse, http.statusCode == 401 {
@@ -171,7 +179,13 @@ final class AIService {
         }
 
         try validateResponse(response, data: data)
-        return try decode(AiParseResult.self, from: data)
+        let result = try decode(AiParseResult.self, from: data)
+        
+        #if DEBUG
+        print("[AIService] ✅ parseText результат: status=\(result.status), amount=\(result.amount ?? 0), category=\(result.categoryName ?? "nil"), isNew=\(result.categoryIsNew ?? false)")
+        #endif
+        
+        return result
     }
 
     // MARK: - AI Голосовой парсинг
@@ -209,8 +223,19 @@ final class AIService {
         )
 
         let (data, response) = try await URLSession.shared.data(for: request)
+
+        #if DEBUG
+        print("[AIService] 📥 parseAudio raw response: \(String(data: data, encoding: .utf8)?.prefix(800) ?? "nil")")
+        #endif
+
         try validateResponse(response, data: data)
-        return try decode(AiParseResult.self, from: data)
+        let result = try decode(AiParseResult.self, from: data)
+        
+        #if DEBUG
+        print("[AIService] ✅ parseAudio результат: status=\(result.status), amount=\(result.amount ?? 0), category=\(result.categoryName ?? "nil")")
+        #endif
+        
+        return result
     }
 
     // MARK: - Приватные хелперы

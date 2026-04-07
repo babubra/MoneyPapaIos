@@ -183,6 +183,73 @@ PROTECTED_FIELDS = {"id", "user_id", "created_at", "updated_at", "deleted_at"}
 
 # ── Утилиты ──────────────────────────────────────────────────────
 
+# Маппинг: FK-поле → (модель зависимости, имя user_id поля или None)
+_FK_RESOLVE_MAP: dict[str, type] = {
+    "category_id": Category,
+    "counterpart_id": Counterpart,
+    "debt_id": Debt,
+}
+
+
+async def _resolve_fk_fields(
+    db: AsyncSession, user: User, entity: str, data: dict[str, Any]
+) -> dict[str, Any]:
+    """Резолвит FK-поля, если значение — None/отсутствует, но в batch создана зависимость.
+    
+    Проблема: при batch push клиент может отправить category_id=null,
+    потому что ещё не получил serverId категории (она создаётся в том же batch).
+    
+    Решение: для каждого FK-поля, если значение отсутствует,
+    ищем связанную сущность по client_id в операциях batch.
+    Если category_id уже числовой id — не трогаем.
+    """
+    # FK-поля, релевантные для каждого entity
+    entity_fk_fields = {
+        "transaction": ["category_id"],
+        "debt": ["counterpart_id"],
+        "debt_payment": ["debt_id"],
+    }
+    
+    fk_fields = entity_fk_fields.get(entity, [])
+    if not fk_fields:
+        return data
+    
+    for fk_field in fk_fields:
+        # ВСЕГДА удаляем *_client_id из data — это вспомогательное поле,
+        # его нельзя передавать в Model(**data)
+        client_id_field = fk_field.replace("_id", "_client_id")
+        related_client_id = data.pop(client_id_field, None)
+        
+        # Если FK уже установлен (числовой ID) — резолв не нужен
+        current_value = data.get(fk_field)
+        if current_value is not None:
+            continue
+        
+        # Если нет client_id-подсказки — пропускаем
+        if not related_client_id:
+            continue
+        
+        RelatedModel = _FK_RESOLVE_MAP.get(fk_field)
+        if not RelatedModel:
+            continue
+        
+        # Ищем по client_id среди записей этого пользователя
+        fk_query = select(RelatedModel.id).where(
+            RelatedModel.client_id == related_client_id,
+        )
+        # Добавляем user_id фильтр если модель его имеет
+        if hasattr(RelatedModel, "user_id"):
+            fk_query = fk_query.where(RelatedModel.user_id == user.id)
+        
+        result = await db.execute(fk_query)
+        resolved_id = result.scalar_one_or_none()
+        if resolved_id:
+            data[fk_field] = resolved_id
+            logger.info(f"FK resolved: {fk_field} via client_id {related_client_id} → {resolved_id}")
+    
+    return data
+
+
 def _serialize_row(row) -> dict[str, Any]:
     """Конвертирует SQLAlchemy-объект в словарь для JSON.
     
@@ -334,6 +401,10 @@ async def _sync_create(
     # Подготавливаем данные
     data = {k: v for k, v in op.data.items() if k not in PROTECTED_FIELDS}
     data["client_id"] = op.client_id
+    
+    # Резолвим FK-поля через client_id (для batch-создания зависимостей)
+    data = await _resolve_fk_fields(db, user, op.entity, data)
+    
     data = _coerce_data_types(Model, data)
 
     # Привязка к пользователю
@@ -403,6 +474,10 @@ async def _sync_update(
 
     # Обновляем поля
     data = {k: v for k, v in op.data.items() if k not in PROTECTED_FIELDS}
+    
+    # Резолвим FK-поля через client_id
+    data = await _resolve_fk_fields(db, user, op.entity, data)
+    
     data = _coerce_data_types(Model, data)
     for field, value in data.items():
         if hasattr(existing, field):

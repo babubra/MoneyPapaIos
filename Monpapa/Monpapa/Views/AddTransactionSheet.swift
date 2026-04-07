@@ -304,6 +304,7 @@ struct AddTransactionSheet: View {
 
             // 🏷️ Категория
             Button {
+                focusedField = nil // Принудительно скрываем клавиатуру
                 showCategoryPicker = true
             } label: {
                 HStack(spacing: MPSpacing.sm) {
@@ -541,6 +542,9 @@ struct AddTransactionSheet: View {
 
             modelContext.insert(newCategory)
             categoryToSave = newCategory
+            #if DEBUG
+            print("[AddTransaction] 🆕 Создана AI-категория: \(suggestedName)")
+            #endif
         }
 
         // MARK: - Самообучение категорий (AI Auto-Learn)
@@ -561,6 +565,17 @@ struct AddTransactionSheet: View {
             } else {
                 chosen.aiHint = String(hint.prefix(maxHintLength))
             }
+            // Обновляем updatedAt чтобы SyncService подхватил изменение
+            chosen.updatedAt = Date()
+            #if DEBUG
+            print("[AddTransaction] 🧠 Auto-Learn: AI предложил «\(aiSuggested)», пользователь выбрал «\(chosen.name)» → hint: \(chosen.aiHint ?? "nil")")
+            #endif
+        } else {
+            #if DEBUG
+            let aiSuggested = prefill?.categoryName ?? "nil"
+            let chosenName = categoryToSave?.name ?? "nil"
+            print("[AddTransaction] ℹ️ Auto-Learn пропущен: aiSuggested=\(aiSuggested), chosen=\(chosenName), autoLearn=\(settings.aiAutoLearn)")
+            #endif
         }
 
         // TODO: Рассмотреть обязательность выбора категории перед сохранением.
@@ -578,6 +593,13 @@ struct AddTransactionSheet: View {
 
         modelContext.insert(transaction)
         try? modelContext.save()
+        
+        #if DEBUG
+        print("[AddTransaction] 💾 Транзакция сохранена: \(amountValue) \(settings.defaultCurrency), категория: \(categoryToSave?.name ?? "без категории")")
+        #endif
+        
+        // Триггер автосинхронизации
+        NotificationCenter.default.post(name: .dataDidChange, object: nil)
 
         dismiss()
     }

@@ -36,9 +36,10 @@ struct DashboardView: View {
     
     /// Категории для AI (конвертируем SwiftData → DTO)
     private var aiCategoryDTOs: [AICategoryDTO] {
-        allCategories.map { cat in
-            AICategoryDTO(
-                id: cat.persistentModelID.hashValue.description,
+        allCategories.compactMap { cat in
+            guard let clientId = cat.clientId else { return nil }
+            return AICategoryDTO(
+                id: clientId,
                 name: cat.name,
                 type: cat.typeRaw,
                 aiHint: cat.aiHint

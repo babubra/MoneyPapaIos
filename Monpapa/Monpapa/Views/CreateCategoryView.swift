@@ -107,6 +107,10 @@ struct CreateCategoryView: View {
         .navigationTitle("Новая категория")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Отмена") { dismiss() }
+                    .foregroundColor(MPColors.accentCoral)
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Создать") { saveCategory() }
                     .font(.system(size: 17, weight: .semibold))
@@ -116,9 +120,6 @@ struct CreateCategoryView: View {
         }
         .onAppear {
             categoryType = initialType
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                focusedField = .name
-            }
         }
         .alert("Ошибка", isPresented: $showSaveError) {
             Button("OK", role: .cancel) { }
@@ -403,6 +404,8 @@ struct CreateCategoryView: View {
             // Haptic — успех
             let generator = UINotificationFeedbackGenerator()
             generator.notificationOccurred(.success)
+            // Триггер автосинхронизации
+            NotificationCenter.default.post(name: .dataDidChange, object: nil)
             onCreated?(category)
             dismiss()
         } catch {
