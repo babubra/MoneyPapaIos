@@ -18,16 +18,16 @@ struct AiParseResult: Codable, Identifiable, Equatable {
     let rawText: String?        // Исходный текст
 
     // Категория
-    let categoryId: Int?
+    let categoryId: String?
     let categoryName: String?
     let categoryIsNew: Bool?
     let categoryIcon: String?       // emoji, если создаётся новая
     let categoryParentName: String?
-    let categoryParentId: Int?
+    let categoryParentId: String?
     let categoryParentIcon: String?  // emoji родительской, если тоже новая
 
     // Контрагент
-    let counterpartId: Int?
+    let counterpartId: String?
     let counterpartName: String?
     let counterpartIsNew: Bool?
 
