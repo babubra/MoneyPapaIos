@@ -21,7 +21,7 @@ struct CreateCategoryView: View {
     @State private var categoryType: TransactionType = .expense
     @State private var selectedExpenseParent: CategoryModel?
     @State private var selectedIncomeParent: CategoryModel?
-    @State private var aiHint = ""
+
     
     /// Текущий родитель в зависимости от типа
     private var selectedParent: CategoryModel? {
@@ -47,7 +47,7 @@ struct CreateCategoryView: View {
     @State private var showEmojiPicker = false
     
     private enum Field {
-        case name, aiHint
+        case name
     }
     
     // MARK: - Данные
@@ -268,31 +268,12 @@ struct CreateCategoryView: View {
         VStack(spacing: 0) {
             
             // 📂 Родительская категория
-            Menu {
-                Button {
-                    parentBinding.wrappedValue = nil
-                } label: {
-                    if selectedParent == nil {
-                        Label("Без родителя", systemImage: "checkmark")
-                    } else {
-                        Text("Без родителя")
-                    }
-                }
-                
-                ForEach(availableParents, id: \.name) { parent in
-                    Button {
-                        parentBinding.wrappedValue = parent
-                    } label: {
-                        let label = [parent.effectiveIcon, parent.name]
-                            .compactMap { $0 }
-                            .joined(separator: " ")
-                        if selectedParent?.name == parent.name {
-                            Label(label, systemImage: "checkmark")
-                        } else {
-                            Text(label)
-                        }
-                    }
-                }
+            NavigationLink {
+                CategoryPickerView(
+                    selectedCategory: parentBinding,
+                    transactionType: categoryType,
+                    isParentSelection: true
+                )
             } label: {
                 HStack(spacing: MPSpacing.sm) {
                     if let parent = selectedParent {
@@ -321,7 +302,7 @@ struct CreateCategoryView: View {
                     Spacer()
                     
                     if selectedParent == nil {
-                        Text("Выберите")
+                        Text("Без родителя")
                             .font(MPTypography.body)
                             .foregroundColor(MPColors.textSecondary)
                     }
@@ -335,38 +316,6 @@ struct CreateCategoryView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            
-            Divider()
-                .padding(.leading, MPSpacing.md)
-            
-            // 🤖 Подсказка для AI — заголовок сверху, TextEditor снизу
-            VStack(alignment: .leading, spacing: MPSpacing.xxs) {
-                Text("Подсказка для AI")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(MPColors.textSecondary)
-                    .padding(.horizontal, MPSpacing.md)
-                    .padding(.top, MPSpacing.sm)
-                
-                ZStack(alignment: .topLeading) {
-                    if aiHint.isEmpty {
-                        Text("Сюда относятся покупки в кофейнях...")
-                            .font(MPTypography.caption)
-                            .foregroundColor(MPColors.textSecondary.opacity(0.5))
-                            .padding(.horizontal, MPSpacing.md - MPSpacing.xxs)
-                            .padding(.vertical, MPSpacing.xxs + 1)
-                            .allowsHitTesting(false)
-                    }
-                    
-                    TextEditor(text: $aiHint)
-                        .font(MPTypography.caption)
-                        .foregroundColor(MPColors.textPrimary)
-                        .scrollContentBackground(.hidden)
-                        .focused($focusedField, equals: .aiHint)
-                        .frame(minHeight: 50, maxHeight: 80)
-                        .padding(.horizontal, MPSpacing.md - MPSpacing.xxs)
-                        .padding(.bottom, MPSpacing.xs)
-                }
-            }
         }
         .background(MPColors.cardBackground)
         .cornerRadius(MPCornerRadius.lg)
@@ -393,7 +342,6 @@ struct CreateCategoryView: View {
             name: trimmedName,
             type: categoryType,
             icon: icon.isEmpty ? nil : icon,
-            aiHint: aiHint.isEmpty ? nil : aiHint,
             parent: selectedParent
         )
         

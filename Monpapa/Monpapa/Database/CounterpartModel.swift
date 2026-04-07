@@ -20,8 +20,7 @@ final class CounterpartModel {
     /// Emoji: «👤», «🏦»
     var icon: String?
 
-    /// Подсказка для AI: «это мой коллега по работе»
-    var aiHint: String?
+
 
     /// Дата создания
     var createdAt: Date
@@ -43,12 +42,12 @@ final class CounterpartModel {
     init(
         name: String,
         icon: String? = nil,
-        aiHint: String? = nil,
+
         serverId: Int? = nil
     ) {
         self.name = name
         self.icon = icon
-        self.aiHint = aiHint
+
         self.serverId = serverId
         self.clientId = UUID().uuidString
         self.createdAt = Date()

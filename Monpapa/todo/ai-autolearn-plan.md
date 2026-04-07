@@ -115,7 +115,9 @@ CREATE INDEX idx_mappings_user ON category_mappings(user_id);
 2. Безупречное автообучение даже для только что созданных, ещё не синхронизированных категорий (включая многоуровневую вложенность).
 3. Избавление от "пропавших" маппингов из-за гонки потоков.
 
-- [ ] В `backend/app/api/v1/ai.py` (роут `/mapping`): убрать проверку `db.query(Category).filter(Category.client_id == body.category_id...`
+- [x] В `backend/app/api/v1/ai.py` (роут `/mapping`): убрать проверку `db.query(Category).filter(Category.client_id == body.category_id...`
+- [x] В `backend/app/db/models.py`: `category_id` изменён с `Integer FK` → `String(36)` (хранит client_id)
+- [x] SQL-миграция: FK удалён, колонка конвертирована из int → varchar(36), 16 записей мигрированы
 - [ ] Проверить сохранение: создать новую категорию, выбрать её, проверить лог — должен быть `status: ok`.
 
 ---
@@ -126,28 +128,36 @@ CREATE INDEX idx_mappings_user ON category_mappings(user_id);
 > После этого шага слово "ai_hint" не должно встречаться в кодовой базе (кроме этого плана).
 
 ### iOS:
-- [ ] Убрать `aiHint` из `AICategoryDTO` (структура для AI-запросов)
-- [ ] Убрать `aiHint` из формирования `aiCategoryDTOs` в `DashboardView.swift`
-- [ ] Убрать логику Auto-Learn (запись hint) в `AddTransactionSheet.saveTransaction()`
-- [ ] Убрать `aiHint` из `CategoryModel.swift` (SwiftData модель)
-  - ⚠️ Может потребовать миграцию SwiftData, если поле не optional
-- [ ] Поиск `grep -r "aiHint\|ai_hint" Monpapa/` — убрать все оставшиеся упоминания
+- [x] Убрать `aiHint` из `AICategoryDTO` (структура для AI-запросов)
+- [x] Убрать `aiHint` из формирования `aiCategoryDTOs` в `DashboardView.swift`
+- [x] Убрать логику Auto-Learn (запись hint) в `AddTransactionSheet.saveTransaction()` — уже удалена ранее
+- [x] Убрать `aiHint` из `CategoryModel.swift` (SwiftData модель) — поле было optional, миграция не нужна
+- [x] Убрать `aiHint` из `CounterpartModel.swift` (SwiftData модель)
+- [x] Убрать `aiHint` из `CreateCategoryView.swift` (UI секция подсказки)
+- [x] Убрать `ai_hint` из push/pull payload в `SyncService.swift`
+- [x] Убрать `ai_hint` из DTO-структур `CategoryChangeDTO`, `CounterpartChangeDTO`
+- [x] Поиск `grep -r "aiHint\|ai_hint" Monpapa/` — 0 результатов ✅
 
 ### Бэкенд:
-- [ ] Убрать `ai_hint` из `build_ai_prompt()` — категории без hints
-- [ ] Убрать `ai_hint` из `ParseTextRequest` / Pydantic-схем (если есть)
-- [ ] Убрать логирование ai_hint в `parse_text()` и `parse_audio()`
-- [ ] Поиск `grep -r "ai_hint" backend/` — убрать все оставшиеся упоминания
+- [x] Убрать `ai_hint` из `CategoryContext`, `CounterpartContext` (Pydantic)
+- [x] Убрать `ai_hint` из `CategoryCreate/Update/Response` (Pydantic)
+- [x] Убрать `ai_hint` из `CounterpartCreate/Update/Response` (Pydantic)
+- [x] Убрать `ai_hint` из `CategoryOut`, `CounterpartOut` (sync.py)
+- [x] Убрать `ai_hint` из ORM-моделей `Category`, `Counterpart` (models.py)
+- [x] Убрать `ai_hint` из `categories.py` и `counterparts.py` (CRUD)
+- [x] Убрать `ai_hint` из `check_cache.py` (тестовый скрипт)
+- [x] Поиск `grep -r "ai_hint" backend/` — 0 результатов ✅
 
 ### БД:
-- [ ] `ALTER TABLE categories DROP COLUMN IF EXISTS ai_hint;`
+- [x] `ALTER TABLE categories DROP COLUMN IF EXISTS ai_hint;`
+- [x] `ALTER TABLE counterparts DROP COLUMN IF EXISTS ai_hint;`
 
 ### Sync:
-- [ ] Убрать `ai_hint` из push/pull payload в `SyncService.swift`
-- [ ] Убрать `ai_hint` из бэкенд sync endpoint (`sync.py`)
+- [x] Убрать `ai_hint` из push/pull payload в `SyncService.swift`
+- [x] Убрать `ai_hint` из бэкенд sync endpoint (`sync.py`)
 
 **Проверка:**
-- `grep -ri "ai_hint\|aiHint" Monpapa/ backend/` — должен вернуть 0 результатов
+- `grep -ri "ai_hint\|aiHint" Monpapa/ backend/` — 0 результатов ✅
 - Полный цикл: AI-парсинг → форма → override → маппинг в БД → следующий запрос учитывает маппинг
 
 ---

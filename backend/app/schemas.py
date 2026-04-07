@@ -13,14 +13,14 @@ class CategoryContext(BaseModel):
     id: str = Field(..., description="Локальный ID категории (из SwiftData)")
     name: str = Field(..., description="Название (или 'Родитель / Дочерняя')")
     type: str = Field(..., pattern=r"^(income|expense)$")
-    ai_hint: str | None = None
+
 
 
 class CounterpartContext(BaseModel):
     """Контрагент пользователя, передаваемый клиентом при AI-запросе."""
     id: str = Field(..., description="Локальный ID контрагента (из SwiftData)")
     name: str
-    ai_hint: str | None = None
+
 
 
 class ParseTextRequest(BaseModel):
@@ -53,7 +53,7 @@ class CategoryCreate(BaseModel):
     type: str = Field(..., pattern=r"^(income|expense)$")
     parent_id: int | None = None
     icon: str | None = None
-    ai_hint: str | None = None
+
     client_id: str | None = None
 
 
@@ -62,7 +62,7 @@ class CategoryUpdate(BaseModel):
     type: str | None = Field(None, pattern=r"^(income|expense)$")
     parent_id: int | None = None
     icon: str | None = None
-    ai_hint: str | None = None
+
 
 
 class CategoryResponse(BaseModel):
@@ -72,7 +72,7 @@ class CategoryResponse(BaseModel):
     name: str
     type: str
     icon: str | None
-    ai_hint: str | None
+
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None
@@ -85,14 +85,14 @@ class CategoryResponse(BaseModel):
 class CounterpartCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     icon: str | None = None
-    ai_hint: str | None = None
+
     client_id: str | None = None
 
 
 class CounterpartUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=255)
     icon: str | None = None
-    ai_hint: str | None = None
+
 
 
 class CounterpartResponse(BaseModel):
@@ -100,7 +100,7 @@ class CounterpartResponse(BaseModel):
     client_id: str | None
     name: str
     icon: str | None
-    ai_hint: str | None
+
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None

@@ -57,7 +57,6 @@ async def create_counterpart(
         user_id=user.id,
         name=body.name,
         icon=body.icon,
-        ai_hint=body.ai_hint,
         client_id=body.client_id,
     )
     db.add(counterpart)

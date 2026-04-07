@@ -6,6 +6,7 @@ import SwiftData
 struct CategoryPickerView: View {
     @Binding var selectedCategory: CategoryModel?
     var transactionType: TransactionType
+    var isParentSelection: Bool = false
     
     /// Вызывается когда нужно закрыть весь stack sheet'ов разом (после создания категории)
     var onDismissAll: (() -> Void)? = nil
@@ -30,10 +31,15 @@ struct CategoryPickerView: View {
     private var searchResults: [CategoryModel] {
         guard !searchText.isEmpty else { return [] }
         let query = searchText.lowercased()
-        return allCategories.filter {
+        let results = allCategories.filter {
             $0.type == transactionType &&
             $0.name.lowercased().contains(query)
         }
+        
+        if isParentSelection {
+            return results.filter { $0.parent == nil }
+        }
+        return results
     }
     
     /// Режим поиска активен?
@@ -47,15 +53,20 @@ struct CategoryPickerView: View {
             
             ScrollView {
                 VStack(spacing: MPSpacing.sm) {
+                    // MARK: - Встроенный поиск (для режима выбора родителя)
+                    if isParentSelection {
+                        inlineSearchField
+                    }
+                    
                     // MARK: - Кнопка «+ Создать категорию»
-                    createCategoryButton
+                    if !isParentSelection {
+                        createCategoryButton
+                    }
                     
                     // MARK: - Список категорий
                     if isSearching {
-                        // Плоский список результатов поиска
                         searchResultsList
                     } else {
-                        // Иерархический список
                         categoriesHierarchy
                     }
                 }
@@ -63,21 +74,21 @@ struct CategoryPickerView: View {
                 .padding(.top, MPSpacing.sm)
             }
         }
-        .navigationTitle("Категория")
+        .navigationTitle(isParentSelection ? "Родитель" : "Категория")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(
-            text: $searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
-            prompt: "Найти категорию"
-        )
+        .modifier(SearchableIfNeeded(searchText: $searchText, isParentSelection: isParentSelection))
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button("Отмена") { dismiss() }
-                    .foregroundColor(MPColors.accentCoral)
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Готово") { dismiss() }
-                    .foregroundColor(MPColors.accentCoral)
+            // Кнопки "Отмена" / "Готово" только для корневого sheet-режима.
+            // В pushed-режиме (isParentSelection) есть стандартная кнопка "< Назад".
+            if !isParentSelection {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Отмена") { dismiss() }
+                        .foregroundColor(MPColors.accentCoral)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Готово") { dismiss() }
+                        .foregroundColor(MPColors.accentCoral)
+                }
             }
         }
         .sheet(isPresented: $showCreateCategory) {
@@ -87,11 +98,16 @@ struct CategoryPickerView: View {
                     onCreated: { newCategory in
                         if newCategory.type == transactionType {
                             selectedCategory = newCategory
-                            if let onDismissAll {
-                                onDismissAll()
-                            } else {
-                                dismiss()
+                            showCreateCategory = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                if let onDismissAll {
+                                    onDismissAll()
+                                } else {
+                                    dismiss()
+                                }
                             }
+                        } else {
+                            showCreateCategory = false
                         }
                     }
                 )
@@ -99,17 +115,40 @@ struct CategoryPickerView: View {
         }
     }
     
+    // MARK: - Встроенное поле поиска (для pushed-режима)
+    
+    private var inlineSearchField: some View {
+        HStack(spacing: MPSpacing.sm) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 16))
+                .foregroundColor(MPColors.textSecondary)
+            
+            TextField("Найти категорию", text: $searchText)
+                .font(MPTypography.body)
+                .foregroundColor(MPColors.textPrimary)
+            
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(MPColors.textSecondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, MPSpacing.md)
+        .padding(.vertical, MPSpacing.sm)
+        .background(MPColors.cardBackground)
+        .cornerRadius(MPCornerRadius.lg)
+    }
+    
     // MARK: - Кнопка «+ Создать»
     
     private var createCategoryButton: some View {
         Button {
-            // Принудительно скрываем клавиатуру (особенно от search bar) перед пушем
-            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-            
-            // Даем системе кадр на скрытие клавиатуры, чтобы не вызывать конфликт констрейнтов
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                showCreateCategory = true
-            }
+            showCreateCategory = true
         } label: {
             HStack(spacing: MPSpacing.sm) {
                 ZStack {
@@ -143,12 +182,20 @@ struct CategoryPickerView: View {
     
     private var categoriesHierarchy: some View {
         VStack(spacing: 0) {
+            if isParentSelection {
+                noParentRow
+                
+                if !rootCategories.isEmpty {
+                    Divider().padding(.leading, 52)
+                }
+            }
+            
             ForEach(Array(rootCategories.enumerated()), id: \.element.name) { index, category in
                 // Строка категории
                 categoryRow(category)
                 
                 // Дочерние категории (если есть)
-                if !category.children.isEmpty {
+                if !isParentSelection && !category.children.isEmpty {
                     ForEach(category.children, id: \.name) { child in
                         childCategoryRow(child)
                         
@@ -202,6 +249,39 @@ struct CategoryPickerView: View {
         }
         .background(MPColors.cardBackground)
         .cornerRadius(MPCornerRadius.lg)
+    }
+    
+    // MARK: - Строка "Без родителя"
+    
+    private var noParentRow: some View {
+        let isSelected = selectedCategory == nil
+        
+        return Button {
+            selectedCategory = nil
+            dismiss()
+        } label: {
+            HStack(spacing: MPSpacing.sm) {
+                Text("📂")
+                    .font(.system(size: 26))
+                    .frame(width: 36, height: 36)
+                
+                Text("Без родителя")
+                    .font(MPTypography.body)
+                    .foregroundColor(MPColors.textPrimary)
+                
+                Spacer()
+                
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(MPColors.accentCoral)
+                }
+            }
+            .padding(.horizontal, MPSpacing.md)
+            .padding(.vertical, MPSpacing.sm)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
     
     // MARK: - Строка категории (корневая)
@@ -277,6 +357,29 @@ struct CategoryPickerView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Условный .searchable (только для sheet-режима)
+
+/// В pushed-режиме (isParentSelection) .searchable вызывает баг SwiftUI
+/// с конфликтом constraint'ов клавиатуры и навигации. Поэтому
+/// в этом режиме мы используем встроенный TextField вместо .searchable.
+private struct SearchableIfNeeded: ViewModifier {
+    @Binding var searchText: String
+    let isParentSelection: Bool
+    
+    func body(content: Content) -> some View {
+        if isParentSelection {
+            content
+        } else {
+            content
+                .searchable(
+                    text: $searchText,
+                    placement: .navigationBarDrawer(displayMode: .always),
+                    prompt: "Найти категорию"
+                )
+        }
     }
 }
 

@@ -100,14 +100,7 @@ struct SettingsView: View {
                     }
                 }
                 
-                // MARK: — AI
-                Section {
-                    toggleRow(title: "Автообучение категорий", icon: "sparkles", color: .purple, isOn: $settings.aiAutoLearn)
-                } header: {
-                    Text("Apple Intelligence")
-                } footer: {
-                    Text("Приложение будет запоминать ваши исправления, когда вы меняете предложенную ИИ категорию. Это поможет предлагать более точные категории в будущем.")
-                }
+
                 
                 // MARK: - Выход
                 if auth.isAuthenticated {

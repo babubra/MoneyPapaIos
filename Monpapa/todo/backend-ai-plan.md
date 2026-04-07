@@ -167,13 +167,13 @@ backend/
 #### Backend — фикс (готово ✅)
 - [x] 🟢 **SMTP SSL fix**: `validate_certs=False` в `aiosmtplib` — обход проблемы сертификатов Python на macOS
 
-#### iOS — Sync (ожидает auth ⏳)
-- [ ] 🔴 **iOS: SyncService**: фоновая синхронизация (offline queue, retry, merge)
-- [ ] 🔴 **iOS: Conflict resolution**: стратегия "last write wins" — реализация и тестирование
+#### iOS — Sync (готово ✅)
+- [x] 🔴 **iOS: SyncService**: фоновая синхронизация (batch push в 2 фазы, delta pull, debounce 1.5s, детекция смены аккаунта)
+- [x] 🔴 **iOS: Conflict resolution**: стратегия "last write wins" — реализована (сравнение updated_at на сервере)
 
 #### iOS — Прочее
 - [ ] 🔴 **Auth**: Sign in with Apple (позже, после Magic Link)
-- [ ] 🟢 **iOS: Подсказки AI**: механизм хранения, загрузки и локализации подсказок для `AIInputBar` (`aiHints`)
+- [x] 🟢 **iOS: Подсказки AI**: placeholder-фразы в `AIInputBar` (`aiHints`) — реализованы как ротирующиеся подсказки в текстовом поле
 
 ### Фаза 3 — Web-интерфейс
 Цель: доступ к данным через браузер.

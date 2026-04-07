@@ -58,12 +58,6 @@ struct AICategoryDTO: Codable {
     let id: String
     let name: String
     let type: String    // "income" | "expense"
-    let aiHint: String?
-
-    enum CodingKeys: String, CodingKey {
-        case id, name, type
-        case aiHint = "ai_hint"
-    }
 }
 
 struct AICounterpartDTO: Codable {

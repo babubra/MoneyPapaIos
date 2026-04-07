@@ -30,6 +30,7 @@ struct DashboardView: View {
     @State private var aiParseResult: AiParseResult?
     @State private var aiErrorMessage: String?
     @State private var showAiError = false
+    @State private var selectedTransaction: TransactionModel?
     
     /// Таймер для обновления часов каждую секунду
     private let clockTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -46,8 +47,7 @@ struct DashboardView: View {
             return AICategoryDTO(
                 id: clientId,
                 name: cat.name,
-                type: cat.typeRaw,
-                aiHint: cat.aiHint
+                type: cat.typeRaw
             )
         }
     }
@@ -133,6 +133,9 @@ struct DashboardView: View {
         }
         .sheet(item: $aiParseResult) { result in
             AddTransactionSheet(prefill: result)
+        }
+        .sheet(item: $selectedTransaction) { transaction in
+            TransactionDetailView(transaction: transaction)
         }
         .alert("Ошибка", isPresented: $showAiError) {
             Button("ОК", role: .cancel) {}
@@ -332,7 +335,12 @@ struct DashboardView: View {
             } else {
                 VStack(spacing: MPSpacing.xs) {
                     ForEach(recentTransactions, id: \.clientId) { transaction in
-                        TransactionRow(transaction: transaction)
+                        Button {
+                            selectedTransaction = transaction
+                        } label: {
+                            TransactionRow(transaction: transaction)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 

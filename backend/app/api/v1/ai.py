@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.system_prompt import SYSTEM_PROMPT, build_ai_prompt
-from app.db.models import Category, CategoryMapping, Device
+from app.db.models import CategoryMapping, Device
 from app.db.session import get_db
 from app.schemas import MappingUpsertRequest, ParseTextRequest
 
@@ -426,18 +426,6 @@ async def upsert_mapping(
     user_id = device.user_id
     phrase_lower = body.item_phrase.strip().lower()
 
-    # Ищем серверный category_id по client_id
-    cat_result = await db.execute(
-        select(Category).where(
-            Category.user_id == user_id,
-            Category.client_id == body.category_id,
-        )
-    )
-    category = cat_result.scalar_one_or_none()
-    if category is None:
-        logger.warning(f"Mapping: категория client_id={body.category_id} не найдена для user={user_id}")
-        return {"status": "error", "reason": "category not found"}
-
     # Ищем существующий маппинг
     existing_result = await db.execute(
         select(CategoryMapping).where(
@@ -448,24 +436,24 @@ async def upsert_mapping(
     existing = existing_result.scalar_one_or_none()
 
     if existing is None:
-        # Новый маппинг
+        # Новый маппинг — сохраняем client_id категории напрямую (offline-first)
         mapping = CategoryMapping(
             user_id=user_id,
             item_phrase=body.item_phrase.strip(),
-            category_id=category.id,
+            category_id=body.category_id,
             category_name=body.category_name,
             weight=1,
         )
         db.add(mapping)
         logger.info(f"🧠 Mapping INSERT: '{body.item_phrase}' → '{body.category_name}' (user={user_id})")
-    elif existing.category_id == category.id:
+    elif existing.category_id == body.category_id:
         # Confirm — та же категория
         existing.weight += 1
         existing.updated_at = datetime.now(timezone.utc)
         logger.info(f"🧠 Mapping CONFIRM: '{body.item_phrase}' → '{body.category_name}' (w={existing.weight}, user={user_id})")
     else:
         # Override — смена категории, сброс веса
-        existing.category_id = category.id
+        existing.category_id = body.category_id
         existing.category_name = body.category_name
         existing.weight = 1
         existing.updated_at = datetime.now(timezone.utc)

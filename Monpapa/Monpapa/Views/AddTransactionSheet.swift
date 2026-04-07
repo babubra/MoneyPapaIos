@@ -323,7 +323,7 @@ struct AddTransactionSheet: View {
 
                         Spacer()
 
-                    } else if let suggestedName = aiSuggestedCategoryName {
+                    } else if aiSuggestedCategoryName != nil {
                         // AI предложил новую категорию — показываем как выбранную
                         Text(aiSuggestedCategoryIcon ?? "🏷️")
                             .font(.system(size: 20))
@@ -547,10 +547,9 @@ struct AddTransactionSheet: View {
             #endif
         }
 
-        // MARK: - Auto-Learn v1: отправка маппинга (item_phrase → category)
-        // Отправляем маппинг на сервер (fire-and-forget) если есть item_phrase от AI
-        if settings.aiAutoLearn,
-           let itemPhrase = prefill?.itemPhrase,
+        // MARK: - Auto-Learn: отправка маппинга (item_phrase → category)
+        // Маппинг отправляется на сервер (fire-and-forget) если есть item_phrase от AI
+        if let itemPhrase = prefill?.itemPhrase,
            !itemPhrase.isEmpty,
            let chosen = categoryToSave {
             let aiSuggested = prefill?.categoryName
@@ -575,7 +574,7 @@ struct AddTransactionSheet: View {
             #if DEBUG
             let itemPhrase = prefill?.itemPhrase ?? "nil"
             let chosenName = categoryToSave?.name ?? "nil"
-            print("[AddTransaction] ℹ️ Auto-Learn пропущен: itemPhrase=\(itemPhrase), chosen=\(chosenName), autoLearn=\(settings.aiAutoLearn)")
+            print("[AddTransaction] ℹ️ Auto-Learn пропущен: itemPhrase=\(itemPhrase), chosen=\(chosenName)")
             #endif
         }
 

@@ -94,10 +94,10 @@ final class SyncService: ObservableObject {
     private static func makeFlexibleDecoder() -> JSONDecoder {
         let decoder = JSONDecoder()
         
-        let isoFull = ISO8601DateFormatter()
+        nonisolated(unsafe) let isoFull = ISO8601DateFormatter()
         isoFull.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         
-        let isoBasic = ISO8601DateFormatter()
+        nonisolated(unsafe) let isoBasic = ISO8601DateFormatter()
         isoBasic.formatOptions = [.withInternetDateTime]
         
         let dateOnly = DateFormatter()
@@ -305,7 +305,6 @@ final class SyncService: ObservableObject {
                 "name": cat.name,
                 "type": cat.typeRaw,
                 "icon": cat.icon ?? NSNull(),
-                "ai_hint": cat.aiHint ?? NSNull(),
                 "parent_id": cat.parent?.serverId ?? NSNull()
             ]
             let action = cat.deletedAt != nil ? "delete" : (cat.serverId == nil ? "create" : "update")
@@ -318,8 +317,7 @@ final class SyncService: ObservableObject {
             guard let clientId = cp.clientId else { continue }
             let data: [String: Any] = [
                 "name": cp.name,
-                "icon": cp.icon ?? NSNull(),
-                "ai_hint": cp.aiHint ?? NSNull()
+                "icon": cp.icon ?? NSNull()
             ]
             let action = cp.deletedAt != nil ? "delete" : (cp.serverId == nil ? "create" : "update")
             operations.append(SyncOperationDTO(entity: "counterpart", action: action, clientId: clientId, data: data, updatedAt: cp.updatedAt))
@@ -512,7 +510,7 @@ final class SyncService: ObservableObject {
                     existing.name = catData.name
                     existing.typeRaw = catData.type
                     existing.icon = catData.icon
-                    existing.aiHint = catData.ai_hint
+
                     existing.updatedAt = catData.updated_at
                     if let cid = catData.client_id { existing.clientId = cid }
                 }
@@ -521,7 +519,7 @@ final class SyncService: ObservableObject {
                     name: catData.name,
                     type: TransactionType(rawValue: catData.type) ?? .expense,
                     icon: catData.icon,
-                    aiHint: catData.ai_hint,
+
                     serverId: catData.id
                 )
                 if let cid = catData.client_id { newCat.clientId = cid }
@@ -552,7 +550,7 @@ final class SyncService: ObservableObject {
                     existing.serverId = cpData.id
                     existing.name = cpData.name
                     existing.icon = cpData.icon
-                    existing.aiHint = cpData.ai_hint
+
                     existing.updatedAt = cpData.updated_at
                     if let cid = cpData.client_id { existing.clientId = cid }
                 }
@@ -560,7 +558,7 @@ final class SyncService: ObservableObject {
                 let newCp = CounterpartModel(
                     name: cpData.name,
                     icon: cpData.icon,
-                    aiHint: cpData.ai_hint,
+
                     serverId: cpData.id
                 )
                 if let cid = cpData.client_id { newCp.clientId = cid }
@@ -750,7 +748,6 @@ private struct CategoryChangeDTO: Codable {
     let name: String
     let type: String
     let icon: String?
-    let ai_hint: String?
     let parent_id: Int?
     let updated_at: Date
     let deleted_at: Date?
@@ -761,7 +758,6 @@ private struct CounterpartChangeDTO: Codable {
     let client_id: String?
     let name: String
     let icon: String?
-    let ai_hint: String?
     let updated_at: Date
     let deleted_at: Date?
 }

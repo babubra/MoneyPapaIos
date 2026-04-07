@@ -64,7 +64,6 @@ async def create_category(
         type=body.type,
         parent_id=body.parent_id,
         icon=body.icon,
-        ai_hint=body.ai_hint,
         client_id=body.client_id,
     )
     db.add(category)

@@ -27,8 +27,7 @@ final class CategoryModel {
     /// Emoji-иконка: «🍕», «🚗», «💰»
     var icon: String?
 
-    /// Подсказка для AI: «сюда относятся все покупки еды»
-    var aiHint: String?
+
 
     /// Дата создания
     var createdAt: Date
@@ -72,14 +71,14 @@ final class CategoryModel {
         name: String,
         type: TransactionType,
         icon: String? = nil,
-        aiHint: String? = nil,
+
         parent: CategoryModel? = nil,
         serverId: Int? = nil
     ) {
         self.name = name
         self.typeRaw = type.rawValue
         self.icon = icon
-        self.aiHint = aiHint
+
         self.parent = parent
         self.serverId = serverId
         self.clientId = UUID().uuidString

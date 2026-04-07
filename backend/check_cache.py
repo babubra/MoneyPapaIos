@@ -13,7 +13,7 @@ async def main():
     
     user_prompt = build_ai_prompt(
         user_text="купил хлеба за 400 рублей вчера",
-        categories=[{"id":"1","name":"Продукты","type":"expense","ai_hint":"еда"}],
+        categories=[{"id":"1","name":"Продукты","type":"expense"}],
         counterparts=[],
         today="2026-04-02",
     )

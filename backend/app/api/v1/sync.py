@@ -86,7 +86,7 @@ class CategoryOut(BaseModel):
     name: str
     type: str
     icon: str | None = None
-    ai_hint: str | None = None
+
     parent_id: int | None = None
     updated_at: datetime
     deleted_at: datetime | None = None
@@ -117,7 +117,7 @@ class CounterpartOut(BaseModel):
     client_id: str | None = None
     name: str
     icon: str | None = None
-    ai_hint: str | None = None
+
     updated_at: datetime
     deleted_at: datetime | None = None
 
