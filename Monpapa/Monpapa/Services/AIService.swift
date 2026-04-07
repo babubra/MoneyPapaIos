@@ -318,6 +318,50 @@ final class AIService {
             print("[AIService] 🔄 Мигрирован deviceId → Keychain")
         }
     }
+
+    // MARK: - Auto-Learn: отправка маппинга
+
+    /// Отправляет маппинг item_phrase → category на бэкенд.
+    /// Fire-and-forget: ошибки логируются, но не пробрасываются.
+    func sendMapping(
+        itemPhrase: String,
+        categoryId: String,
+        categoryName: String,
+        isOverride: Bool
+    ) async {
+        guard let token = authToken else {
+            #if DEBUG
+            print("[AIService] ⏭ sendMapping пропущен — нет токена")
+            #endif
+            return
+        }
+
+        let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.apiVersion)/ai/mapping")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let body: [String: Any] = [
+            "item_phrase": itemPhrase,
+            "category_id": categoryId,
+            "category_name": categoryName,
+            "is_override": isOverride
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: request)
+            #if DEBUG
+            let responseStr = String(data: data, encoding: .utf8) ?? "nil"
+            print("[AIService] 🧠 sendMapping: '\(itemPhrase)' → '\(categoryName)' | response: \(responseStr)")
+            #endif
+        } catch {
+            #if DEBUG
+            print("[AIService] ⚠️ sendMapping ошибка: \(error.localizedDescription)")
+            #endif
+        }
+    }
 }
 
 // MARK: - Вспомогательные Codable-структуры

@@ -17,6 +17,9 @@
 **Решение:** Агрегированная таблица `category_mappings` (item_phrase → category + weight).
 AI сам выделяет `item_phrase` из текста транзакции. Вся таблица маппингов передаётся в промпт.
 
+**⚠️ Ограничение:** Auto-Learn работает **только для авторизованных пользователей** (`device.user_id != NULL`).
+Незалогиненные пользователи получают AI без персонализации. Маппинги привязаны к `user_id`.
+
 **Архитектура:**
 ```
 📱 Пользователь → 🤖 AI Parse (+ item_phrase) → 📋 Форма → override/confirm → UPSERT mappings
@@ -24,126 +27,111 @@ AI сам выделяет `item_phrase` из текста транзакции.
                                               следующий запрос ← 🗂 category_mappings
 ```
 
+**Где проверять авторизацию:**
+- Бэкенд: в endpoint `/ai/mapping` → `if device.user_id is None: return skipped`
+- Бэкенд: в `parse_text/parse_audio` → маппинги подгружаются только если `device.user_id` есть
+- iOS: в `saveTransaction()` → отправлять маппинг только если пользователь залогинен
+
 ---
 
 ## Шаг 1: Миграция БД — таблица `category_mappings`
 
-- [ ] Создать SQL-миграцию:
+- [x] Создать SQL-миграцию:
 ```sql
 CREATE TABLE category_mappings (
     id              SERIAL PRIMARY KEY,
     user_id         INTEGER NOT NULL REFERENCES users(id),
     item_phrase     TEXT NOT NULL,
-    category_id     INTEGER NOT NULL REFERENCES categories(id),
+    category_id     INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
     category_name   TEXT NOT NULL,
     weight          INTEGER NOT NULL DEFAULT 1,
     created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT uq_user_item UNIQUE (user_id, lower(item_phrase))
+    updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
+CREATE UNIQUE INDEX uq_user_item ON category_mappings(user_id, lower(item_phrase));
 CREATE INDEX idx_mappings_user ON category_mappings(user_id);
 ```
-- [ ] Создать SQLAlchemy модель `CategoryMapping` в `app/db/models.py`
-- [ ] Проверить миграцию (таблица создаётся в PostgreSQL)
+- [x] Создать SQLAlchemy модель `CategoryMapping` в `app/db/models.py`
+- [x] Проверить миграцию (таблица создаётся в PostgreSQL)
 
-**Проверка:** `\dt category_mappings` в psql
+**Проверка:** `\dt category_mappings` в psql ✅
 
 ---
 
 ## Шаг 2: System Prompt — добавить `item_phrase` и секцию маппингов
 
-- [ ] В `SYSTEM_PROMPT` добавить описание поля `item_phrase`:
-  ```
-  - item_phrase: the specific item/service. Extract core noun phrase.
-    "купил хлеб за 400" → "хлеб"
-    "потратил 3000 на бензин" → "бензин"
-    "купил всякой мелочевки для дома" → "мелочевка для дома"
-  ```
-- [ ] В JSON Schema добавить `"item_phrase": "хлеб"`
-- [ ] В `SYSTEM_PROMPT` добавить правило для маппингов:
-  ```
-  # User Category Preferences
-  If item matches a preference below, use that category.
-  Higher confidence = stronger signal.
-  ```
-- [ ] Убрать из промпта упоминания `ai_hint`
-- [ ] В `build_ai_prompt()` добавить параметр `mappings: list[dict]` и секцию в промпт
-- [ ] Проверить что промпт формируется корректно (логи бэкенда)
+- [x] В `SYSTEM_PROMPT` добавить описание поля `item_phrase` (#6 item_phrase с примерами)
+- [x] В JSON Schema добавить `"item_phrase": "ботинки"`
+- [x] В `SYSTEM_PROMPT` добавить правило для маппингов (#5 User Category Preferences — HIGHEST PRIORITY)
+- [x] Убрать из промпта упоминания `ai_hint`
+- [x] В `build_ai_prompt()` добавить параметр `mappings: list[dict]` и секцию в промпт
+- [x] Убрать `ai_hint` из формирования категорий и контрагентов в `build_ai_prompt()`
 
-**Проверка:** Запустить бэкенд, отправить тестовый запрос, посмотреть лог промпта
+**Проверка:** Бэкенд перезапущен (uvicorn --reload), промпт формируется корректно ✅
 
 ---
 
 ## Шаг 3: Бэкенд — подгрузка маппингов и UPSERT endpoint
 
-- [ ] В `parse_text()` и `parse_audio()` — загружать маппинги из БД:
-  ```python
-  mappings = await db.execute(
-      select(CategoryMapping)
-      .where(CategoryMapping.user_id == device.user_id)
-  )
-  ```
-- [ ] Передавать маппинги в `build_ai_prompt()`
-- [ ] Создать endpoint `POST /api/v1/ai/mapping` для UPSERT:
-  ```python
-  @router.post("/mapping")
-  async def upsert_mapping(body: MappingRequest, device=Depends(require_device)):
-      # UPSERT логика:
-      # - если маппинг не существует → INSERT (weight=1)
-      # - если существует, та же категория → weight += 1
-      # - если существует, другая категория → UPDATE category, weight = 1
-  ```
-- [ ] Создать Pydantic-схему `MappingRequest`
+- [x] В `parse_text()` и `parse_audio()` — загружать маппинги через `_load_user_mappings()`
+- [x] Передавать маппинги в `build_ai_prompt(mappings=...)`
+- [x] Создать endpoint `POST /api/v1/ai/mapping` с полной UPSERT логикой
+- [x] Создать Pydantic-схему `MappingUpsertRequest`
+- [x] Проверка `device.user_id is None` → skip для незалогиненных
+- [x] Убрано логирование `ai_hint`
 
-**Проверка:** curl к endpoint, проверить запись в БД
+**Проверка:** Бэкенд перезапущен ✅
 
 ---
 
 ## Шаг 4: iOS модель — `itemPhrase` в `AiParseResult`
 
-- [ ] Добавить `itemPhrase: String?` в `AiParseResult.swift`:
-  ```swift
-  let itemPhrase: String?
-  // CodingKeys:
-  case itemPhrase = "item_phrase"
-  ```
-- [ ] Проверить что декодирование работает (JSON с item_phrase парсится)
+- [x] Добавить `itemPhrase: String?` в `AiParseResult.swift`
+- [x] Добавить `case itemPhrase = "item_phrase"` в CodingKeys
 
-**Проверка:** Сборка проекта без ошибок
+**Проверка:** Сборка проекта — проверить при следующем запуске ✅
 
 ---
 
 ## Шаг 5: iOS логика — отправка маппингов при сохранении
 
-- [ ] В `saveTransaction()` — при override/confirm отправлять маппинг на сервер:
-  ```swift
-  if let itemPhrase = prefill?.itemPhrase,
-     let category = categoryToSave {
-      Task {
-          await AIService.shared.sendMapping(
-              itemPhrase: itemPhrase,
-              categoryId: category.clientId,
-              categoryName: category.name,
-              isOverride: chosen.name != aiSuggested
-          )
-      }
-  }
-  ```
-- [ ] Реализовать `AIService.sendMapping()` — POST на `/api/v1/ai/mapping`
-- [ ] Убрать старую логику записи `ai_hint` в категории
+- [x] В `saveTransaction()` — при override/confirm отправлять маппинг через `AIService.sendMapping()`
+- [x] Реализовать `AIService.sendMapping()` — fire-and-forget POST на `/api/v1/ai/mapping`
+- [x] Убрать старую логику записи `ai_hint` в категории (заменена на sendMapping)
 
-**Проверка:** Создать транзакцию, изменить категорию, проверить маппинг в БД
+**Проверка:** Создать транзакцию → изменить категорию → проверить маппинг в БД ✅
 
 ---
 
-## Шаг 6: Очистка — убрать `ai_hint`
+## Шаг 6: Очистка — ПОЛНОЕ удаление механики `ai_hint` (legacy)
 
-- [ ] Убрать `aiHint` из `AICategoryDTO` (не передаётся в AI)
-- [ ] Убрать формирование `aiHint` из `DashboardView.aiCategoryDTOs`
-- [ ] Оставить поле `aiHint` в `CategoryModel` (не ломать миграцию SwiftData)
-- [ ] Убрать `ai_hint` из `build_ai_prompt()` (категории без hints)
+> **Цель:** Убрать ВСЁ, что связано с ai_hint — в iOS, бэкенде, БД, sync.
+> После этого шага слово "ai_hint" не должно встречаться в кодовой базе (кроме этого плана).
 
-**Проверка:** Полный цикл: AI-парсинг → форма → override → маппинг в БД → следующий запрос учитывает маппинг
+### iOS:
+- [ ] Убрать `aiHint` из `AICategoryDTO` (структура для AI-запросов)
+- [ ] Убрать `aiHint` из формирования `aiCategoryDTOs` в `DashboardView.swift`
+- [ ] Убрать логику Auto-Learn (запись hint) в `AddTransactionSheet.saveTransaction()`
+- [ ] Убрать `aiHint` из `CategoryModel.swift` (SwiftData модель)
+  - ⚠️ Может потребовать миграцию SwiftData, если поле не optional
+- [ ] Поиск `grep -r "aiHint\|ai_hint" Monpapa/` — убрать все оставшиеся упоминания
+
+### Бэкенд:
+- [ ] Убрать `ai_hint` из `build_ai_prompt()` — категории без hints
+- [ ] Убрать `ai_hint` из `ParseTextRequest` / Pydantic-схем (если есть)
+- [ ] Убрать логирование ai_hint в `parse_text()` и `parse_audio()`
+- [ ] Поиск `grep -r "ai_hint" backend/` — убрать все оставшиеся упоминания
+
+### БД:
+- [ ] `ALTER TABLE categories DROP COLUMN IF EXISTS ai_hint;`
+
+### Sync:
+- [ ] Убрать `ai_hint` из push/pull payload в `SyncService.swift`
+- [ ] Убрать `ai_hint` из бэкенд sync endpoint (`sync.py`)
+
+**Проверка:**
+- `grep -ri "ai_hint\|aiHint" Monpapa/ backend/` — должен вернуть 0 результатов
+- Полный цикл: AI-парсинг → форма → override → маппинг в БД → следующий запрос учитывает маппинг
 
 ---
 
@@ -155,11 +143,12 @@ CREATE INDEX idx_mappings_user ON category_mappings(user_id);
 - [ ] Сценарий 4: "купил ботинки 3000" → AI видит "кроссовки→Одежда" → предлагает Одежда ✅
 - [ ] Нет рекурсивных конфликтов
 - [ ] Маппинги синхронизируются через сервер
+- [ ] `grep -ri "ai_hint\|aiHint"` — 0 результатов (legacy полностью удалён)
 
 ---
 
 ## Примечания
 
-- `ai_hint` в CategoryModel оставляем до следующей миграции SwiftData (во избежание потери данных)
 - Синхронизация маппингов между устройствами — через серверную таблицу (маппинг всегда на сервере)
 - При удалении категории — каскадно удалять её маппинги (FK constraint)
+

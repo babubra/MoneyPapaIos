@@ -15,14 +15,14 @@ from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from openai import AsyncOpenAI, APIStatusError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.system_prompt import SYSTEM_PROMPT, build_ai_prompt
-from app.db.models import Device
+from app.db.models import Category, CategoryMapping, Device
 from app.db.session import get_db
-from app.schemas import ParseTextRequest
+from app.schemas import MappingUpsertRequest, ParseTextRequest
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -85,6 +85,24 @@ async def require_device(
         )
 
     return device
+
+
+# ── Загрузка маппингов ────────────────────────────────────────────
+
+async def _load_user_mappings(user_id: int | None, db: AsyncSession) -> list[dict]:
+    """Загружает маппинги пользователя для промпта. Пустой список если не залогинен."""
+    if user_id is None:
+        return []
+    result = await db.execute(
+        select(CategoryMapping)
+        .where(CategoryMapping.user_id == user_id)
+        .order_by(CategoryMapping.weight.desc())
+    )
+    mappings = result.scalars().all()
+    return [
+        {"item_phrase": m.item_phrase, "category_name": m.category_name, "weight": m.weight}
+        for m in mappings
+    ]
 
 
 # ── Rate limiting ──────────────────────────────────────────────────
@@ -297,9 +315,6 @@ async def parse_text(
     logger.info(f"📝 PARSE TEXT | device={device.device_id[:8]}... locale={body.locale}")
     logger.info(f"   Текст: \"{body.text}\"")
     logger.info(f"   Категории ({len(body.categories)}): {[c.name for c in body.categories]}")
-    for c in body.categories:
-        if c.ai_hint:
-            logger.info(f"      📌 {c.name} → hint: \"{c.ai_hint}\"")
     logger.info(f"   Контрагенты ({len(body.counterparts)}): {[cp.name for cp in body.counterparts]}")
 
     if len(body.text) > settings.AI_MAX_TEXT_LENGTH:
@@ -310,18 +325,24 @@ async def parse_text(
 
     await _check_and_increment_text_limit(device, db)
 
+    # Загружаем маппинги (только для залогиненных)
+    mappings = await _load_user_mappings(device.user_id, db)
+    if mappings:
+        logger.info(f"   🧠 Маппинги ({len(mappings)}): {[(m['item_phrase'], m['category_name'], m['weight']) for m in mappings[:5]]}...")
+
     user_prompt = build_ai_prompt(
         user_text=body.text,
         categories=[c.model_dump() for c in body.categories],
         counterparts=[cp.model_dump() for cp in body.counterparts],
         today=_today_str(),
         locale=body.locale,
+        mappings=mappings or None,
     )
 
     result = await _call_ai_text(ai_client, user_prompt)
     logger.info(f"   ✅ Результат: status={result.get('status')} type={result.get('type')} "
                 f"amount={result.get('amount')} cat=\"{result.get('category_name')}\" "
-                f"cat_id={result.get('category_id')} new={result.get('category_is_new')}")
+                f"item_phrase=\"{result.get('item_phrase')}\" new={result.get('category_is_new')}")
     logger.info(f"{'='*60}\n")
     return result
 
@@ -360,9 +381,11 @@ async def parse_audio(
         )
 
     logger.info(f"   Категории ({len(categories_list)}): {[c.get('name') for c in categories_list]}")
-    for c in categories_list:
-        if c.get("ai_hint"):
-            logger.info(f"      📌 {c.get('name')} → hint: \"{c.get('ai_hint')}\"")
+
+    # Загружаем маппинги (только для залогиненных)
+    mappings = await _load_user_mappings(device.user_id, db)
+    if mappings:
+        logger.info(f"   🧠 Маппинги ({len(mappings)}): {[(m['item_phrase'], m['category_name']) for m in mappings[:5]]}...")
 
     user_prompt = build_ai_prompt(
         user_text="[аудиозапись — расшифруй и распарси]",
@@ -370,10 +393,82 @@ async def parse_audio(
         counterparts=counterparts_list,
         today=_today_str(),
         locale=locale,
+        mappings=mappings or None,
     )
 
     result = await _call_ai_audio(ai_client, audio_data, mime_type, user_prompt)
     logger.info(f"   ✅ Результат: status={result.get('status')} type={result.get('type')} "
-                f"amount={result.get('amount')} cat=\"{result.get('category_name')}\"")
+                f"amount={result.get('amount')} cat=\"{result.get('category_name')}\" "
+                f"item_phrase=\"{result.get('item_phrase')}\"")
     logger.info(f"{'='*60}\n")
     return result
+
+
+# ── UPSERT Mapping ─────────────────────────────────────────────────
+
+@router.post("/mapping", summary="Сохранить маппинг товар → категория")
+async def upsert_mapping(
+    body: MappingUpsertRequest,
+    device: Device = Depends(require_device),
+    db: AsyncSession = Depends(get_db),
+):
+    """Создаёт или обновляет маппинг item_phrase → category.
+
+    - Если пользователь не залогинен → skip
+    - Если маппинг не существует → INSERT (weight=1)
+    - Если та же категория → weight += 1
+    - Если другая категория (override) → UPDATE category, weight = 1
+    """
+    if device.user_id is None:
+        return {"status": "skipped", "reason": "user not authenticated"}
+
+    user_id = device.user_id
+    phrase_lower = body.item_phrase.strip().lower()
+
+    # Ищем серверный category_id по client_id
+    cat_result = await db.execute(
+        select(Category).where(
+            Category.user_id == user_id,
+            Category.client_id == body.category_id,
+        )
+    )
+    category = cat_result.scalar_one_or_none()
+    if category is None:
+        logger.warning(f"Mapping: категория client_id={body.category_id} не найдена для user={user_id}")
+        return {"status": "error", "reason": "category not found"}
+
+    # Ищем существующий маппинг
+    existing_result = await db.execute(
+        select(CategoryMapping).where(
+            CategoryMapping.user_id == user_id,
+            func.lower(CategoryMapping.item_phrase) == phrase_lower,
+        )
+    )
+    existing = existing_result.scalar_one_or_none()
+
+    if existing is None:
+        # Новый маппинг
+        mapping = CategoryMapping(
+            user_id=user_id,
+            item_phrase=body.item_phrase.strip(),
+            category_id=category.id,
+            category_name=body.category_name,
+            weight=1,
+        )
+        db.add(mapping)
+        logger.info(f"🧠 Mapping INSERT: '{body.item_phrase}' → '{body.category_name}' (user={user_id})")
+    elif existing.category_id == category.id:
+        # Confirm — та же категория
+        existing.weight += 1
+        existing.updated_at = datetime.now(timezone.utc)
+        logger.info(f"🧠 Mapping CONFIRM: '{body.item_phrase}' → '{body.category_name}' (w={existing.weight}, user={user_id})")
+    else:
+        # Override — смена категории, сброс веса
+        existing.category_id = category.id
+        existing.category_name = body.category_name
+        existing.weight = 1
+        existing.updated_at = datetime.now(timezone.utc)
+        logger.info(f"🧠 Mapping OVERRIDE: '{body.item_phrase}' → '{body.category_name}' (reset w=1, user={user_id})")
+
+    await db.commit()
+    return {"status": "ok"}

@@ -38,6 +38,14 @@ class RateLimitInfo(BaseModel):
     requests_remaining: int
 
 
+class MappingUpsertRequest(BaseModel):
+    """Запрос на создание/обновление маппинга товар → категория."""
+    item_phrase: str = Field(..., min_length=1, max_length=200, description="Ключевое слово товара/услуги")
+    category_id: str = Field(..., description="clientId категории (UUID)")
+    category_name: str = Field(..., min_length=1, max_length=255)
+    is_override: bool = Field(default=True, description="True если пользователь сменил категорию")
+
+
 # ── Category ─────────────────────────────────────────────────────
 
 class CategoryCreate(BaseModel):

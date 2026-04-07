@@ -16,6 +16,7 @@ struct AiParseResult: Codable, Identifiable, Equatable {
     let currency: String?       // "RUB" | "USD" | ...
     let date: String?           // "YYYY-MM-DD"
     let rawText: String?        // Исходный текст
+    let itemPhrase: String?     // Ключевое слово товара/услуги (для Auto-Learn)
 
     // Категория
     let categoryId: String?
@@ -38,6 +39,7 @@ struct AiParseResult: Codable, Identifiable, Equatable {
         case status
         case type, amount, currency, date
         case rawText        = "raw_text"
+        case itemPhrase     = "item_phrase"
         case categoryId     = "category_id"
         case categoryName   = "category_name"
         case categoryIsNew  = "category_is_new"

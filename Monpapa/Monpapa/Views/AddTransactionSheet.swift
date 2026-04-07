@@ -547,34 +547,35 @@ struct AddTransactionSheet: View {
             #endif
         }
 
-        // MARK: - Самообучение категорий (AI Auto-Learn)
-        // Если пользователь изменил AI-категорию → запоминаем это как подсказку
-        // Лимит: 200 символов на хинт (~20 ключевых слов, ~50 токенов)
+        // MARK: - Auto-Learn v1: отправка маппинга (item_phrase → category)
+        // Отправляем маппинг на сервер (fire-and-forget) если есть item_phrase от AI
         if settings.aiAutoLearn,
-           let aiSuggested = prefill?.categoryName,
-           let chosen = categoryToSave,
-           chosen.name != aiSuggested {
-            let hint = aiSuggested.lowercased()
-            let maxHintLength = 200
-            if let existing = chosen.aiHint, !existing.isEmpty {
-                // Не дублируем и не превышаем лимит
-                if !existing.lowercased().contains(hint),
-                   existing.count + hint.count + 2 <= maxHintLength {
-                    chosen.aiHint = existing + ", " + hint
-                }
-            } else {
-                chosen.aiHint = String(hint.prefix(maxHintLength))
+           let itemPhrase = prefill?.itemPhrase,
+           !itemPhrase.isEmpty,
+           let chosen = categoryToSave {
+            let aiSuggested = prefill?.categoryName
+            let isOverride = (aiSuggested != nil && chosen.name != aiSuggested)
+            
+            Task {
+                await AIService.shared.sendMapping(
+                    itemPhrase: itemPhrase,
+                    categoryId: chosen.clientId,
+                    categoryName: chosen.name,
+                    isOverride: isOverride
+                )
             }
-            // Обновляем updatedAt чтобы SyncService подхватил изменение
-            chosen.updatedAt = Date()
             #if DEBUG
-            print("[AddTransaction] 🧠 Auto-Learn: AI предложил «\(aiSuggested)», пользователь выбрал «\(chosen.name)» → hint: \(chosen.aiHint ?? "nil")")
+            if isOverride {
+                print("[AddTransaction] 🧠 Auto-Learn OVERRIDE: AI предложил «\(aiSuggested ?? "nil")», пользователь выбрал «\(chosen.name)» → маппинг: '\(itemPhrase)' → '\(chosen.name)'")
+            } else {
+                print("[AddTransaction] 🧠 Auto-Learn CONFIRM: '\(itemPhrase)' → '\(chosen.name)'")
+            }
             #endif
         } else {
             #if DEBUG
-            let aiSuggested = prefill?.categoryName ?? "nil"
+            let itemPhrase = prefill?.itemPhrase ?? "nil"
             let chosenName = categoryToSave?.name ?? "nil"
-            print("[AddTransaction] ℹ️ Auto-Learn пропущен: aiSuggested=\(aiSuggested), chosen=\(chosenName), autoLearn=\(settings.aiAutoLearn)")
+            print("[AddTransaction] ℹ️ Auto-Learn пропущен: itemPhrase=\(itemPhrase), chosen=\(chosenName), autoLearn=\(settings.aiAutoLearn)")
             #endif
         }
 

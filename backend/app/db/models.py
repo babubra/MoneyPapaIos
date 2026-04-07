@@ -339,3 +339,31 @@ class UserSettings(Base):
 
     def __repr__(self) -> str:
         return f"<UserSettings id={self.id} user_id={self.user_id} sync={self.sync_enabled}>"
+
+
+# ── CategoryMapping (AI Auto-Learn) ──────────────────────────────
+
+class CategoryMapping(Base):
+    """Маппинг товар → категория для AI Auto-Learn.
+
+    Каждая запись = пользовательское предпочтение:
+    "кроссовки" → Одежда (weight=3 = подтверждено 3 раза).
+    UNIQUE на (user_id, item_phrase) — один товар = один маппинг.
+    """
+    __tablename__ = "category_mappings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    item_phrase: Mapped[str] = mapped_column(Text, nullable=False)
+    category_id: Mapped[int] = mapped_column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
+    category_name: Mapped[str] = mapped_column(Text, nullable=False)
+    weight: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    def __repr__(self) -> str:
+        return f"<CategoryMapping '{self.item_phrase}' → '{self.category_name}' (w={self.weight})>"

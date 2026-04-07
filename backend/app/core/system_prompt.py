@@ -21,25 +21,39 @@ Defaults: currency=RUB, date=today. Amounts as numbers (10к=10000, 5тыс=5000
 If you receive audio, transcribe it and put the transcription in raw_text. Then parse the transcription as a transaction.
 For text input, copy the original text into raw_text as-is.
 
-# 4. Categories & ai_hint (HIGHEST PRIORITY RULE)
-You receive user's existing categories with optional ai_hint field.
-- **ai_hint OVERRIDES all other logic.** If a category has ai_hint and the transaction matches that hint (even loosely), you MUST use that category. Example: category "Groceries" with ai_hint "shoes" — if user buys shoes, use "Groceries" because the user explicitly trained this mapping.
-- If no hint matches: match an existing category by name/meaning (fuzzy: morphology, case, synonyms).
+# 4. Categories
+You receive user's existing categories.
+- Match existing category by name/meaning (fuzzy: morphology, case, synonyms).
 - If no existing category fits: create new with category_is_new=true, category_id=null. Use BROAD names (Groceries, Transport, Clothing, Health), not specific items. Add 1 emoji as category_icon.
 - Never duplicate existing categories.
 - For parent categories: if found in list, use its id/name. If not found, set category_parent_id=null and add category_parent_icon emoji.
 
-# 5. Counterparts
+# 5. User Category Preferences (HIGHEST PRIORITY)
+You may receive a list of user's learned preferences: item → category mappings with confidence.
+- **These OVERRIDE all other category logic.** If the current item matches a preference (even loosely/semantically), you MUST use that category.
+- Example: preference "кроссовки" → "Одежда" (confidence: 3). User says "купил ботинки". "ботинки" ≈ "кроссовки" → use "Одежда".
+- Higher confidence = stronger signal from user.
+
+# 6. item_phrase (REQUIRED in response)
+Always extract the core item/service noun phrase from the transaction text and return it as `item_phrase`.
+Examples:
+- "купил хлеб за 400 рублей" → item_phrase: "хлеб"
+- "потратил 3000 на бензин" → item_phrase: "бензин"
+- "купил всякой мелочевки для дома на 4000" → item_phrase: "мелочевка для дома"
+- "оплатил подписку Netflix" → item_phrase: "Netflix"
+- "получил зарплату 50000" → item_phrase: "зарплата"
+
+# 7. Counterparts
 If user mentions a person/company that matches counterparts list → set counterpart_id.
 
-# 6. Localization (IMPORTANT)
+# 8. Localization (IMPORTANT)
 ALL text fields in response (category_name, category_parent_name, message) MUST be in the language specified by `locale` parameter.
 - locale=ru → category_name="Продукты", message="Не указана сумма. Сколько?"
 - locale=en → category_name="Groceries", message="Amount is missing. How much?"
 raw_text is ALWAYS returned as-is in the user's original language (do not translate).
 
-# 7. JSON Schema
-{"status":"ok","type":"expense","amount":800,"currency":"RUB","category_id":"uuid-or-null","category_name":"Одежда","category_is_new":false,"category_icon":null,"category_parent_name":null,"category_parent_id":null,"counterpart_id":null,"counterpart_name":null,"counterpart_is_new":false,"date":"2026-04-07","raw_text":"купил ботинки за 800 рублей"}
+# 9. JSON Schema
+{"status":"ok","type":"expense","amount":800,"currency":"RUB","item_phrase":"ботинки","category_id":"uuid-or-null","category_name":"Одежда","category_is_new":false,"category_icon":null,"category_parent_name":null,"category_parent_id":null,"counterpart_id":null,"counterpart_name":null,"counterpart_is_new":false,"date":"2026-04-07","raw_text":"купил ботинки за 800 рублей"}
 """
 
 
@@ -67,16 +81,18 @@ def build_ai_prompt(
     today: str,
     locale: str = "ru",
     custom_prompt: str | None = None,
+    mappings: list[dict] | None = None,
 ) -> str:
-    """Формирует полный промт для Gemini: контекст + категории + субъекты + текст.
+    """Формирует полный промт для Gemini: контекст + категории + маппинги + субъекты + текст.
 
     Args:
         user_text: Текст пользователя для парсинга (или заглушка для аудио)
-        categories: Список категорий [{id, name, type, ai_hint}, ...]
-        counterparts: Список субъектов [{id, name, ai_hint}, ...]
+        categories: Список категорий [{id, name, type}, ...]
+        counterparts: Список субъектов [{id, name}, ...]
         today: Сегодняшняя дата в формате YYYY-MM-DD
         locale: Языковая локаль клиента ("ru", "en", "de", ...)
         custom_prompt: Дополнительные пользовательские инструкции (или None)
+        mappings: Список маппингов [{item_phrase, category_name, weight}, ...] (или None)
     """
     parts: list[str] = []
 
@@ -91,17 +107,21 @@ def build_ai_prompt(
     if categories:
         lines = ["\n## User Categories"]
         for cat in categories:
-            hint = f' (ai_hint: {cat["ai_hint"]})' if cat.get("ai_hint") else ""
-            lines.append(f'- id={cat["id"]}, name="{cat["name"]}", type={cat["type"]}{hint}')
+            lines.append(f'- id={cat["id"]}, name="{cat["name"]}", type={cat["type"]}')
         parts.append("\n".join(lines))
     else:
         parts.append("\n## User Categories\nNo categories yet.")
 
+    if mappings:
+        lines = ["\n## User Category Preferences (use these to pick the right category)"]
+        for m in mappings:
+            lines.append(f'- "{m["item_phrase"]}" → "{m["category_name"]}" (confidence: {m["weight"]})')
+        parts.append("\n".join(lines))
+
     if counterparts:
         lines = ["\n## User Counterparts"]
         for cp in counterparts:
-            hint = f' (ai_hint: {cp["ai_hint"]})' if cp.get("ai_hint") else ""
-            lines.append(f'- id={cp["id"]}, name="{cp["name"]}"{hint}')
+            lines.append(f'- id={cp["id"]}, name="{cp["name"]}"')
         parts.append("\n".join(lines))
     else:
         parts.append("\n## User Counterparts\nNo counterparts yet.")
