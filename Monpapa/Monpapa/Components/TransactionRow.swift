@@ -3,6 +3,8 @@
 import SwiftUI
 
 struct TransactionRow: View {
+    @EnvironmentObject private var settings: AppSettings
+
     let icon: String?
     let name: String
     let category: String
@@ -53,8 +55,8 @@ struct TransactionRow: View {
             
             Spacer()
             
-            // Сумма с цветом
-            Text(formattedAmount)
+            // Сумма с цветом (или скрытая)
+            Text(settings.hideAmounts ? "• • •  ₽" : formattedAmount)
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundColor(type == .income ? MPColors.accentGreen : MPColors.accentCoral)
         }

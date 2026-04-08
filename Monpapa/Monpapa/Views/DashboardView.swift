@@ -9,7 +9,7 @@ struct DashboardView: View {
     @Environment(\.colorScheme) private var colorScheme
     @EnvironmentObject private var settings: AppSettings
     
-    @Query(filter: #Predicate<TransactionModel> { $0.deletedAt == nil }, sort: \TransactionModel.transactionDate, order: .reverse)
+    @Query(filter: #Predicate<TransactionModel> { $0.deletedAt == nil }, sort: \TransactionModel.createdAt, order: .reverse)
     private var allTransactions: [TransactionModel]
     
     @Query(filter: #Predicate<CategoryModel> { $0.deletedAt == nil })
@@ -35,9 +35,9 @@ struct DashboardView: View {
     /// Таймер для обновления часов каждую секунду
     private let clockTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
-    /// Последние 3 транзакции
+    /// Последние 5 транзакций (по дате создания)
     private var recentTransactions: [TransactionModel] {
-        Array(allTransactions.prefix(3))
+        Array(allTransactions.prefix(5))
     }
     
     /// Категории для AI (конвертируем SwiftData → DTO)
@@ -166,6 +166,19 @@ struct DashboardView: View {
             
             Spacer()
             
+            // Кнопка скрытия сумм
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    settings.hideAmounts.toggle()
+                }
+            } label: {
+                Image(systemName: settings.hideAmounts ? "eye.slash" : "eye")
+                    .font(.system(size: 18))
+                    .foregroundColor(MPColors.textSecondary)
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            
+            // Настройки
             Button {
                 showSettings = true
             } label: {

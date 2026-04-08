@@ -156,8 +156,8 @@ struct TransactionDetailView: View {
                 // Сегмент Расход / Доход
                 typeSegment
             } else {
-                // Read mode: статичный текст
-                Text(formattedAmount)
+                // Read mode: статичный текст (или скрытый)
+                Text(settings.hideAmounts ? "• • • • \(currencySymbol)" : formattedAmount)
                     .font(.system(size: 48, weight: .bold, design: .rounded))
                     .foregroundColor(amountColor)
 

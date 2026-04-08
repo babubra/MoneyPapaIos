@@ -40,8 +40,6 @@ struct SettingsView: View {
                         Text("Светлая").tag("light")
                         Text("Тёмная").tag("dark")
                     }
-                    
-                    toggleRow(title: "Скрыть суммы", icon: "eye.slash.fill", color: .gray, isOn: $settings.hideAmounts)
                 } header: {
                     Text("Внешний вид")
                 }
