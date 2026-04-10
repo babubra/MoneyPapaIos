@@ -44,10 +44,10 @@ final class DebtModel {
     var isClosed: Bool
 
     /// Дата создания записи
-    var createdAt: Date
+    var createdAt: Date = Date()
 
     /// Дата обновления
-    var updatedAt: Date
+    var updatedAt: Date = Date()
 
     /// Soft delete: nil = активен, Date = удалён
     var deletedAt: Date?
@@ -75,7 +75,12 @@ final class DebtModel {
     }
 
     var paidAmount: Decimal {
-        get { Decimal(string: paidAmountString) ?? 0 }
+        get {
+            // Единый источник правды — сумма реальных платежей
+            payments
+                .filter { $0.deletedAt == nil }
+                .reduce(Decimal(0)) { $0 + $1.amount }
+        }
         set { paidAmountString = "\(newValue)" }
     }
 
@@ -149,7 +154,7 @@ final class DebtPaymentModel {
     var comment: String?
 
     /// Дата создания записи
-    var createdAt: Date
+    var createdAt: Date = Date()
 
     /// Soft delete: nil = активен, Date = удалён
     var deletedAt: Date?

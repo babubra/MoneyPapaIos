@@ -161,49 +161,12 @@ struct AddTransactionSheet: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, MPSpacing.sm)
                 .background(
-                    ZStack {
-                        if isSelected {
-                            // Градиентная подложка
-                            RoundedRectangle(cornerRadius: MPCornerRadius.pill - 2)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            color.opacity(0.9),
-                                            color.opacity(0.7),
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                            
-                            // Стеклянный блик сверху
-                            RoundedRectangle(cornerRadius: MPCornerRadius.pill - 2)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            .white.opacity(0.3),
-                                            .clear,
-                                        ],
-                                        startPoint: .top,
-                                        endPoint: .center
-                                    )
-                                )
-                        }
-                    }
+                    isSelected
+                        ? AnyShapeStyle(color.opacity(0.85))
+                        : AnyShapeStyle(.clear)
                 )
                 .cornerRadius(MPCornerRadius.pill - 2)
                 .contentShape(Rectangle())
-                // Glow-свечение вокруг активного сегмента
-                .shadow(
-                    color: isSelected ? color.opacity(0.5) : .clear,
-                    radius: isSelected ? 12 : 0,
-                    x: 0, y: 0
-                )
-                .shadow(
-                    color: isSelected ? color.opacity(0.3) : .clear,
-                    radius: isSelected ? 20 : 0,
-                    x: 0, y: 4
-                )
         }
         .buttonStyle(.plain)
     }
@@ -655,7 +618,7 @@ struct AddTransactionSheet: View {
         status: .ok, type: "expense", amount: 500, currency: "RUB", date: "2026-04-03",
         rawText: "потратил 500 на обед", itemPhrase: "обед", categoryId: nil, categoryName: "Кафе и рестораны",
         categoryIsNew: true, categoryIcon: "🍽️", categoryParentName: nil, categoryParentId: nil, categoryParentIcon: nil,
-        counterpartId: nil, counterpartName: nil, counterpartIsNew: nil, message: nil
+        counterpartId: nil, counterpartName: nil, counterpartIsNew: nil, dueDate: nil, paymentFlow: nil, message: nil
     ))
     .environmentObject(AppSettings())
     .modelContainer(for: [
@@ -669,7 +632,7 @@ struct AddTransactionSheet: View {
         status: .ok, type: "expense", amount: 500, currency: "RUB", date: "2026-04-03",
         rawText: "потратил 500 на обед", itemPhrase: "обед", categoryId: nil, categoryName: "Кафе и рестораны",
         categoryIsNew: true, categoryIcon: "🍽️", categoryParentName: nil, categoryParentId: nil, categoryParentIcon: nil,
-        counterpartId: nil, counterpartName: nil, counterpartIsNew: nil, message: nil
+        counterpartId: nil, counterpartName: nil, counterpartIsNew: nil, dueDate: nil, paymentFlow: nil, message: nil
     ))
     .environmentObject(AppSettings())
     .modelContainer(for: [

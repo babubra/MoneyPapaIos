@@ -32,6 +32,10 @@ struct AiParseResult: Codable, Identifiable, Equatable {
     let counterpartName: String?
     let counterpartIsNew: Bool?
 
+    // Долги
+    let dueDate: String?        // "YYYY-MM-DD" — срок возврата (опционально)
+    let paymentFlow: String?    // "inbound" (мне возвращают) | "outbound" (я возвращаю)
+
     // Сообщение для incomplete / rejected
     let message: String?
 
@@ -50,6 +54,8 @@ struct AiParseResult: Codable, Identifiable, Equatable {
         case counterpartId   = "counterpart_id"
         case counterpartName = "counterpart_name"
         case counterpartIsNew = "counterpart_is_new"
+        case dueDate         = "due_date"
+        case paymentFlow     = "payment_flow"
         case message
     }
 }

@@ -37,17 +37,29 @@ enum AIServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noToken:
-            return "Устройство не авторизовано — попробуйте перезапустить приложение"
+            return String(localized: "error.noToken")
         case .networkError(let error):
-            return "Ошибка сети: \(error.localizedDescription)"
+            if let urlError = error as? URLError {
+                switch urlError.code {
+                case .notConnectedToInternet:
+                    return String(localized: "error.network.offline")
+                case .timedOut:
+                    return String(localized: "error.network.timeout")
+                case .cannotFindHost, .cannotConnectToHost:
+                    return String(localized: "error.network.cannotConnect")
+                default:
+                    return String(localized: "error.network.generic")
+                }
+            }
+            return String(localized: "error.network.generic")
         case .serverError(let code, let message):
-            return "Ошибка сервера (\(code)): \(message)"
+            return String(localized: "error.server \(code) \(message)")
         case .rateLimitExceeded:
-            return "Достигнут дневной лимит AI-запросов. Попробуйте завтра."
+            return String(localized: "error.rateLimit")
         case .decodingError(let error):
-            return "Не удалось разобрать ответ: \(error.localizedDescription)"
+            return String(localized: "error.decoding \(error.localizedDescription)")
         case .invalidResponse:
-            return "Неожиданный ответ сервера"
+            return String(localized: "error.invalidResponse")
         }
     }
 }
@@ -144,6 +156,7 @@ final class AIService {
         let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.apiVersion)/ai/parse")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
@@ -159,7 +172,12 @@ final class AIService {
         print("[AIService] 📤 parseText запрос: \"\(text)\" | категорий: \(categories.count)")
         #endif
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch let urlError as URLError {
+            throw AIServiceError.networkError(urlError)
+        }
 
         #if DEBUG
         print("[AIService] 📥 parseText raw response: \(String(data: data, encoding: .utf8)?.prefix(800) ?? "nil")")
@@ -198,6 +216,7 @@ final class AIService {
         let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.apiVersion)/ai/parse-audio")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.timeoutInterval = 30  // Аудио-файлы могут быть большими
 
         let boundary = UUID().uuidString
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
@@ -216,7 +235,12 @@ final class AIService {
             locale: Locale.current.language.languageCode?.identifier ?? "ru"
         )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch let urlError as URLError {
+            throw AIServiceError.networkError(urlError)
+        }
 
         #if DEBUG
         print("[AIService] 📥 parseAudio raw response: \(String(data: data, encoding: .utf8)?.prefix(800) ?? "nil")")

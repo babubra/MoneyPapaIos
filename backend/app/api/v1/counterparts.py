@@ -7,7 +7,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_user
@@ -42,7 +42,12 @@ async def create_counterpart(
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Создание нового контрагента."""
+    """Создание нового контрагента.
+
+    Дедупликация:
+    - По client_id: 409 Conflict (идемпотентность синхронизации).
+    - По имени (case-insensitive, trimmed): возвращает существующего (200-семантика).
+    """
     if body.client_id:
         existing = await db.execute(
             select(Counterpart).where(Counterpart.client_id == body.client_id)
@@ -53,9 +58,22 @@ async def create_counterpart(
                 detail="Контрагент с таким client_id уже существует",
             )
 
+    # Проверка дублей по имени (case-insensitive, trimmed)
+    clean_name = body.name.strip()
+    existing_by_name = await db.execute(
+        select(Counterpart).where(
+            Counterpart.user_id == user.id,
+            Counterpart.deleted_at.is_(None),
+            func.lower(func.trim(Counterpart.name)) == clean_name.lower(),
+        )
+    )
+    found = existing_by_name.scalar_one_or_none()
+    if found:
+        return found
+
     counterpart = Counterpart(
         user_id=user.id,
-        name=body.name,
+        name=clean_name,
         icon=body.icon,
         client_id=body.client_id,
     )

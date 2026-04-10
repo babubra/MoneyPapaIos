@@ -23,10 +23,10 @@ final class CounterpartModel {
 
 
     /// Дата создания
-    var createdAt: Date
+    var createdAt: Date = Date()
 
     /// Дата последнего обновления (для LWW sync)
-    var updatedAt: Date
+    var updatedAt: Date = Date()
 
     /// Soft delete: nil = активен, Date = удалён
     var deletedAt: Date?

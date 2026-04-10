@@ -121,7 +121,6 @@ struct AIInputBar: View {
                     RoundedRectangle(cornerRadius: MPCornerRadius.lg)
                         .stroke(AIColors.gradientColors[1].opacity(0.5), lineWidth: 1)
                 )
-                .shadow(color: AIColors.gradientColors[1].opacity(0.3), radius: 12, x: 0, y: 0)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 
             } else {
@@ -266,7 +265,7 @@ struct AIInputBar: View {
             withAnimation { state = .idle }
             switch reason {
             case .silenceTimeout:
-                onError?("Я вас не слышу. Попробуйте ещё раз.")
+                onError?(String(localized: "error.silenceTimeout"))
             case .error(let message):
                 onError?(message)
             default:
@@ -291,7 +290,7 @@ struct AIInputBar: View {
                 text = ""
                 onParseResult(result)
             } catch AIServiceError.rateLimitExceeded {
-                onError?("Достигнут дневной лимит AI-запросов")
+                onError?(String(localized: "error.rateLimitShort"))
             } catch {
                 onError?(error.localizedDescription)
             }
@@ -315,7 +314,7 @@ struct AIInputBar: View {
         stopPulseAnimation()
         guard let fileURL = audioRecorder.stopRecording() else {
             withAnimation { state = .idle }
-            onError?("Не удалось получить запись")
+            onError?(String(localized: "error.noRecording"))
             return
         }
         sendAudioFile(fileURL)
@@ -337,7 +336,7 @@ struct AIInputBar: View {
                 onVoiceResult(result)
             } catch AIServiceError.rateLimitExceeded {
                 withAnimation { state = .idle }
-                onError?("Превышен лимит аудио-запросов. Попробуйте позже.")
+                onError?(String(localized: "error.audioRateLimit"))
             } catch {
                 withAnimation { state = .idle }
                 onError?(error.localizedDescription)
@@ -445,8 +444,6 @@ struct AIAudioWaveformView: View {
             .frame(height: maxWaveHeight)
             .frame(maxWidth: .infinity, alignment: .center)
         )
-        // Свечение самой волны (glow)
-        .shadow(color: AIColors.gradientColors[0].opacity(0.4), radius: 6, x: 0, y: 0)
         
         // Обновляем массив звука 20 раз в секунду
         .onReceive(Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()) { _ in

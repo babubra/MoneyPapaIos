@@ -14,9 +14,14 @@ struct DashboardView: View {
     
     @Query(filter: #Predicate<CategoryModel> { $0.deletedAt == nil })
     private var allCategories: [CategoryModel]
+
+    @Query(filter: #Predicate<DebtModel> { $0.deletedAt == nil && $0.isClosed == false },
+           sort: \DebtModel.debtDate, order: .reverse)
+    private var activeDebts: [DebtModel]
     
     @State private var aiInputText = ""
     @State private var showSettings = false
+    @State private var showAddDebt = false
     
     struct ManualTransactionParams: Identifiable {
         let id = UUID()
@@ -28,16 +33,30 @@ struct DashboardView: View {
 
     // AI-парсинг
     @State private var aiParseResult: AiParseResult?
+    @State private var aiDebtPrefill: AiParseResult?
     @State private var aiErrorMessage: String?
     @State private var showAiError = false
     @State private var selectedTransaction: TransactionModel?
+
+    /// Для AI-платежей по долгу
+    struct DebtPaymentTarget: Identifiable {
+        let id = UUID()
+        let debt: DebtModel
+        let prefillAmount: Double?
+    }
+    @State private var debtPaymentTarget: DebtPaymentTarget?
+
+    /// Для выбора долга при нескольких совпадениях
+    @State private var debtPickerDebts: [DebtModel] = []
+    @State private var debtPickerAmount: Double?
+    @State private var showDebtPicker = false
     
     /// Таймер для обновления часов каждую секунду
     private let clockTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
-    /// Последние 5 транзакций (по дате создания)
+    /// Последние 4 транзакции (по дате создания)
     private var recentTransactions: [TransactionModel] {
-        Array(allTransactions.prefix(5))
+        Array(allTransactions.prefix(4))
     }
     
     /// Категории для AI (конвертируем SwiftData → DTO)
@@ -86,7 +105,7 @@ struct DashboardView: View {
             
             VStack(spacing: 0) {
                 ScrollView {
-                    VStack(spacing: MPSpacing.lg) {
+                    VStack(spacing: MPSpacing.xl) {
                         // MARK: - Приветствие + настройки
                         headerSection
                         
@@ -97,8 +116,8 @@ struct DashboardView: View {
                         recentTransactionsSection
                     }
                     .padding(.horizontal, MPSpacing.md)
-                    .padding(.top, MPSpacing.sm)
-                    .padding(.bottom, MPSpacing.md)
+                    .padding(.top, MPSpacing.md)
+                    .padding(.bottom, MPSpacing.xl)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .dismissKeyboardOnTap()
@@ -106,6 +125,7 @@ struct DashboardView: View {
                 // MARK: - Кнопки ручного добавления (всегда внизу)
                 actionButtonsRow
                     .padding(.horizontal, MPSpacing.md)
+                    .padding(.top, MPSpacing.md)
                     .padding(.bottom, MPSpacing.xs)
                 
                 // MARK: - AI Input Bar
@@ -137,10 +157,31 @@ struct DashboardView: View {
         .sheet(item: $selectedTransaction) { transaction in
             TransactionDetailView(transaction: transaction)
         }
+        .sheet(isPresented: $showAddDebt) {
+            AddDebtSheet()
+        }
+        .sheet(item: $aiDebtPrefill) { result in
+            AddDebtSheet(prefill: result)
+        }
+        .sheet(item: $debtPaymentTarget) { target in
+            AddPaymentSheet(debt: target.debt, prefillAmount: target.prefillAmount)
+        }
         .alert("Ошибка", isPresented: $showAiError) {
             Button("ОК", role: .cancel) {}
         } message: {
-            Text(aiErrorMessage ?? "Неизвестная ошибка")
+            Text(aiErrorMessage ?? String(localized: "error.unknownError"))
+        }
+        .sheet(isPresented: $showDebtPicker) {
+            DebtPickerSheet(
+                debts: debtPickerDebts,
+                prefillAmount: debtPickerAmount
+            ) { selectedDebt in
+                debtPaymentTarget = DebtPaymentTarget(
+                    debt: selectedDebt,
+                    prefillAmount: debtPickerAmount
+                )
+            }
+            .presentationDetents([.medium])
         }
     }
 
@@ -149,9 +190,68 @@ struct DashboardView: View {
     private func handleAIResult(_ result: AiParseResult) {
         switch result.status {
         case .ok, .incomplete:
-            aiParseResult = result
+            if let type = result.type {
+                switch type {
+                case "debt_payment":
+                    // Платёж по существующему долгу — ищем долг по контрагенту
+                    handleDebtPayment(result)
+                case "debt_give", "debt_take":
+                    // Новый долг → AddDebtSheet
+                    aiDebtPrefill = result
+                default:
+                    // Обычная транзакция
+                    aiParseResult = result
+                }
+            } else {
+                aiParseResult = result
+            }
         case .rejected:
-            aiErrorMessage = result.message ?? "Не удалось распознать транзакцию. Попробуйте иначе."
+            aiErrorMessage = result.message ?? String(localized: "error.parseRejected")
+            showAiError = true
+        }
+    }
+
+    /// Обработка debt_payment: поиск долга по контрагенту + направлению → AddPaymentSheet
+    private func handleDebtPayment(_ result: AiParseResult) {
+        guard let cpName = result.counterpartName, !cpName.isEmpty else {
+            aiErrorMessage = String(localized: "error.noCounterpart")
+            showAiError = true
+            return
+        }
+
+        // Поиск долгов по контрагенту
+        var matchingDebts: [DebtModel]
+        if let cpId = result.counterpartId {
+            matchingDebts = activeDebts.filter { $0.counterpart?.clientId == cpId }
+        } else {
+            matchingDebts = activeDebts.filter {
+                $0.counterpart?.name.localizedCaseInsensitiveCompare(cpName) == .orderedSame
+            }
+        }
+
+        // Фильтрация по направлению (payment_flow)
+        // inbound = мне возвращают → я давал (gave)
+        // outbound = я возвращаю → я брал (took)
+        if let flow = result.paymentFlow {
+            let expectedDirection: DebtDirection = flow == "inbound" ? .gave : .took
+            let filtered = matchingDebts.filter { $0.direction == expectedDirection }
+            if !filtered.isEmpty {
+                matchingDebts = filtered
+            }
+            // Если фильтр пустой — показываем все (лучше чем ничего)
+        }
+
+        if matchingDebts.count == 1 {
+            debtPaymentTarget = DebtPaymentTarget(
+                debt: matchingDebts[0],
+                prefillAmount: result.amount
+            )
+        } else if matchingDebts.count > 1 {
+            debtPickerDebts = matchingDebts
+            debtPickerAmount = result.amount
+            showDebtPicker = true
+        } else {
+            aiErrorMessage = String(localized: "error.noActiveDebts \(cpName)")
             showAiError = true
         }
     }
@@ -197,10 +297,6 @@ struct DashboardView: View {
     
     private var cardTextSecondary: Color {
         colorScheme == .dark ? .white.opacity(0.8) : Color(red: 0.45, green: 0.35, blue: 0.28)
-    }
-    
-    private var cardShadow: Color {
-        colorScheme == .dark ? .black.opacity(0.3) : .clear
     }
     
     // MARK: - Карточка баланса
@@ -259,7 +355,6 @@ struct DashboardView: View {
                 Text(settings.hideAmounts ? "••••••" : formatAmount(monthlyBalance))
                     .font(.system(size: 26, weight: .bold, design: .rounded))
                     .foregroundColor(cardTextPrimary)
-                    .shadow(color: cardShadow, radius: 4, x: 0, y: 2)
                     .minimumScaleFactor(0.7)
                     .lineLimit(1)
                 
@@ -367,7 +462,7 @@ struct DashboardView: View {
     private var actionButtonsRow: some View {
         HStack(spacing: MPSpacing.sm) {
             actionPillButton(title: "Долг", prefix: "🤝", color: MPColors.accentBlue) {
-                // TODO: Открытие экрана создания долга
+                showAddDebt = true
             }
             
             actionPillButton(title: "Доход", prefix: "➕", color: MPColors.accentGreen) {
@@ -391,28 +486,8 @@ struct DashboardView: View {
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: MPCornerRadius.pill)
-                        .fill(
-                            LinearGradient(
-                                colors: [color.opacity(0.9), color.opacity(0.7)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                    // Стеклянный блик
-                    RoundedRectangle(cornerRadius: MPCornerRadius.pill)
-                        .fill(
-                            LinearGradient(
-                                colors: [.white.opacity(0.25), .clear],
-                                startPoint: .top,
-                                endPoint: .center
-                            )
-                        )
-                }
-            )
-            .shadow(color: color.opacity(0.4), radius: 8, x: 0, y: 3)
+            .background(color.opacity(0.85))
+            .cornerRadius(MPCornerRadius.pill)
         }
         .buttonStyle(.plain)
     }

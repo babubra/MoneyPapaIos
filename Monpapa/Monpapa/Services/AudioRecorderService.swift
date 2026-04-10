@@ -89,7 +89,7 @@ final class AudioRecorderService: NSObject {
             try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
             try session.setActive(true)
         } catch {
-            onError?(.error("Не удалось настроить аудио: \(error.localizedDescription)"))
+            onError?(.error(String(localized: "error.audioSetup \(error.localizedDescription)")))
             return false
         }
 
@@ -112,7 +112,7 @@ final class AudioRecorderService: NSObject {
             recorder?.delegate = self
             recorder?.record()
         } catch {
-            onError?(.error("Не удалось начать запись: \(error.localizedDescription)"))
+            onError?(.error(String(localized: "error.audioStart \(error.localizedDescription)")))
             return false
         }
 
@@ -231,7 +231,7 @@ final class AudioRecorderService: NSObject {
 
     private func autoStop(reason: RecordingStopReason) {
         guard let url = stopRecording() else {
-            onError?(.error("Файл записи не найден"))
+            onError?(.error(String(localized: "error.recordingFileNotFound")))
             return
         }
         onAutoStop?(url, reason)
@@ -257,13 +257,13 @@ extension AudioRecorderService: AVAudioRecorderDelegate {
         if !flag {
             isRecording = false
             state = .idle
-            onError?(.error("Запись завершилась с ошибкой"))
+            onError?(.error(String(localized: "error.recordingFailed")))
         }
     }
 
     func audioRecorderEncodeErrorDidOccur(_ recorder: AVAudioRecorder, error: (any Error)?) {
         isRecording = false
         state = .idle
-        onError?(.error("Ошибка кодирования: \(error?.localizedDescription ?? "unknown")"))
+        onError?(.error(String(localized: "error.encodingFailed \(error?.localizedDescription ?? "unknown")")))
     }
 }

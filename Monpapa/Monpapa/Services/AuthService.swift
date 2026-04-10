@@ -22,15 +22,15 @@ enum AuthError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .networkError(let error):
-            return "Ошибка сети: \(error.localizedDescription)"
+            return String(localized: "auth.error.network \(error.localizedDescription)")
         case .serverError(let code, let message):
-            return "Ошибка сервера (\(code)): \(message)"
+            return String(localized: "auth.error.server \(code) \(message)")
         case .invalidResponse:
-            return "Неожиданный ответ сервера"
+            return String(localized: "auth.error.invalidResponse")
         case .invalidCredentials:
-            return "Неверный или просроченный код"
+            return String(localized: "auth.error.invalidCredentials")
         case .notAuthenticated:
-            return "Пользователь не авторизован"
+            return String(localized: "auth.error.notAuthenticated")
         }
     }
 }

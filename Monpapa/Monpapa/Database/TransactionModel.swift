@@ -36,10 +36,10 @@ final class TransactionModel {
     var attachmentPath: String?
 
     /// Дата создания записи
-    var createdAt: Date
+    var createdAt: Date = Date()
 
     /// Дата последнего обновления
-    var updatedAt: Date
+    var updatedAt: Date = Date()
 
     /// Soft delete: nil = активна, Date = удалена
     var deletedAt: Date?

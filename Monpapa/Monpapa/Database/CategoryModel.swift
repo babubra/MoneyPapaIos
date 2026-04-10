@@ -30,10 +30,10 @@ final class CategoryModel {
 
 
     /// Дата создания
-    var createdAt: Date
+    var createdAt: Date = Date()
 
     /// Дата последнего обновления (для LWW sync)
-    var updatedAt: Date
+    var updatedAt: Date = Date()
 
     /// Soft delete: nil = активна, Date = удалена (не показывать в UI)
     var deletedAt: Date?

@@ -42,7 +42,6 @@ struct OTPInputView: View {
                                     .fill(Color(uiColor: .systemLevel2 ?? .secondarySystemBackground))
                             )
                             .frame(width: 44, height: 52)
-                            .shadow(color: isCurrentIndex && isFocused ? MPColors.accentCoral.opacity(0.3) : .clear, radius: 4, x: 0, y: 2)
                         
                         if hasDigit {
                             let charIndex = pin.index(pin.startIndex, offsetBy: index)

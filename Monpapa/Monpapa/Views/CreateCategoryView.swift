@@ -226,38 +226,12 @@ struct CreateCategoryView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, MPSpacing.sm)
                 .background(
-                    ZStack {
-                        if isSelected {
-                            RoundedRectangle(cornerRadius: MPCornerRadius.pill - 2)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [color.opacity(0.9), color.opacity(0.7)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                            RoundedRectangle(cornerRadius: MPCornerRadius.pill - 2)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [.white.opacity(0.3), .clear],
-                                        startPoint: .top,
-                                        endPoint: .center
-                                    )
-                                )
-                        }
-                    }
+                    isSelected
+                        ? AnyShapeStyle(color.opacity(0.85))
+                        : AnyShapeStyle(.clear)
                 )
                 .cornerRadius(MPCornerRadius.pill - 2)
                 .contentShape(Rectangle())
-                .shadow(
-                    color: isSelected ? color.opacity(0.5) : .clear,
-                    radius: isSelected ? 12 : 0
-                )
-                .shadow(
-                    color: isSelected ? color.opacity(0.3) : .clear,
-                    radius: isSelected ? 20 : 0,
-                    x: 0, y: 4
-                )
         }
         .buttonStyle(.plain)
     }

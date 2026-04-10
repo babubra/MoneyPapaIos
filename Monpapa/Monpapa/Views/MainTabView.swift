@@ -17,7 +17,7 @@ struct MainTabView: View {
                 .tag(0)
             
             // Таб 2: Транзакции
-            TransactionsPlaceholderView()
+            TransactionListView()
                 .tabItem {
                     Image(systemName: selectedTab == 1 ? "list.bullet.rectangle.fill" : "list.bullet.rectangle")
                     Text("Транзакции")
@@ -33,7 +33,7 @@ struct MainTabView: View {
                 .tag(2)
             
             // Таб 4: Долги
-            DebtsPlaceholderView()
+            DebtListView()
                 .tabItem {
                     Image(systemName: selectedTab == 3 ? "creditcard.fill" : "creditcard")
                     Text("Долги")
@@ -86,24 +86,6 @@ struct StatsPlaceholderView: View {
     }
 }
 
-struct DebtsPlaceholderView: View {
-    var body: some View {
-        ZStack {
-            MPColors.background.ignoresSafeArea()
-            VStack(spacing: MPSpacing.md) {
-                Text("🤝")
-                    .font(.system(size: 60))
-                Text("Долги")
-                    .font(MPTypography.screenTitle)
-                    .foregroundColor(MPColors.textPrimary)
-                Text("Здесь будет учёт\nдолгов и платежей")
-                    .font(MPTypography.body)
-                    .foregroundColor(MPColors.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-    }
-}
 
 // MARK: - Preview
 
