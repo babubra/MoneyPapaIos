@@ -22,17 +22,15 @@ jobs:
           script: |
             cd /root/Monpapa
             
-            # Обновляем код с гитхаба (перезаписывая локальные изменения)
+            # Обновляем код с гитхаба
             git fetch --all
             git reset --hard origin/main
             
             # Переходим в директорию бэкенда
             cd backend
             
-            # Пересобираем и перезапускаем докер
-            docker compose down
-            docker compose build 
-            docker compose up -d
+            # Пересобираем и перезапускаем (--build пересобирает только изменённые слои)
+            docker compose up --build -d
 
             # Чистим старые неиспользуемые Docker-образы для экономии памяти
             docker image prune -f
