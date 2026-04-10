@@ -18,6 +18,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: 1022
           timeout: 60s
+          command_timeout: 10m
           script: |
             cd /root/Monpapa
             

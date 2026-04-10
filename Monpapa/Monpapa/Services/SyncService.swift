@@ -49,11 +49,7 @@ final class SyncService: ObservableObject {
     // MARK: - Конфигурация API
     
     private var baseURL: String {
-        #if DEBUG
-        return "http://localhost:8001"
-        #else
-        return "https://api.monpapa.app"
-        #endif
+        APIConfig.baseURL
     }
     
     private var apiBase: String { "\(baseURL)/api/v1/sync" }

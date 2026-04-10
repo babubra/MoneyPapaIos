@@ -8,15 +8,7 @@ import Foundation
 
 // MARK: - Конфигурация
 
-private enum APIConfig {
-    /// Базовый URL бэкенда.
-    /// В разработке — localhost. В продакшне — замени на реальный домен.
-    #if DEBUG
-    static let baseURL = "http://localhost:8001"
-    #else
-    static let baseURL = "https://api.monpapa.app"   // TODO: заменить на реальный
-    #endif
-
+private enum AIServiceConfig {
     static let apiVersion = "/api/v1"
 
     // Устаревшие ключи UserDefaults (для миграции)
@@ -125,7 +117,7 @@ final class AIService {
     }
 
     func authenticate() async throws {
-        let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.apiVersion)/auth/device")!
+        let url = URL(string: "\(APIConfig.baseURL)\(AIServiceConfig.apiVersion)/auth/device")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -153,7 +145,7 @@ final class AIService {
             return try await parseText(text, categories: categories, counterparts: counterparts)
         }
 
-        let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.apiVersion)/ai/parse")!
+        let url = URL(string: "\(APIConfig.baseURL)\(AIServiceConfig.apiVersion)/ai/parse")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 15
@@ -213,7 +205,7 @@ final class AIService {
             return try await parseAudio(fileURL: fileURL, categories: categories, counterparts: counterparts)
         }
 
-        let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.apiVersion)/ai/parse-audio")!
+        let url = URL(string: "\(APIConfig.baseURL)\(AIServiceConfig.apiVersion)/ai/parse-audio")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 30  // Аудио-файлы могут быть большими
@@ -324,15 +316,15 @@ final class AIService {
     private func migrateFromUserDefaults() {
         let defaults = UserDefaults.standard
 
-        if let token = defaults.string(forKey: APIConfig.legacyTokenKey) {
+        if let token = defaults.string(forKey: AIServiceConfig.legacyTokenKey) {
             KeychainService.save(key: KeychainService.Keys.deviceToken, value: token)
-            defaults.removeObject(forKey: APIConfig.legacyTokenKey)
+            defaults.removeObject(forKey: AIServiceConfig.legacyTokenKey)
             print("[AIService] 🔄 Мигрирован deviceToken → Keychain")
         }
 
-        if let deviceId = defaults.string(forKey: APIConfig.legacyDeviceIdKey) {
+        if let deviceId = defaults.string(forKey: AIServiceConfig.legacyDeviceIdKey) {
             KeychainService.save(key: KeychainService.Keys.deviceId, value: deviceId)
-            defaults.removeObject(forKey: APIConfig.legacyDeviceIdKey)
+            defaults.removeObject(forKey: AIServiceConfig.legacyDeviceIdKey)
             print("[AIService] 🔄 Мигрирован deviceId → Keychain")
         }
     }
@@ -354,7 +346,7 @@ final class AIService {
             return
         }
 
-        let url = URL(string: "\(APIConfig.baseURL)\(APIConfig.apiVersion)/ai/mapping")!
+        let url = URL(string: "\(APIConfig.baseURL)\(AIServiceConfig.apiVersion)/ai/mapping")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
