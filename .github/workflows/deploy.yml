@@ -1,0 +1,36 @@
+name: Deploy Backend to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 1022
+          script: |
+            cd /root/Monpapa
+            
+            # Обновляем код с гитхаба (перезаписывая локальные изменения)
+            git fetch --all
+            git reset --hard origin/main
+            
+            # Переходим в директорию бэкенда
+            cd backend
+            
+            # Пересобираем и перезапускаем докер
+            docker compose down
+            docker compose build 
+            docker compose up -d
+
+            # Чистим старые неиспользуемые Docker-образы для экономии памяти
+            docker image prune -f
