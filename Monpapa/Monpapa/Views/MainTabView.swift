@@ -25,7 +25,7 @@ struct MainTabView: View {
                 .tag(1)
             
             // Таб 3: Статистика
-            StatsPlaceholderView()
+            StatsView()
                 .tabItem {
                     Image(systemName: selectedTab == 2 ? "chart.bar.fill" : "chart.bar")
                     Text("Статистика")
@@ -43,49 +43,6 @@ struct MainTabView: View {
         .tint(MPColors.accentCoral)
     }
 }
-
-// MARK: - Заглушки табов
-
-struct TransactionsPlaceholderView: View {
-    var body: some View {
-        ZStack {
-            MPColors.background.ignoresSafeArea()
-            VStack(spacing: MPSpacing.md) {
-                Text("📋")
-                    .font(.system(size: 60))
-                Text("Транзакции")
-                    .font(MPTypography.screenTitle)
-                    .foregroundColor(MPColors.textPrimary)
-                Text("Скоро здесь будет список\nвсех транзакций")
-                    .font(MPTypography.body)
-                    .foregroundColor(MPColors.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-    }
-}
-
-
-
-struct StatsPlaceholderView: View {
-    var body: some View {
-        ZStack {
-            MPColors.background.ignoresSafeArea()
-            VStack(spacing: MPSpacing.md) {
-                Text("📊")
-                    .font(.system(size: 60))
-                Text("Статистика")
-                    .font(MPTypography.screenTitle)
-                    .foregroundColor(MPColors.textPrimary)
-                Text("Здесь будут графики\nи аналитика")
-                    .font(MPTypography.body)
-                    .foregroundColor(MPColors.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-    }
-}
-
 
 // MARK: - Preview
 

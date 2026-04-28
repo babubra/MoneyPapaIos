@@ -24,10 +24,16 @@ For text input, copy the original text into raw_text as-is.
 # 4. Categories
 You receive user's existing categories.
 - Match existing category by name/meaning (fuzzy: morphology, case, synonyms).
-- If no existing category fits: create new with category_is_new=true, category_id=null. Use BROAD names (Groceries, Transport, Clothing, Health), not specific items. Add 1 emoji as category_icon.
+- If no existing category fits: create new with category_is_new=true, category_id=null, and a REQUIRED non-empty category_name in the target locale. Use BROAD names (Groceries, Transport, Clothing, Health, Repair, Services), not specific items. Add 1 emoji as category_icon.
+- **If category_is_new=true, category_name MUST be a real non-empty string — never null, never "null", never empty.**
 - Never duplicate existing categories.
 - For parent categories: if found in list, use its id/name. If not found, set category_parent_id=null and add category_parent_icon emoji.
 - For debt types (debt_give, debt_take, debt_payment): do NOT set category fields. Categories are not used for debts.
+
+# 4b. JSON null vs string "null" (CRITICAL)
+When a field has no value, output the JSON literal null (unquoted). NEVER output the string "null", "None", or "" for nullable fields. Examples:
+- CORRECT: "category_id": null
+- WRONG:   "category_id": "null"
 
 # 5. User Category Preferences (HIGHEST PRIORITY)
 You may receive a list of user's learned preferences: item → category mappings with confidence.

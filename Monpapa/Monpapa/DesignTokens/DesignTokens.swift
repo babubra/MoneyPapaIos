@@ -47,6 +47,32 @@ struct MPColors {
     
     /// Разделители, бордеры
     static let separator = Color("MPSeparator")
+    
+    // MARK: Карточка баланса
+    
+    /// Цвет доходов на карточке баланса
+    static func balanceIncome(_ scheme: ColorScheme) -> Color {
+        scheme == .dark
+            ? Color(red: 0.6, green: 1.0, blue: 0.6)
+            : Color(red: 0.2, green: 0.7, blue: 0.2)
+    }
+    
+    /// Цвет расходов на карточке баланса
+    static func balanceExpense(_ scheme: ColorScheme) -> Color {
+        scheme == .dark
+            ? Color(red: 1.0, green: 0.6, blue: 0.5)
+            : Color(red: 0.9, green: 0.3, blue: 0.2)
+    }
+    
+    /// Основной текст карточки баланса
+    static func balanceTextPrimary(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? .white : Color(red: 0.25, green: 0.15, blue: 0.10)
+    }
+    
+    /// Вторичный текст карточки баланса
+    static func balanceTextSecondary(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? .white.opacity(0.8) : Color(red: 0.45, green: 0.35, blue: 0.28)
+    }
 }
 
 // MARK: - Типографика

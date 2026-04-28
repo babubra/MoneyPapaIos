@@ -10,6 +10,7 @@ struct AddPaymentSheet: View {
 
     let debt: DebtModel
     var prefillAmount: Double? = nil
+    var prefillComment: String? = nil
 
     // MARK: - Поля формы
 
@@ -174,6 +175,9 @@ struct AddPaymentSheet: View {
             if let prefill = prefillAmount, prefill > 0 {
                 amountText = formatAmountText(String(format: "%.0f", prefill))
             }
+            if let preC = prefillComment, !preC.isEmpty {
+                comment = preC
+            }
             focusedField = .amount
         }
     }
@@ -267,7 +271,7 @@ struct AddPaymentSheet: View {
 
     private func formRow<Content: View>(
         icon: String,
-        label: String,
+        label: LocalizedStringKey,
         @ViewBuilder content: () -> Content
     ) -> some View {
         HStack(spacing: MPSpacing.sm) {

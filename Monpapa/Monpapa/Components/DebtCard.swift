@@ -18,12 +18,12 @@ struct DebtCard: View {
                     .frame(width: 36, height: 36)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(debt.counterpart?.name ?? "Без имени")
+                    Text(debt.counterpart?.name ?? String(localized: "Без имени"))
                         .font(.system(size: 16, weight: .semibold, design: .rounded))
                         .foregroundColor(MPColors.textPrimary)
                         .lineLimit(1)
 
-                    Text(debt.direction == .gave ? "Дал в долг" : "Взял в долг")
+                    Text(debt.direction == .gave ? String(localized: "Дал в долг") : String(localized: "Взял в долг"))
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundColor(MPColors.textSecondary)
                 }
@@ -38,7 +38,7 @@ struct DebtCard: View {
                             .font(.system(size: 18, weight: .bold, design: .rounded))
                             .foregroundColor(MPColors.textSecondary)
 
-                        Label("Закрыт", systemImage: "checkmark.circle.fill")
+                        Label(String(localized: "Закрыт"), systemImage: "checkmark.circle.fill")
                             .font(.system(size: 11, weight: .medium, design: .rounded))
                             .foregroundColor(MPColors.accentGreen)
                     } else if debt.paidAmount > 0 {
@@ -48,7 +48,7 @@ struct DebtCard: View {
                             .foregroundColor(amountColor)
 
                         if debt.isOverdue {
-                            Label("Просрочен", systemImage: "exclamationmark.triangle.fill")
+                            Label(String(localized: "Просрочен"), systemImage: "exclamationmark.triangle.fill")
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                 .foregroundColor(.red)
                         }
@@ -59,7 +59,7 @@ struct DebtCard: View {
                             .foregroundColor(amountColor)
 
                         if debt.isOverdue {
-                            Label("Просрочен", systemImage: "exclamationmark.triangle.fill")
+                            Label(String(localized: "Просрочен"), systemImage: "exclamationmark.triangle.fill")
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                 .foregroundColor(.red)
                         }
@@ -186,7 +186,7 @@ struct DebtCard: View {
 
     private func formattedDate(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.locale = Locale.current
         let calendar = Calendar.current
         if calendar.component(.year, from: date) == calendar.component(.year, from: Date()) {
             formatter.dateFormat = "d MMM"
@@ -198,11 +198,11 @@ struct DebtCard: View {
 
     private func dueText(days: Int, dueDate: Date) -> String {
         if days < 0 {
-            return "просрочен на \(abs(days)) дн."
+            return String(localized: "просрочен на \(abs(days)) дн.")
         } else if days == 0 {
-            return "сегодня"
+            return String(localized: "сегодня")
         } else if days <= 7 {
-            return "через \(days) дн."
+            return String(localized: "через \(days) дн.")
         } else {
             return formattedDate(dueDate)
         }

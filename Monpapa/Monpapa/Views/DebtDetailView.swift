@@ -103,16 +103,16 @@ struct DebtDetailView: View {
             Text(debt.counterpart?.icon ?? (debt.direction == .gave ? "📤" : "📥"))
                 .font(.system(size: 44))
 
-            Text(debt.counterpart?.name ?? "Без имени")
+            Text(debt.counterpart?.name ?? String(localized: "Без имени"))
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundColor(MPColors.textPrimary)
 
-            Text(debt.direction == .gave ? "Дал в долг" : "Взял в долг")
+            Text(debt.direction == .gave ? String(localized: "Дал в долг") : String(localized: "Взял в долг"))
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundColor(MPColors.textSecondary)
 
             if debt.isClosed {
-                Label("Долг закрыт", systemImage: "checkmark.circle.fill")
+                Label(String(localized: "Долг закрыт"), systemImage: "checkmark.circle.fill")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundColor(MPColors.accentGreen)
                     .padding(.top, MPSpacing.xxs)
@@ -232,7 +232,7 @@ struct DebtDetailView: View {
         .cornerRadius(MPCornerRadius.lg)
     }
 
-    private func infoRow(icon: String, label: String, value: String, valueColor: Color? = nil) -> some View {
+    private func infoRow(icon: String, label: LocalizedStringKey, value: String, valueColor: Color? = nil) -> some View {
         HStack(spacing: MPSpacing.sm) {
             Text(icon)
                 .font(.system(size: 20))
@@ -404,14 +404,14 @@ struct DebtDetailView: View {
 
     private func formattedFullDate(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.locale = Locale.current
         formatter.dateFormat = "d MMMM yyyy"
         return formatter.string(from: date)
     }
 
     private func formattedShortDate(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.locale = Locale.current
         let calendar = Calendar.current
         if calendar.component(.year, from: date) == calendar.component(.year, from: Date()) {
             formatter.dateFormat = "d MMM"

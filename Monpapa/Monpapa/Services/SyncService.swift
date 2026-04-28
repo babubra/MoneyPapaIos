@@ -228,6 +228,15 @@ final class SyncService: ObservableObject {
             status = .error(detail)
         } catch {
             print("[SyncService] ❌ Ошибка синхронизации: \(error)")
+            
+            // Если сервер сообщил «Устройство не найдено» — стейл-токен в Keychain.
+            // Делаем logout чтобы UI перешёл в неавторизованное состояние.
+            let errorStr = "\(error)"
+            if errorStr.contains("Устройство не найдено") || errorStr.contains("Device not found") {
+                print("[SyncService] ⚠️ Стейл-токен обнаружен. Авторизация сброшена.")
+                AuthService.shared.logout()
+            }
+            
             status = .error(error.localizedDescription)
         }
     }
@@ -495,9 +504,17 @@ final class SyncService: ObservableObject {
         // 1. Categories
         let allCats = (try? modelContext.fetch(FetchDescriptor<CategoryModel>())) ?? []
         for catData in changes.categories {
-            // Ищем по clientId или serverId (запись может прийти без client_id)
+            // Ищем по clientId, serverId, или name+type (защита от дублей при первом sync)
             let existing = catData.client_id.flatMap { cid in allCats.first(where: { $0.clientId == cid }) }
                             ?? allCats.first(where: { $0.serverId == catData.id })
+                            // Если локальная категория без serverId совпадает по name+type —
+                            // это та же категория, созданная анонимно → мёрджим, не дублируем
+                            ?? allCats.first(where: {
+                                $0.serverId == nil
+                                && $0.deletedAt == nil
+                                && $0.name.lowercased() == catData.name.lowercased()
+                                && $0.typeRaw == catData.type
+                            })
             
             if let existing {
                 if catData.deleted_at != nil { existing.deletedAt = catData.deleted_at }
@@ -505,17 +522,16 @@ final class SyncService: ObservableObject {
                     existing.serverId = catData.id
                     existing.name = catData.name
                     existing.typeRaw = catData.type
-                    existing.icon = catData.icon
-
+                    existing.icon = catData.icon ?? existing.icon  // Не затираем локальную иконку
                     existing.updatedAt = catData.updated_at
                     if let cid = catData.client_id { existing.clientId = cid }
+                    print("[SyncService] 🔗 Смёрджена категория '\(catData.name)' (name+type match → serverId=\(catData.id))")
                 }
             } else if catData.deleted_at == nil {
                 let newCat = CategoryModel(
                     name: catData.name,
                     type: TransactionType(rawValue: catData.type) ?? .expense,
                     icon: catData.icon,
-
                     serverId: catData.id
                 )
                 if let cid = catData.client_id { newCat.clientId = cid }

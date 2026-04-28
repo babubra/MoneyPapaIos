@@ -1,3222 +1,4565 @@
 {
-  "sourceLanguage" : "ru",
-  "strings" : {
-    "" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : ""
+  "sourceLanguage": "ru",
+  "strings": {
+    "": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : ""
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ""
           }
         }
       }
     },
-    "-%@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "-%@"
+    "-%@": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "-%@"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "-%1"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "-%1"
           }
         }
       }
     },
-    "·" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "·"
+    "·": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "·"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "·"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "·"
           }
         }
       }
     },
-    "%@ из %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ of %2$@"
+    "%@ · %@": {
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ · %2$@"
           }
+        }
+      }
+    },
+    "%@ из %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ of %2$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ из %2$@"
+          }
+        }
+      }
+    },
+    "%@%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@%2$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@%2$@"
+          }
+        }
+      }
+    },
+    "%lld долга": {},
+    "%lld долгов": {},
+    "%lld%%": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld%%"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1%%"
+          }
+        }
+      }
+    },
+    "• • •": {},
+    "• • • %@": {},
+    "• • • ₽": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• • • ₽"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "• • • ₽"
+          }
+        }
+      }
+    },
+    "•••": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "•••"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "•••"
+          }
+        }
+      }
+    },
+    "+%@": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%1"
+          }
+        }
+      }
+    },
+    "+%lld": {},
+    "⏰": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⏰"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "⏰"
+          }
+        }
+      }
+    },
+    "✨": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✨"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✨"
+          }
+        }
+      }
+    },
+    "✨ AI": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✨ AI"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✨ AI"
+          }
+        }
+      }
+    },
+    "✨ Новая": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✨ "
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✨ Новая"
+          }
+        }
+      }
+    },
+    "🎉": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🎉"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🎉"
+          }
+        }
+      }
+    },
+    "🏠": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🏠"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🏠"
+          }
+        }
+      }
+    },
+    "🏷️": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🏷️"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🏷️"
+          }
+        }
+      }
+    },
+    "👤": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "👤"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "👤"
+          }
+        }
+      }
+    },
+    "💰": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "💰"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "💰"
+          }
+        }
+      }
+    },
+    "💸": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "💸"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "💸"
+          }
+        }
+      }
+    },
+    "📂": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "📂"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "📂"
+          }
+        }
+      }
+    },
+    "📊": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "📊"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "📊"
+          }
+        }
+      }
+    },
+    "📋": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "📋"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "📋"
+          }
+        }
+      }
+    },
+    "🔍": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🔍"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🔍"
+          }
+        }
+      }
+    },
+    "🤖": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🤖"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "🤖"
+          }
+        }
+      }
+    },
+    "😕": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "😕"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "😕"
+          }
+        }
+      }
+    },
+    "$ Доллар": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "$ Dollar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "$ Доллар"
+          }
+        }
+      }
+    },
+    "€ Евро": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "€ Euro"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "€ Евро"
+          }
+        }
+      }
+    },
+    "₽ Рубль": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "₽ Ruble"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "₽ Рубль"
+          }
+        }
+      }
+    },
+    "0": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "0"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "0"
+          }
+        }
+      }
+    },
+    "1 долг": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 debt"
+          }
+        }
+      }
+    },
+    "Add Item": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Item"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Item"
+          }
+        }
+      }
+    },
+    "AI распознал транзакцию": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI recognized the transaction"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI распознал транзакцию"
+          }
+        }
+      }
+    },
+    "AI-парсинг": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI Parsing"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI-парсинг"
+          }
+        }
+      }
+    },
+    "auth.error.invalidCredentials": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid or expired code"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Неверный или просроченный код"
+          }
+        }
+      }
+    },
+    "auth.error.invalidResponse": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unexpected server response"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Неожиданный ответ сервера"
+          }
+        }
+      }
+    },
+    "auth.error.network %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network error: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ошибка сети: %@"
+          }
+        }
+      }
+    },
+    "auth.error.notAuthenticated": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "User is not authenticated"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пользователь не авторизован"
+          }
+        }
+      }
+    },
+    "auth.error.server %lld %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server error (%1$lld): %2$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ошибка сервера (%1$lld): %2$@"
+          }
+        }
+      }
+    },
+    "English": {},
+    "error.audioRateLimit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio request limit exceeded. Try again later."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Превышен лимит аудио-запросов. Попробуйте позже."
+          }
+        }
+      }
+    },
+    "error.audioSetup %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to set up audio: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось настроить аудио: %@"
+          }
+        }
+      }
+    },
+    "error.audioStart %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to start recording: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось начать запись: %@"
+          }
+        }
+      }
+    },
+    "error.decoding %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to parse response: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось разобрать ответ: %@"
+          }
+        }
+      }
+    },
+    "error.encodingFailed %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encoding error: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ошибка кодирования: %@"
+          }
+        }
+      }
+    },
+    "error.invalidResponse": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unexpected server response"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Неожиданный ответ сервера"
+          }
+        }
+      }
+    },
+    "error.network.cannotConnect": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to reach the server. Try again later."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось связаться с сервером. Попробуйте позже."
+          }
+        }
+      }
+    },
+    "error.network.generic": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network error. Check your connection and try again."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ошибка сети. Проверьте подключение и попробуйте снова."
+          }
+        }
+      }
+    },
+    "error.network.offline": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No internet connection. Check your connection and try again."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет подключения к интернету. Проверьте связь и попробуйте снова."
+          }
+        }
+      }
+    },
+    "error.network.timeout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server is not responding. Try again later."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сервер не отвечает. Попробуйте позже."
+          }
+        }
+      }
+    },
+    "error.noActiveDebts %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No active debts with %@. Create a debt first."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет активных долгов с %@. Сначала создайте долг."
+          }
+        }
+      }
+    },
+    "error.noCounterpart": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not determine the recipient. Please specify the name."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось определить, кому платёж. Уточните имя."
+          }
+        }
+      }
+    },
+    "error.noRecording": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to get the recording"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось получить запись"
+          }
+        }
+      }
+    },
+    "error.noToken": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device not authorized — try restarting the app"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Устройство не авторизовано — попробуйте перезапустить приложение"
+          }
+        }
+      }
+    },
+    "error.parseRejected": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not recognize the transaction. Try rephrasing."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось распознать операцию. Попробуйте иначе."
+          }
+        }
+      }
+    },
+    "error.rateLimit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily AI request limit reached. Try again tomorrow."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Достигнут дневной лимит AI-запросов. Попробуйте завтра."
+          }
+        }
+      }
+    },
+    "error.rateLimitShort": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily AI request limit reached"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Достигнут дневной лимит AI-запросов"
+          }
+        }
+      }
+    },
+    "error.recordingFailed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording ended with an error"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запись завершилась с ошибкой"
+          }
+        }
+      }
+    },
+    "error.recordingFileNotFound": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording file not found"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Файл записи не найден"
+          }
+        }
+      }
+    },
+    "error.server %lld %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server error (%1$lld): %2$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ошибка сервера (%1$lld): %2$@"
+          }
+        }
+      }
+    },
+    "error.silenceTimeout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I can't hear you. Please try again."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Я вас не слышу. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "error.unknownError": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown error"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Неизвестная ошибка"
+          }
+        }
+      }
+    },
+    "Item at %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Item at %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Item at %1"
+          }
+        }
+      }
+    },
+    "MonPapa": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MonPapa"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MonPapa"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
+    "Select an item": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select an item"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select an item"
+          }
+        }
+      }
+    },
+    "settings.currency.default": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default currency"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Валюта по умолчанию"
+          }
+        }
+      }
+    },
+    "settings.currency.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Currency"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Валюта"
+          }
+        }
+      }
+    },
+    "settings.language.footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The interface will use the selected language instead of the system language."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Интерфейс будет использовать выбранный язык вместо системного."
+          }
+        }
+      }
+    },
+    "settings.language.label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App language"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Язык приложения"
+          }
+        }
+      }
+    },
+    "settings.language.restartHint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart the app to fully apply the language change."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для полной смены языка перезапустите приложение."
+          }
+        }
+      }
+    },
+    "settings.language.system": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System"
+          }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ из %2$@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "По системе"
           }
         }
       }
     },
-    "%@%@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@%2$@"
+    "settings.language.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Language"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@%2$@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Язык"
           }
         }
       }
     },
-    "%lld%%" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld%%"
+    "stats.summary.countOnly %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld transactions"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1%%"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld операций"
           }
         }
       }
     },
-    "• • • ₽" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "• • • ₽"
+    "stats.summary.full %lld %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld transactions · avg %2$@/day"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "• • • ₽"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld операций · в среднем %2$@/день"
           }
         }
       }
     },
-    "•••" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "•••"
+    "Sync": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "•••"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync"
           }
         }
       }
     },
-    "+%@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "+%@"
+    "Авторизуйтесь": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign In"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "+%1"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Авторизуйтесь"
           }
         }
       }
     },
-    "⏰" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "⏰"
+    "Авторизуйтесь, чтобы сохранить доступ к транзакциям и синхронизировать данные между устройствами.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to keep your access to transactions and synchronize data across your devices."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "⏰"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Авторизуйтесь, чтобы сохранить доступ к транзакциям и синхронизировать данные между устройствами."
+          }
+        }
+      }
+    },
+    "Аккаунт": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account"
           }
         }
       }
     },
-    "✨" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "✨"
+    "Активен": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "✨"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Активен"
           }
         }
       }
     },
-    "✨ AI" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "✨ AI"
+    "Активные": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "✨ AI"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Активные"
           }
         }
       }
     },
-    "✨ Новая" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "✨ "
+    "Активные долги": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active debts"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "✨ Новая"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Активные долги"
           }
         }
       }
     },
-    "🎉" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🎉"
+    "Аналитика": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Analytics"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🎉"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Аналитика"
           }
         }
       }
     },
-    "🏠" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🏠"
+    "Баланс": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Balance"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🏠"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Баланс"
           }
         }
       }
     },
-    "🏷️" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🏷️"
+    "Без имени": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No name"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🏷️"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Без имени"
           }
         }
       }
     },
-    "👤" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "👤"
+    "Без категории": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uncategorized"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "👤"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Без категории"
+          }
+        }
+      }
+    },
+    "Без описания": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No description"
           }
         }
       }
     },
-    "💰" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "💰"
+    "Без родителя": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No parent"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "💰"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Без родителя"
           }
         }
       }
     },
-    "💸" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "💸"
+    "Валюта": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Currency"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "💸"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Валюта"
+          }
+        }
+      }
+    },
+    "Валюта по умолчанию": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default currency"
           }
         }
       }
     },
-    "📂" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "📂"
+    "Ваш Email": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your Email"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "📂"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ваш Email"
           }
         }
       }
     },
-    "📊" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "📊"
+    "Ваши данные\nв безопасности": {},
+    "Ваши данные\\nв безопасности": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your data\\nis secure"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "📊"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ваши данные\\nв безопасности"
           }
         }
       }
     },
-    "📋" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "📋"
+    "Введите код": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter code"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "📋"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Введите код"
           }
         }
       }
     },
-    "🔍" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🔍"
+    "Введите первую транзакцию\nв поле ниже": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter your first transaction\nin the field below"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🔍"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Введите первую транзакцию\nв поле ниже"
           }
         }
       }
     },
-    "🤖" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🤖"
+    "Вернул часть, перевод на карту...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Returned part, transfer to card..."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "🤖"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вернул часть, перевод на карту..."
           }
         }
       }
     },
-    "😕" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "😕"
+    "Взял в долг": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Borrowed"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "😕"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Взял в долг"
           }
         }
       }
     },
-    "$ Доллар" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "$ Dollar"
+    "Внешний вид": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appearance"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "$ Доллар"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Внешний вид"
           }
         }
       }
     },
-    "€ Евро" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "€ Euro"
+    "Войдите по Magic Link": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in with Magic Link"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "€ Евро"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Войдите по Magic Link"
           }
         }
       }
     },
-    "₽ Рубль" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "₽ Ruble"
+    "Войдите, чтобы синхронизировать данные\nмежду устройствами и не потерять их": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to sync data\nacross devices and keep it safe"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "₽ Рубль"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Войдите, чтобы синхронизировать данные\nмежду устройствами и не потерять их"
           }
         }
       }
     },
-    "0" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "0"
+    "Войдите, чтобы синхронизировать данные\\nмежду устройствами и не потерять их": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to sync your data\\nacross devices and never lose it"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "0"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Войдите, чтобы синхронизировать данные\\nмежду устройствами и не потерять их"
           }
         }
       }
     },
-    "Add Item" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add Item"
+    "Войти в профиль": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to profile"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add Item"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Войти в профиль"
           }
         }
       }
     },
-    "AI распознал транзакцию" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI recognized the transaction"
+    "Войти по Email": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in with Email"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI распознал транзакцию"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Войти по Email"
           }
         }
       }
     },
-    "auth.error.invalidCredentials" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Invalid or expired code"
+    "Войти с помощью Apple": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in with Apple"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Неверный или просроченный код"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Войти с помощью Apple"
+          }
+        }
+      }
+    },
+    "Все": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
           }
         }
       }
     },
-    "auth.error.invalidResponse" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unexpected server response"
+    "Всё": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Неожиданный ответ сервера"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Всё"
           }
         }
       }
     },
-    "auth.error.network %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Network error: %@"
+    "Все →": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All →"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ошибка сети: %@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Все →"
           }
         }
       }
     },
-    "auth.error.notAuthenticated" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "User is not authenticated"
+    "Все ваши данные будут безвозвратно удалены с сервера. Это действие невозможно отменить.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All your data will be permanently deleted from the server. This action cannot be undone."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Пользователь не авторизован"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Все ваши данные будут безвозвратно удалены с сервера. Это действие невозможно отменить."
           }
         }
       }
     },
-    "auth.error.server %lld %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Server error (%1$lld): %2$@"
+    "Все транзакции, категории и настройки\nбудут удалены безвозвратно.\nЭто действие невозможно отменить.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All transactions, categories and settings\nwill be permanently deleted.\nThis action cannot be undone."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ошибка сервера (%1$lld): %2$@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Все транзакции, категории и настройки\nбудут удалены безвозвратно.\nЭто действие невозможно отменить."
           }
         }
       }
     },
-    "error.audioRateLimit" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Audio request limit exceeded. Try again later."
+    "Вся сумма (%@)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full amount (%@)"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Превышен лимит аудио-запросов. Попробуйте позже."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вся сумма (%1$@)"
           }
         }
       }
     },
-    "error.audioSetup %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to set up audio: %@"
+    "Вход": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Login"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не удалось настроить аудио: %@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вход"
+          }
+        }
+      }
+    },
+    "вчера": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "yesterday"
+          }
+        }
+      }
+    },
+    "Вчера": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yesterday"
           }
         }
       }
     },
-    "error.audioStart %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to start recording: %@"
+    "Выберите": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не удалось начать запись: %@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выберите"
           }
         }
       }
     },
-    "error.decoding %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to parse response: %@"
+    "Выберите, к какому долгу отнести платёж": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select which debt to apply the payment to"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не удалось разобрать ответ: %@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выберите, к какому долгу отнести платёж"
           }
         }
       }
     },
-    "error.encodingFailed %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Encoding error: %@"
+    "Выбрать существующую": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose existing"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ошибка кодирования: %@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выбрать существующую"
           }
         }
       }
     },
-    "error.invalidResponse" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unexpected server response"
+    "Выйти из аккаунта": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log out"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Неожиданный ответ сервера"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выйти из аккаунта"
           }
         }
       }
     },
-    "error.network.cannotConnect" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unable to reach the server. Try again later."
+    "выплачено": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "paid"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не удалось связаться с сервером. Попробуйте позже."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "выплачено"
           }
         }
       }
     },
-    "error.network.generic" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Network error. Check your connection and try again."
+    "Главная": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ошибка сети. Проверьте подключение и попробуйте снова."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Главная"
           }
         }
       }
     },
-    "error.network.offline" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No internet connection. Check your connection and try again."
+    "Год": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Year"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Нет подключения к интернету. Проверьте связь и попробуйте снова."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Год"
           }
         }
       }
     },
-    "error.network.timeout" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Server is not responding. Try again later."
+    "Готово": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Сервер не отвечает. Попробуйте позже."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Готово"
           }
         }
       }
     },
-    "error.noActiveDebts %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No active debts with %@. Create a debt first."
+    "Дал в долг": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lent"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Нет активных долгов с %@. Сначала создайте долг."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Дал в долг"
           }
         }
       }
     },
-    "error.noCounterpart" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not determine the recipient. Please specify the name."
+    "Далее": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не удалось определить, кому платёж. Уточните имя."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Далее"
           }
         }
       }
     },
-    "error.noRecording" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to get the recording"
+    "Данные на всех устройствах.\nВойдите — и ничего не потеряется": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data on all devices.\nSign in — and nothing is lost"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не удалось получить запись"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Данные на всех устройствах.\nВойдите — и ничего не потеряется"
+          }
+        }
+      }
+    },
+    "Дата": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date"
+          }
+        }
+      }
+    },
+    "Дата долга": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Debt date"
+          }
+        }
+      }
+    },
+    "Дата платежа": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Payment date"
           }
         }
       }
     },
-    "error.noToken" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Device not authorized — try restarting the app"
+    "День": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Day"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Устройство не авторизовано — попробуйте перезапустить приложение"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "День"
           }
         }
       }
     },
-    "error.parseRejected" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not recognize the transaction. Try rephrasing."
+    "Детали операции": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transaction details"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не удалось распознать операцию. Попробуйте иначе."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Детали операции"
           }
         }
       }
     },
-    "error.rateLimit" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Daily AI request limit reached. Try again tomorrow."
+    "Динамика": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timeline"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Достигнут дневной лимит AI-запросов. Попробуйте завтра."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Динамика"
           }
         }
       }
     },
-    "error.rateLimitShort" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Daily AI request limit reached"
+    "Для голосового ввода транзакций нужен доступ к микрофону. Включите его в Настройках → MonPapa → Микрофон.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Microphone access is needed for voice input. Enable it in Settings → MonPapa → Microphone."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Достигнут дневной лимит AI-запросов"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Для голосового ввода транзакций нужен доступ к микрофону. Включите его в Настройках → MonPapa → Микрофон."
           }
         }
       }
     },
-    "error.recordingFailed" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recording ended with an error"
+    "Добавить долг": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add debt"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Запись завершилась с ошибкой"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавить долг"
           }
         }
       }
     },
-    "error.recordingFileNotFound" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recording file not found"
+    "Добавьте комментарий...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a comment..."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Файл записи не найден"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавьте комментарий..."
           }
         }
       }
     },
-    "error.server %lld %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Server error (%1$lld): %2$@"
+    "Добавьте транзакции, и здесь появится статистика": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add transactions and statistics will appear here"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ошибка сервера (%1$lld): %2$@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавьте транзакции, и здесь появится статистика"
           }
         }
       }
     },
-    "error.silenceTimeout" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I can't hear you. Please try again."
+    "Добро пожаловать\nв MonPapa!": {},
+    "Добро пожаловать\\nв MonPapa!": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome\\nto MonPapa!"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Я вас не слышу. Попробуйте ещё раз."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добро пожаловать\\nв MonPapa!"
           }
         }
       }
     },
-    "error.unknownError" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unknown error"
+    "Доброе утро ☀️": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good morning ☀️"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Неизвестная ошибка"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Доброе утро ☀️"
           }
         }
       }
     },
-    "Item at %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Item at %@"
+    "Добрый вечер 🌙": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good evening 🌙"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Item at %1"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добрый вечер 🌙"
           }
         }
       }
     },
-    "MonPapa" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MonPapa"
+    "Добрый день 👋": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good afternoon 👋"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MonPapa"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добрый день 👋"
           }
         }
       }
     },
-    "OK" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OK"
+    "Долг": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Debt"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OK"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Долг"
           }
         }
       }
     },
-    "Select an item" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select an item"
+    "Долг будет полностью закрыт": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The debt will be fully closed"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select an item"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Долг будет полностью закрыт"
           }
         }
       }
     },
-    "Sync" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sync"
+    "Долг закрыт": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Debt closed"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sync"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Долг закрыт"
           }
         }
       }
     },
-    "Активен" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Active"
+    "Долг и все платежи по нему будут удалены.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The debt and all its payments will be deleted."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Активен"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Долг и все платежи по нему будут удалены."
           }
         }
       }
     },
-    "Активные" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Active"
+    "Долги": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Debts"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Активные"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Долги"
           }
         }
       }
     },
-    "Баланс" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Balance"
+    "Доступ к микрофону": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Microphone Access"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Баланс"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Доступ к микрофону"
           }
         }
       }
     },
-    "Без родителя" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No parent"
+    "Доход": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Income"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Без родителя"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Доход"
           }
         }
       }
     },
-    "Валюта" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Currency"
+    "доходы": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "income"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Валюта"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "доходы"
           }
         }
       }
     },
-    "Ваш Email" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your Email"
+    "Доходы": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Income"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ваш Email"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Доходы"
           }
         }
       }
     },
-    "Введите код" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter code"
+    "Забыли пароль?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forgot password?"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Введите код"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Забыли пароль?"
           }
         }
       }
     },
-    "Введите первую транзакцию\nв поле ниже" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter your first transaction\nin the field below"
+    "Закрыт": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Closed"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Введите первую транзакцию\nв поле ниже"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Закрыт"
           }
         }
       }
     },
-    "Вернул часть, перевод на карту..." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Returned part, transfer to card..."
+    "Закрытые (%lld)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Closed (%lld)"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Вернул часть, перевод на карту..."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Закрытые (%1$lld)"
           }
         }
       }
     },
-    "Взял в долг" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Borrowed"
+    "Закрыть": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Взял в долг"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Закрыть"
           }
         }
       }
     },
-    "Внешний вид" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Appearance"
+    "Закрыть долг": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close debt"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Внешний вид"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Закрыть долг"
           }
         }
       }
     },
-    "Войдите по Magic Link" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign in with Magic Link"
+    "Записать платёж": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record payment"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Войдите по Magic Link"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Записать платёж"
           }
         }
       }
     },
-    "Войти в профиль" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign in to profile"
+    "Здесь будут графики\nи аналитика": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charts and analytics\nwill be here"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Войти в профиль"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Здесь будут графики\nи аналитика"
           }
         }
       }
     },
-    "Войти с помощью Apple" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign in with Apple"
+    "Иконка": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Icon"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Войти с помощью Apple"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Иконка"
           }
         }
       }
     },
-    "Все ваши данные будут безвозвратно удалены с сервера. Это действие невозможно отменить." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All your data will be permanently deleted from the server. This action cannot be undone."
+    "или": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "or"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Все ваши данные будут безвозвратно удалены с сервера. Это действие невозможно отменить."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "или"
           }
         }
       }
     },
-    "Все транзакции, категории и настройки\nбудут удалены безвозвратно.\nЭто действие невозможно отменить." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All transactions, categories and settings\nwill be permanently deleted.\nThis action cannot be undone."
+    "Или": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Or"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Все транзакции, категории и настройки\nбудут удалены безвозвратно.\nЭто действие невозможно отменить."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Или"
           }
         }
       }
     },
-    "Вся сумма (%@)" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Full amount (%@)"
+    "Имя...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name..."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Вся сумма (%1$@)"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Имя..."
           }
         }
       }
     },
-    "Вход" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Login"
+    "История платежей": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Payment history"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Вход"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "История платежей"
           }
         }
       }
     },
-    "Выберите" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select"
+    "Итого": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Выберите"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Итого"
           }
         }
       }
     },
-    "Выберите, к какому долгу отнести платёж" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select which debt to apply the payment to"
+    "Категория": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Выберите, к какому долгу отнести платёж"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Категория"
           }
         }
       }
     },
-    "Выйти из аккаунта" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Log out"
+    "Категория с таким именем уже существует": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A category with this name already exists"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Выйти из аккаунта"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Категория с таким именем уже существует"
           }
         }
       }
     },
-    "выплачено" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "paid"
+    "Код отправлен на:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code sent to:"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "выплачено"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Код отправлен на:"
+          }
+        }
+      }
+    },
+    "Комментарий": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comment"
           }
         }
       }
     },
-    "Главная" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Home"
+    "Кому": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To whom"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Главная"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Кому"
           }
         }
       }
     },
-    "Готово" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Done"
+    "Лимит %lld сек": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sec left"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Готово"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Лимит %lld сек"
+          }
+        }
+      }
+    },
+    "Мес.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mon."
           }
         }
       }
     },
-    "Дал в долг" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lent"
+    "Месяц": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Month"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Дал в долг"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Месяц"
           }
         }
       }
     },
-    "Детали операции" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transaction details"
+    "Мне должны": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I am owed"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Детали операции"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Мне должны"
           }
         }
       }
     },
-    "Для голосового ввода транзакций нужен доступ к микрофону. Включите его в Настройках → MonPapa → Микрофон." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Microphone access is needed for voice input. Enable it in Settings → MonPapa → Microphone."
+    "Мы отправим одноразовый код\nна ваш email.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We will send a one-time code\nto your email."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Для голосового ввода транзакций нужен доступ к микрофону. Включите его в Настройках → MonPapa → Микрофон."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Мы отправим одноразовый код\nна ваш email."
           }
         }
       }
     },
-    "Добавить долг" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add debt"
+    "На ремонт, до зарплаты...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For repairs, until payday..."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Добавить долг"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На ремонт, до зарплаты..."
           }
         }
       }
     },
-    "Добавьте комментарий..." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add a comment..."
+    "Наговорите голосом: «Купил молока за 80 рублей» — AI автоматически предложит категорию и заполнит все поля. Останется только проверить и сохранить!": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Say it with your voice: «Bought milk for 80 rubles» — AI will automatically suggest a category and fill in all the fields. You just need to check and save!"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Добавьте комментарий..."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Наговорите голосом: «Купил молока за 80 рублей» — AI автоматически предложит категорию и заполнит все поля. Останется только проверить и сохранить!"
           }
         }
       }
     },
-    "Долг" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Debt"
+    "Назад": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Долг"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Назад"
           }
         }
       }
     },
-    "Долг будет полностью закрыт" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The debt will be fully closed"
+    "Название категории": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category name"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Долг будет полностью закрыт"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Название категории"
           }
         }
       }
     },
-    "Долг закрыт" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Debt closed"
+    "Найти категорию": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find category"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Долг закрыт"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Найти категорию"
           }
         }
       }
     },
-    "Долг и все платежи по нему будут удалены." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The debt and all its payments will be deleted."
+    "Настройки": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Долг и все платежи по нему будут удалены."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Настройки"
           }
         }
       }
     },
-    "Долги" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Debts"
+    "Не спится? 🦉": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't sleep? 🦉"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Долги"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не спится? 🦉"
           }
         }
       }
     },
-    "Доступ к микрофону" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Microphone Access"
+    "Не удалось сохранить категорию. Попробуйте ещё раз.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to save category. Please try again."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Доступ к микрофону"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось сохранить категорию. Попробуйте ещё раз."
           }
         }
       }
     },
-    "Доход" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Income"
+    "Нед.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wk."
           }
+        }
+      }
+    },
+    "Неделя": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Week"
+          }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Доход"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Неделя"
           }
         }
       }
     },
-    "доходы" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "income"
+    "Несколько долгов": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Multiple debts"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "доходы"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Несколько долгов"
           }
         }
       }
     },
-    "Забыли пароль?" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Forgot password?"
+    "Нет активных долгов": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No active debts"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Забыли пароль?"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет активных долгов"
           }
         }
       }
     },
-    "Закрыт" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Closed"
+    "Нет данных за выбранный период": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No data for the selected period"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Закрыт"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет данных за выбранный период"
           }
         }
       }
     },
-    "Закрытые (%lld)" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Closed (%lld)"
+    "Нет данных по категориям": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No category data"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Закрытые (%1$lld)"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет данных по категориям"
+          }
+        }
+      }
+    },
+    "нет долгов": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "no debts"
           }
         }
       }
     },
-    "Закрыть" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Close"
+    "Нет долгов": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No debts"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Закрыть"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет долгов"
           }
         }
       }
     },
-    "Закрыть долг" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Close debt"
+    "Нет транзакций": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No transactions"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Закрыть долг"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет транзакций"
           }
         }
       }
     },
-    "Записать платёж" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Record payment"
+    "Нет транзакций за выбранный период": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No transactions in the selected period"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Записать платёж"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет транзакций за выбранный период"
           }
         }
       }
     },
-    "Здесь будут графики\nи аналитика" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Charts and analytics\nwill be here"
+    "Ничего не найдено": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing found"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Здесь будут графики\nи аналитика"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ничего не найдено"
           }
         }
       }
     },
-    "Иконка" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Icon"
+    "Новая категория": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New category"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Иконка"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новая категория"
           }
         }
       }
     },
-    "или" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "or"
+    "Новая операция": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New operation"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "или"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новая операция"
           }
         }
       }
     },
-    "Имя..." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Name..."
+    "Новый долг": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New debt"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Имя..."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новый долг"
           }
         }
       }
     },
-    "История платежей" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Payment history"
+    "Обед в кафе, продукты...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lunch at a cafe, groceries..."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "История платежей"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обед в кафе, продукты..."
           }
         }
       }
     },
-    "Итого" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Total"
+    "Облачная синхронизация": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloud synchronization"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Итого"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Облачная синхронизация"
           }
         }
       }
     },
-    "Категория" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Category"
+    "Обновлено: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated: %@"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Категория"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обновлено: %1$@"
           }
         }
       }
     },
-    "Категория с таким именем уже существует" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A category with this name already exists"
+    "ОК": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Категория с таким именем уже существует"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ОК"
           }
         }
       }
     },
-    "Код отправлен на:" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Code sent to:"
+    "Операции": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transactions"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Код отправлен на:"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Операции"
           }
         }
       }
     },
-    "Кому" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "To whom"
+    "Оплачено: %@ из %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paid: %1$@ of %2$@"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Кому"
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Оплачено: %1$@ из %2$@"
           }
         }
       }
     },
-    "Лимит %lld сек" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld sec left"
+    "Останется: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Will remain: %@"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Лимит %lld сек"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Останется: %1$@"
           }
         }
       }
     },
-    "Мне должны" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I am owed"
+    "остаток": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "balance"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Мне должны"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "остаток"
           }
         }
       }
     },
-    "Мы отправим одноразовый код\nна ваш email." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "We will send a one-time code\nto your email."
+    "остаток из %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "remaining from %@"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Мы отправим одноразовый код\nна ваш email."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "остаток из %@"
           }
         }
       }
     },
-    "На ремонт, до зарплаты..." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "For repairs, until payday..."
+    "остаток: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "remaining: %@"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "На ремонт, до зарплаты..."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "остаток: %1$@"
           }
         }
       }
     },
-    "Назад" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Back"
+    "Открыть Настройки": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Назад"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть Настройки"
           }
         }
       }
     },
-    "Название категории" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Category name"
+    "Отмена": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Название категории"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отмена"
           }
         }
       }
     },
-    "Найти категорию" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Find category"
+    "Отправить код повторно": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resend code"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Найти категорию"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отправить код повторно"
           }
         }
       }
     },
-    "Настройки" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Settings"
+    "Отправить повторно через %lld сек": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resend in %lld sec"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Настройки"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отправить повторно через %1$lld сек"
           }
         }
       }
     },
-    "Не удалось сохранить категорию. Попробуйте ещё раз." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to save category. Please try again."
+    "Ошибка": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не удалось сохранить категорию. Попробуйте ещё раз."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ошибка"
           }
         }
       }
     },
-    "Несколько долгов" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Multiple debts"
+    "Ошибка удаления": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deletion error"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Несколько долгов"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ошибка удаления"
           }
         }
       }
     },
-    "Нет активных долгов" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No active debts"
+    "Период": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Period"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Нет активных долгов"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Период"
           }
         }
       }
     },
-    "Нет долгов" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No debts"
+    "По": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Нет долгов"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "По"
           }
         }
       }
     },
-    "Нет транзакций" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No transactions"
+    "Подкатегории": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subcategories"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Нет транзакций"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подкатегории"
           }
         }
       }
     },
-    "Ничего не найдено" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nothing found"
+    "Подтверждение": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmation"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ничего не найдено"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подтверждение"
           }
         }
       }
     },
-    "Новая категория" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "New category"
+    "Пожалуйста, подождите...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please wait..."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Новая категория"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пожалуйста, подождите..."
           }
         }
       }
     },
-    "Новая операция" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "New operation"
+    "Поиск категории...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search category..."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Новая операция"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поиск категории..."
           }
         }
       }
     },
-    "Новый долг" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "New debt"
+    "Поиск по категориям...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search categories..."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Новый долг"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поиск по категориям..."
           }
         }
       }
     },
-    "Обед в кафе, продукты..." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lunch at a cafe, groceries..."
+    "Поиск транзакций...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search transactions..."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Обед в кафе, продукты..."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поиск транзакций..."
           }
         }
       }
     },
-    "Облачная синхронизация" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cloud synchronization"
+    "Пока нет данных": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No data yet"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Облачная синхронизация"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пока нет данных"
           }
         }
       }
     },
-    "Обновлено: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Updated: %@"
+    "Пока нет платежей": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No payments yet"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Обновлено: %1$@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пока нет платежей"
           }
         }
       }
     },
-    "ОК" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OK"
+    "Пока нет транзакций": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No transactions yet"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ОК"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пока нет транзакций"
           }
         }
       }
     },
-    "Оплачено: %@ из %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Paid: %1$@ of %2$@"
+    "Получить код": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get code"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Оплачено: %1$@ из %2$@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Получить код"
           }
         }
       }
     },
-    "Останется: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Will remain: %@"
+    "Понятная статистика расходов\nи доходов в реальном времени": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear expense and income\nstatistics in real time"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Останется: %1$@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Понятная статистика расходов\nи доходов в реальном времени"
           }
         }
       }
     },
-    "остаток" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "balance"
+    "Попробуйте другой запрос\nили создайте новую категорию": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try a different query\nor create a new category"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "остаток"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Попробуйте другой запрос\nили создайте новую категорию"
           }
         }
       }
     },
-    "остаток из %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "remaining from %@"
+    "Попробуйте изменить поисковый запрос": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try changing your search query"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "остаток из %@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Попробуйте изменить поисковый запрос"
           }
         }
       }
     },
-    "остаток: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "remaining: %@"
+    "Последние операции": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent transactions"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "остаток: %1$@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Последние операции"
           }
         }
       }
     },
-    "Открыть Настройки" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open Settings"
+    "Пр.год": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pr.yr."
           }
+        }
+      }
+    },
+    "Пр.мес.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pr.mon."
+          }
+        }
+      }
+    },
+    "Привет, Папа! 👋": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello, Dad! 👋"
+          }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Открыть Настройки"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Привет, Папа! 👋"
           }
         }
       }
     },
-    "Отмена" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cancel"
+    "Приложение для простого и эффективного учёта доходов и расходов. Ничего лишнего — только то, что действительно нужно.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App for simple and effective income and expense tracking. Nothing extra — only what you really need."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Отмена"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Приложение для простого и эффективного учёта доходов и расходов. Ничего лишнего — только то, что действительно нужно."
           }
         }
       }
     },
-    "Отправить код повторно" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Resend code"
+    "Применить": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Отправить код повторно"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Применить"
           }
         }
       }
     },
-    "Отправить повторно через %lld сек" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Resend in %lld sec"
+    "Продолжить без входа": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue without signing in"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Отправить повторно через %1$lld сек"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Продолжить без входа"
           }
         }
       }
     },
-    "Ошибка" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Error"
+    "Произвольный": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom"
           }
+        }
+      }
+    },
+    "Пропустить": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip"
+          }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ошибка"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пропустить"
           }
         }
       }
     },
-    "Ошибка удаления" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deletion error"
+    "Просрочен": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overdue"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ошибка удаления"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Просрочен"
           }
         }
       }
     },
-    "Период" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Period"
+    "просрочен на %lld дн.": {},
+    "Просто скажите или напишите\n«Купил кофе 200 руб» — AI всё поймёт": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Just say or type\n\"Bought coffee 200 rub\" — AI gets it"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Период"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Просто скажите или напишите\n«Купил кофе 200 руб» — AI всё поймёт"
+          }
+        }
+      }
+    },
+    "Прошлый год": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous year"
           }
         }
       }
     },
-    "По" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "To"
+    "Прошлый месяц": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous month"
           }
+        }
+      }
+    },
+    "Работает ИИ...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI is working..."
+          }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "По"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Работает ИИ..."
           }
         }
       }
     },
-    "Подтверждение" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Confirmation"
+    "Распознанный текст AI": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recognized AI text"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Подтверждение"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Распознанный текст AI"
           }
         }
       }
     },
-    "Пожалуйста, подождите..." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Please wait..."
+    "Расход": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expense"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Пожалуйста, подождите..."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Расход"
           }
         }
       }
     },
-    "Поиск категории..." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search category..."
+    "расходы": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "expenses"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Поиск категории..."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "расходы"
           }
         }
       }
     },
-    "Поиск по категориям..." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search categories..."
+    "Расходы": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expenses"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Поиск по категориям..."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Расходы"
           }
         }
       }
     },
-    "Поиск транзакций..." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search transactions..."
+    "Регистрация": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign up"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Поиск транзакций..."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Регистрация"
           }
         }
       }
     },
-    "Пока нет платежей" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No payments yet"
+    "Редактирование": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editing"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Пока нет платежей"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Редактирование"
           }
         }
       }
     },
-    "Пока нет транзакций" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No transactions yet"
+    "Редактировать": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Пока нет транзакций"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Редактировать"
           }
         }
       }
     },
-    "Получить код" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Get code"
+    "Родитель": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parent"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Получить код"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Родитель"
           }
         }
       }
     },
-    "Попробуйте другой запрос\nили создайте новую категорию" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Try a different query\nor create a new category"
+    "Русский": {},
+    "С": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Попробуйте другой запрос\nили создайте новую категорию"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "С"
           }
         }
       }
     },
-    "Попробуйте изменить поисковый запрос" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Try changing your search query"
+    "Сбросить фильтр": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset filter"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Попробуйте изменить поисковый запрос"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сбросить фильтр"
           }
         }
       }
     },
-    "Последние операции" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recent transactions"
+    "Светлая": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Light"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Последние операции"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Светлая"
           }
         }
       }
     },
-    "Привет, Папа! 👋" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hello, Dad! 👋"
+    "Свой": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Привет, Папа! 👋"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Свой"
           }
         }
       }
     },
-    "Просрочен" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Overdue"
+    "Свой период": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom range"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Просрочен"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Свой период"
+          }
+        }
+      }
+    },
+    "сегодня": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "today"
           }
         }
       }
     },
-    "Распознанный текст AI" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recognized AI text"
+    "Сегодня": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today"
           }
+        }
+      }
+    },
+    "Семейные финансы": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Family finances"
+          }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Распознанный текст AI"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Семейные финансы"
           }
         }
       }
     },
-    "Расход" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Expense"
+    "Семейные финансы под контролем AI": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Family finances powered by AI"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Расход"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Семейные финансы под контролем AI"
           }
         }
       }
     },
-    "расходы" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "expenses"
+    "Синхронизация": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "расходы"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Синхронизация"
           }
         }
       }
     },
-    "Регистрация" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign up"
+    "Синхронизация и бэкап в облако": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloud sync and backup"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Регистрация"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Синхронизация и бэкап в облако"
           }
         }
       }
     },
-    "Редактирование" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Editing"
+    "Синхронизация...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Syncing..."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Редактирование"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Синхронизация..."
           }
         }
       }
     },
-    "Редактировать" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Edit"
+    "Системная": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Редактировать"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Системная"
           }
         }
       }
     },
-    "Родитель" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Parent"
+    "Скажите голосом: «Купил кофе за 200 руб» — или введите текст в поле ниже": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Say by voice: 'Bought coffee for 200 rub' — or type in the field below"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Родитель"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скажите голосом: «Купил кофе за 200 руб» — или введите текст в поле ниже"
           }
         }
       }
     },
-    "С" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "From"
+    "Скоро здесь будет список\nвсех транзакций": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A list of all transactions\nwill appear here soon"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "С"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скоро здесь будет список\nвсех транзакций"
           }
         }
       }
     },
-    "Сбросить фильтр" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset filter"
+    "Создать": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Сбросить фильтр"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Создать"
           }
         }
       }
     },
-    "Светлая" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Light"
+    "Создать категорию": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create category"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Светлая"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Создать категорию"
           }
         }
       }
     },
-    "Семейные финансы" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Family finances"
+    "Создать транзакцию\nпроще простого!": {},
+    "Создать транзакцию\\nпроще простого!": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creating a transaction\\nis easier than ever!"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Семейные финансы"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Создать транзакцию\\nпроще простого!"
           }
         }
       }
     },
-    "Синхронизация" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sync"
+    "Сохранить": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Синхронизация"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сохранить"
           }
         }
       }
     },
-    "Синхронизация и бэкап в облако" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cloud sync and backup"
+    "Сравнение с прошлым периодом": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compared to previous period"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Синхронизация и бэкап в облако"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сравнение с прошлым периодом"
           }
         }
       }
     },
-    "Синхронизация..." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Syncing..."
+    "Срок возврата": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Due date"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Синхронизация..."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Срок возврата"
           }
         }
       }
     },
-    "Системная" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "System"
+    "Статистика": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stats"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Системная"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Статистика"
           }
         }
       }
     },
-    "Скоро здесь будет список\nвсех транзакций" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A list of all transactions\nwill appear here soon"
+    "Сумма": {},
+    "Сумма превышает остаток (%@)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Amount exceeds remaining balance (%@)"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Скоро здесь будет список\nвсех транзакций"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сумма превышает остаток (%1$@)"
+          }
+        }
+      }
+    },
+    "Текущий год": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current year"
           }
         }
       }
     },
-    "Создать" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Create"
+    "Текущий месяц": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current month"
           }
+        }
+      }
+    },
+    "Тема": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Theme"
+          }
+        }
+      }
+    },
+    "Тёмная": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dark"
+          }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Создать"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Тёмная"
           }
         }
       }
     },
-    "Создать категорию" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Create category"
+    "Топ категорий": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Top categories"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Создать категорию"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Топ категорий"
           }
         }
       }
     },
-    "Сохранить" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Save"
+    "Транзакции": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transactions"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Сохранить"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Транзакции"
           }
         }
       }
     },
-    "Срок возврата" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Due date"
+    "Транзакция будет удалена.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transaction will be deleted."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Срок возврата"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Транзакция будет удалена."
           }
         }
       }
     },
-    "Статистика" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stats"
+    "У вас нет активных долгов.\nШикарно!": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have no active debts.\nAwesome!"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Статистика"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "У вас нет активных долгов.\nШикарно!"
           }
         }
       }
     },
-    "Сумма превышает остаток (%@)" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Amount exceeds remaining balance (%@)"
+    "У кого": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From whom"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Сумма превышает остаток (%1$@)"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "У кого"
           }
         }
       }
     },
-    "Тёмная" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dark"
+    "Убрать": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Тёмная"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Убрать"
           }
         }
       }
     },
-    "Транзакции" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transactions"
+    "Удаление...": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleting..."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Транзакции"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удаление..."
           }
         }
       }
     },
-    "Транзакция будет удалена." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transaction will be deleted."
+    "Удалить": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Транзакция будет удалена."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить"
           }
         }
       }
     },
-    "У вас нет активных долгов.\nШикарно!" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You have no active debts.\nAwesome!"
+    "Удалить аккаунт": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete account"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "У вас нет активных долгов.\nШикарно!"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить аккаунт"
           }
         }
       }
     },
-    "У кого" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "From whom"
+    "Удалить аккаунт и все данные": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete account and all data"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "У кого"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить аккаунт и все данные"
           }
         }
       }
     },
-    "Убрать" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove"
+    "Удалить аккаунт?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete account?"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Убрать"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить аккаунт?"
           }
         }
       }
     },
-    "Удаление..." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deleting..."
+    "Удалить долг?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete debt?"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Удаление..."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить долг?"
           }
         }
       }
     },
-    "Удалить" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete"
+    "Удалить транзакцию?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete transaction?"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Удалить"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить транзакцию?"
           }
         }
       }
     },
-    "Удалить аккаунт" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete account"
+    "Уточните недостающие данные": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clarify missing data"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Удалить аккаунт"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Уточните недостающие данные"
           }
         }
       }
     },
-    "Удалить аккаунт и все данные" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete account and all data"
+    "Фильтр по категориям": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category filter"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Удалить аккаунт и все данные"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фильтр по категориям"
+          }
+        }
+      }
+    },
+    "через %lld дн.": {},
+    "Я взял в долг": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I borrowed"
+          }
+        }
+      }
+    },
+    "Я дал в долг": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I lent"
           }
         }
       }
     },
-    "Удалить аккаунт?" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete account?"
+    "Я должен": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I owe"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Удалить аккаунт?"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Я должен"
           }
         }
       }
     },
-    "Удалить долг?" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete debt?"
+    "aiHint.groceries": {
+      "extractionState": "manual",
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Купил продукты в магните 1500"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Удалить долг?"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Groceries at Walmart 45"
           }
         }
       }
     },
-    "Удалить транзакцию?" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete transaction?"
+    "aiHint.transfer": {
+      "extractionState": "manual",
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перевел жене 5000"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Удалить транзакцию?"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sent $150 to my wife"
           }
         }
       }
     },
-    "Уточните недостающие данные" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Clarify missing data"
+    "aiHint.lunch": {
+      "extractionState": "manual",
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Бизнес-ланч 450 руб"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Уточните недостающие данные"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Business lunch 15"
           }
         }
       }
     },
-    "Фильтр по категориям" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Category filter"
+    "aiHint.salary": {
+      "extractionState": "manual",
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пришла зарплата 80000"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Фильтр по категориям"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Got paid 3500 salary"
           }
         }
       }
     },
-    "Я должен" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I owe"
+    "aiHint.fuel": {
+      "extractionState": "manual",
+      "localizations": {
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заправил машину на 2000"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Я должен"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filled up the car for 60"
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

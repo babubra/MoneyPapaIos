@@ -14,13 +14,8 @@ enum APIConfig {
 
     static var baseURL: String {
         #if DEBUG
-            #if targetEnvironment(simulator)
-            // Симулятор видит localhost мака, где запущен Docker
-            return "http://localhost:8001"
-            #else
-            // Реальный iPhone — подключаемся к VPS серверу
-            return "http://45.90.99.67:8001"
-            #endif
+        // Debug (симулятор и устройство) — VPS сервер
+        return "http://45.90.99.67:8001"
         #else
         // Release (App Store) — продакшн домен
         return "https://api.monpapa.app"  // TODO: заменить, когда будет домен

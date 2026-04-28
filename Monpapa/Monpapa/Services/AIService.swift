@@ -5,6 +5,7 @@
 // Хранение: device token и device_id — в Keychain (через KeychainService).
 
 import Foundation
+import os
 
 // MARK: - Конфигурация
 
@@ -112,7 +113,7 @@ final class AIService {
         do {
             try await authenticate()
         } catch {
-            print("[AIService] ⚠️ Авторизация не удалась: \(error.localizedDescription)")
+            MPLog.auth.error("⚠️ Авторизация не удалась: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -128,7 +129,7 @@ final class AIService {
 
         let decoded = try JSONDecoder().decode(AuthResponse.self, from: data)
         authToken = decoded.accessToken
-        print("[AIService] ✅ Устройство авторизовано, токен сохранён")
+        MPLog.auth.info("✅ Устройство авторизовано, токен сохранён")
     }
 
     // MARK: - AI Текстовый парсинг
@@ -152,43 +153,56 @@ final class AIService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
+        let locale = Locale.current.language.languageCode?.identifier ?? "ru"
         let body = ParseTextRequest(
             text: text,
             categories: categories,
             counterparts: counterparts,
-            locale: Locale.current.language.languageCode?.identifier ?? "ru"
+            locale: locale
         )
-        request.httpBody = try JSONEncoder().encode(body)
+        let bodyData = try JSONEncoder().encode(body)
+        request.httpBody = bodyData
 
-        #if DEBUG
-        print("[AIService] 📤 parseText запрос: \"\(text)\" | категорий: \(categories.count)")
-        #endif
+        // Корреляционный ID, чтобы связать 📤/📥/✅ между собой в логах
+        // (полезно, когда пользователь быстро шлёт два запроса подряд).
+        let reqId = String(UUID().uuidString.prefix(8))
 
+        MPLog.service.info("📤 [\(reqId, privacy: .public)] parseText | text=\"\(text, privacy: .public)\" locale=\(locale, privacy: .public)")
+        MPLog.service.debug("📤 [\(reqId, privacy: .public)] categories(\(categories.count)): \(categories.map { "\($0.name)[\($0.type)]" }.joined(separator: ", "), privacy: .public)")
+        MPLog.service.debug("📤 [\(reqId, privacy: .public)] counterparts(\(counterparts.count)): \(counterparts.map(\.name).joined(separator: ", "), privacy: .public)")
+        if let bodyStr = String(data: bodyData, encoding: .utf8) {
+            MPLog.service.debug("📤 [\(reqId, privacy: .public)] body JSON: \(bodyStr, privacy: .public)")
+        }
+
+        let startedAt = Date()
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await URLSession.shared.data(for: request)
         } catch let urlError as URLError {
+            MPLog.service.error("❌ [\(reqId, privacy: .public)] parseText network error: \(urlError.code.rawValue) \(urlError.localizedDescription, privacy: .public)")
             throw AIServiceError.networkError(urlError)
         }
+        let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1000)
 
-        #if DEBUG
-        print("[AIService] 📥 parseText raw response: \(String(data: data, encoding: .utf8)?.prefix(800) ?? "nil")")
-        #endif
+        let httpStatus = (response as? HTTPURLResponse)?.statusCode ?? -1
+        MPLog.service.info("📥 [\(reqId, privacy: .public)] parseText HTTP \(httpStatus) | \(data.count) bytes | \(elapsedMs)ms")
+        if let bodyStr = String(data: data, encoding: .utf8) {
+            MPLog.service.debug("📥 [\(reqId, privacy: .public)] response body: \(bodyStr, privacy: .public)")
+        }
 
         // Токен мог протухнуть → переавторизуемся и повторяем
         if let http = response as? HTTPURLResponse, http.statusCode == 401 {
+            MPLog.service.notice("🔑 [\(reqId, privacy: .public)] 401 — переавторизация и ретрай")
             authToken = nil
             try await authenticate()
             return try await parseText(text, categories: categories, counterparts: counterparts)
         }
 
         try validateResponse(response, data: data)
-        let result = try decode(AiParseResult.self, from: data)
-        
-        #if DEBUG
-        print("[AIService] ✅ parseText результат: status=\(result.status), amount=\(result.amount ?? 0), category=\(result.categoryName ?? "nil"), isNew=\(result.categoryIsNew ?? false)")
-        #endif
-        
+        let result = try decode(AiParseResult.self, from: data, reqId: reqId)
+
+        logParsedResult(result, reqId: reqId, source: "parseText")
+
         return result
     }
 
@@ -218,33 +232,42 @@ final class AIService {
         let categoriesJSON = (try? JSONEncoder().encode(categories)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
         let counterpartsJSON = (try? JSONEncoder().encode(counterparts)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
 
+        let locale = Locale.current.language.languageCode?.identifier ?? "ru"
         request.httpBody = buildMultipart(
             boundary: boundary,
             audioData: audioData,
             fileName: fileURL.lastPathComponent,
             categories: categoriesJSON,
             counterparts: counterpartsJSON,
-            locale: Locale.current.language.languageCode?.identifier ?? "ru"
+            locale: locale
         )
 
+        let reqId = String(UUID().uuidString.prefix(8))
+        MPLog.service.info("📤 [\(reqId, privacy: .public)] parseAudio | file=\(fileURL.lastPathComponent, privacy: .public) size=\(audioData.count)B locale=\(locale, privacy: .public)")
+        MPLog.service.debug("📤 [\(reqId, privacy: .public)] categories(\(categories.count)): \(categories.map { "\($0.name)[\($0.type)]" }.joined(separator: ", "), privacy: .public)")
+        MPLog.service.debug("📤 [\(reqId, privacy: .public)] counterparts(\(counterparts.count)): \(counterparts.map(\.name).joined(separator: ", "), privacy: .public)")
+
+        let startedAt = Date()
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await URLSession.shared.data(for: request)
         } catch let urlError as URLError {
+            MPLog.service.error("❌ [\(reqId, privacy: .public)] parseAudio network error: \(urlError.code.rawValue) \(urlError.localizedDescription, privacy: .public)")
             throw AIServiceError.networkError(urlError)
         }
+        let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1000)
 
-        #if DEBUG
-        print("[AIService] 📥 parseAudio raw response: \(String(data: data, encoding: .utf8)?.prefix(800) ?? "nil")")
-        #endif
+        let httpStatus = (response as? HTTPURLResponse)?.statusCode ?? -1
+        MPLog.service.info("📥 [\(reqId, privacy: .public)] parseAudio HTTP \(httpStatus) | \(data.count) bytes | \(elapsedMs)ms")
+        if let bodyStr = String(data: data, encoding: .utf8) {
+            MPLog.service.debug("📥 [\(reqId, privacy: .public)] response body: \(bodyStr, privacy: .public)")
+        }
 
         try validateResponse(response, data: data)
-        let result = try decode(AiParseResult.self, from: data)
-        
-        #if DEBUG
-        print("[AIService] ✅ parseAudio результат: status=\(result.status), amount=\(result.amount ?? 0), category=\(result.categoryName ?? "nil")")
-        #endif
-        
+        let result = try decode(AiParseResult.self, from: data, reqId: reqId)
+
+        logParsedResult(result, reqId: reqId, source: "parseAudio")
+
         return result
     }
 
@@ -264,11 +287,46 @@ final class AIService {
         }
     }
 
-    private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+    private func decode<T: Decodable>(_ type: T.Type, from data: Data, reqId: String = "-") throws -> T {
         do {
             return try JSONDecoder().decode(type, from: data)
+        } catch let decErr as DecodingError {
+            MPLog.service.error("❌ [\(reqId, privacy: .public)] decode \(String(describing: type), privacy: .public) failed: \(Self.describeDecodingError(decErr), privacy: .public)")
+            throw AIServiceError.decodingError(decErr)
         } catch {
+            MPLog.service.error("❌ [\(reqId, privacy: .public)] decode \(String(describing: type), privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
             throw AIServiceError.decodingError(error)
+        }
+    }
+
+    /// Подробный дамп результата AI — видно все ключевые поля, чтобы не гадать что пришло.
+    private func logParsedResult(_ r: AiParseResult, reqId: String, source: String) {
+        let cat = "\(r.categoryName ?? "nil")[id=\(r.categoryId ?? "nil"),new=\(r.categoryIsNew ?? false),icon=\(r.categoryIcon ?? "nil")]"
+        let parent = r.categoryParentName.map { "\($0)[id=\(r.categoryParentId ?? "nil"),icon=\(r.categoryParentIcon ?? "nil")]" } ?? "nil"
+        let cp = "\(r.counterpartName ?? "nil")[id=\(r.counterpartId ?? "nil"),new=\(r.counterpartIsNew ?? false)]"
+        MPLog.service.info("✅ [\(reqId, privacy: .public)] \(source, privacy: .public) result: status=\(String(describing: r.status), privacy: .public) type=\(r.type ?? "nil", privacy: .public) amount=\(r.amount ?? 0) currency=\(r.currency ?? "nil", privacy: .public) date=\(r.date ?? "nil", privacy: .public)")
+        MPLog.service.info("✅ [\(reqId, privacy: .public)]   itemPhrase=\"\(r.itemPhrase ?? "nil", privacy: .public)\" category=\(cat, privacy: .public) parent=\(parent, privacy: .public)")
+        MPLog.service.info("✅ [\(reqId, privacy: .public)]   counterpart=\(cp, privacy: .public) dueDate=\(r.dueDate ?? "nil", privacy: .public) paymentFlow=\(r.paymentFlow ?? "nil", privacy: .public)")
+        if let msg = r.message { MPLog.service.info("✅ [\(reqId, privacy: .public)]   message=\"\(msg, privacy: .public)\"") }
+        if let raw = r.rawText { MPLog.service.debug("✅ [\(reqId, privacy: .public)]   rawText=\"\(raw, privacy: .public)\"") }
+    }
+
+    /// Человекочитаемое описание DecodingError с codingPath — для быстрой диагностики сломанного JSON.
+    private static func describeDecodingError(_ err: DecodingError) -> String {
+        func pathStr(_ ctx: DecodingError.Context) -> String {
+            ctx.codingPath.map { $0.stringValue }.joined(separator: ".")
+        }
+        switch err {
+        case .typeMismatch(let type, let ctx):
+            return "typeMismatch \(type) at \"\(pathStr(ctx))\" — \(ctx.debugDescription)"
+        case .valueNotFound(let type, let ctx):
+            return "valueNotFound \(type) at \"\(pathStr(ctx))\" — \(ctx.debugDescription)"
+        case .keyNotFound(let key, let ctx):
+            return "keyNotFound \"\(key.stringValue)\" at \"\(pathStr(ctx))\""
+        case .dataCorrupted(let ctx):
+            return "dataCorrupted at \"\(pathStr(ctx))\" — \(ctx.debugDescription)"
+        @unknown default:
+            return "\(err)"
         }
     }
 
@@ -319,13 +377,13 @@ final class AIService {
         if let token = defaults.string(forKey: AIServiceConfig.legacyTokenKey) {
             KeychainService.save(key: KeychainService.Keys.deviceToken, value: token)
             defaults.removeObject(forKey: AIServiceConfig.legacyTokenKey)
-            print("[AIService] 🔄 Мигрирован deviceToken → Keychain")
+            MPLog.auth.info("🔄 Мигрирован deviceToken → Keychain")
         }
 
         if let deviceId = defaults.string(forKey: AIServiceConfig.legacyDeviceIdKey) {
             KeychainService.save(key: KeychainService.Keys.deviceId, value: deviceId)
             defaults.removeObject(forKey: AIServiceConfig.legacyDeviceIdKey)
-            print("[AIService] 🔄 Мигрирован deviceId → Keychain")
+            MPLog.auth.info("🔄 Мигрирован deviceId → Keychain")
         }
     }
 
@@ -340,9 +398,7 @@ final class AIService {
         isOverride: Bool
     ) async {
         guard let token = authToken else {
-            #if DEBUG
-            print("[AIService] ⏭ sendMapping пропущен — нет токена")
-            #endif
+            MPLog.autolearn.notice("⏭ sendMapping пропущен — нет токена")
             return
         }
 
@@ -362,14 +418,10 @@ final class AIService {
 
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
-            #if DEBUG
             let responseStr = String(data: data, encoding: .utf8) ?? "nil"
-            print("[AIService] 🧠 sendMapping: '\(itemPhrase)' → '\(categoryName)' | response: \(responseStr)")
-            #endif
+            MPLog.autolearn.info("🧠 sendMapping: '\(itemPhrase, privacy: .public)' → '\(categoryName, privacy: .public)' | response: \(responseStr, privacy: .public)")
         } catch {
-            #if DEBUG
-            print("[AIService] ⚠️ sendMapping ошибка: \(error.localizedDescription)")
-            #endif
+            MPLog.autolearn.error("⚠️ sendMapping ошибка: \(error.localizedDescription, privacy: .public)")
         }
     }
 }

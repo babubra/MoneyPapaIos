@@ -140,19 +140,24 @@ struct DebtListView: View {
     private var summaryCard: some View {
         HStack(spacing: 0) {
             // Мне должны
-            VStack(spacing: MPSpacing.xxs) {
-                Text("Мне должны")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundColor(MPColors.textSecondary)
+            VStack(spacing: 4) {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(MPColors.accentGreen)
+                    Text("Мне должны")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundColor(MPColors.textSecondary)
+                }
 
-                Text(settings.hideAmounts ? "•••" : "+\(formattedAmount(totalGave))")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                Text(settings.hideAmounts ? "•••••" : formattedAmount(totalGave))
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundColor(MPColors.accentGreen)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.6)
                     .lineLimit(1)
 
                 Text(debtCountText(gaveCount))
-                    .font(.system(size: 11, weight: .regular, design: .rounded))
+                    .font(.system(size: 10, weight: .regular, design: .rounded))
                     .foregroundColor(MPColors.textSecondary.opacity(0.7))
             }
             .frame(maxWidth: .infinity)
@@ -164,19 +169,24 @@ struct DebtListView: View {
                 .padding(.vertical, 8)
 
             // Я должен
-            VStack(spacing: MPSpacing.xxs) {
-                Text("Я должен")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundColor(MPColors.textSecondary)
+            VStack(spacing: 4) {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(MPColors.accentCoral)
+                    Text("Я должен")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundColor(MPColors.textSecondary)
+                }
 
-                Text(settings.hideAmounts ? "•••" : "-\(formattedAmount(totalTook))")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                Text(settings.hideAmounts ? "•••••" : formattedAmount(totalTook))
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundColor(MPColors.accentCoral)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.6)
                     .lineLimit(1)
 
                 Text(debtCountText(tookCount))
-                    .font(.system(size: 11, weight: .regular, design: .rounded))
+                    .font(.system(size: 10, weight: .regular, design: .rounded))
                     .foregroundColor(MPColors.textSecondary.opacity(0.7))
             }
             .frame(maxWidth: .infinity)
@@ -190,16 +200,16 @@ struct DebtListView: View {
 
     private var directionSegment: some View {
         HStack(spacing: 4) {
-            segmentButton(title: "Все", direction: nil)
-            segmentButton(title: "Мне должны", direction: .gave)
-            segmentButton(title: "Я должен", direction: .took)
+            segmentButton(titleKey: "Все", direction: nil)
+            segmentButton(titleKey: "Мне должны", direction: .gave)
+            segmentButton(titleKey: "Я должен", direction: .took)
         }
         .padding(4)
         .background(MPColors.cardBackground.opacity(0.6))
         .cornerRadius(MPCornerRadius.pill)
     }
 
-    private func segmentButton(title: String, direction: DebtDirection?) -> some View {
+    private func segmentButton(titleKey: LocalizedStringKey, direction: DebtDirection?) -> some View {
         let isSelected = selectedDirection == direction
         let color: Color = {
             switch direction {
@@ -214,7 +224,7 @@ struct DebtListView: View {
                 selectedDirection = direction
             }
         } label: {
-            Text(title)
+            Text(titleKey)
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundColor(isSelected ? .white : MPColors.textSecondary)
                 .frame(maxWidth: .infinity)
@@ -347,10 +357,10 @@ struct DebtListView: View {
 
     private func debtCountText(_ count: Int) -> String {
         switch count {
-        case 0: return "нет долгов"
-        case 1: return "1 долг"
-        case 2...4: return "\(count) долга"
-        default: return "\(count) долгов"
+        case 0: return String(localized: "нет долгов")
+        case 1: return String(localized: "1 долг")
+        case 2...4: return String(localized: "\(count) долга")
+        default: return String(localized: "\(count) долгов")
         }
     }
 }

@@ -3,6 +3,7 @@
 import SwiftUI
 import SwiftData
 import Combine
+import os
 
 struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
@@ -28,8 +29,6 @@ struct DashboardView: View {
         let type: TransactionType
     }
     @State private var manualTransactionParams: ManualTransactionParams?
-    
-    @State private var currentTime = Date()
 
     // AI-парсинг
     @State private var aiParseResult: AiParseResult?
@@ -43,16 +42,18 @@ struct DashboardView: View {
         let id = UUID()
         let debt: DebtModel
         let prefillAmount: Double?
+        let prefillComment: String?
     }
     @State private var debtPaymentTarget: DebtPaymentTarget?
 
     /// Для выбора долга при нескольких совпадениях
     @State private var debtPickerDebts: [DebtModel] = []
     @State private var debtPickerAmount: Double?
+    @State private var debtPickerComment: String?
     @State private var showDebtPicker = false
     
-    /// Таймер для обновления часов каждую секунду
-    private let clockTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    // Анимация пустого состояния
+    @State private var arrowBounce = false
     
     /// Последние 4 транзакции (по дате создания)
     private var recentTransactions: [TransactionModel] {
@@ -98,6 +99,22 @@ struct DashboardView: View {
         return allTransactions.filter { $0.transactionDate >= startOfMonth }
     }
     
+    // MARK: - Динамическое приветствие по времени суток
+    
+    private var greetingText: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 6..<12:
+            return String(localized: "Доброе утро ☀️")
+        case 12..<18:
+            return String(localized: "Добрый день 👋")
+        case 18..<23:
+            return String(localized: "Добрый вечер 🌙")
+        default:
+            return String(localized: "Не спится? 🦉")
+        }
+    }
+    
     var body: some View {
         ZStack {
             // Декоративный фон с конфетти (как на экране логина)
@@ -110,7 +127,22 @@ struct DashboardView: View {
                         headerSection
                         
                         // MARK: - Карточка баланса
-                        balanceCard
+                        BalanceCardView(
+                            monthlyBalance: monthlyBalance,
+                            monthlyIncome: monthlyIncome,
+                            monthlyExpenses: monthlyExpenses
+                        )
+                        
+                        // MARK: - Активные долги
+                        ActiveDebtsSummary(
+                            debts: activeDebts,
+                            onTapDebt: { _ in
+                                // Переход в таб «Долги» — пока просто показываем все
+                            },
+                            onShowAll: {
+                                // Переход в таб «Долги»
+                            }
+                        )
                         
                         // MARK: - Последние операции
                         recentTransactionsSection
@@ -125,8 +157,8 @@ struct DashboardView: View {
                 // MARK: - Кнопки ручного добавления (всегда внизу)
                 actionButtonsRow
                     .padding(.horizontal, MPSpacing.md)
-                    .padding(.top, MPSpacing.md)
-                    .padding(.bottom, MPSpacing.xs)
+                    .padding(.top, MPSpacing.lg)
+                    .padding(.bottom, MPSpacing.sm)
                 
                 // MARK: - AI Input Bar
                 AIInputBar(
@@ -143,6 +175,7 @@ struct DashboardView: View {
                         showAiError = true
                     }
                 )
+                .padding(.bottom, MPSpacing.sm)
             }
         }
         .sheet(isPresented: $showSettings) {
@@ -164,7 +197,7 @@ struct DashboardView: View {
             AddDebtSheet(prefill: result)
         }
         .sheet(item: $debtPaymentTarget) { target in
-            AddPaymentSheet(debt: target.debt, prefillAmount: target.prefillAmount)
+            AddPaymentSheet(debt: target.debt, prefillAmount: target.prefillAmount, prefillComment: target.prefillComment)
         }
         .alert("Ошибка", isPresented: $showAiError) {
             Button("ОК", role: .cancel) {}
@@ -178,241 +211,45 @@ struct DashboardView: View {
             ) { selectedDebt in
                 debtPaymentTarget = DebtPaymentTarget(
                     debt: selectedDebt,
-                    prefillAmount: debtPickerAmount
+                    prefillAmount: debtPickerAmount,
+                    prefillComment: debtPickerComment
                 )
             }
             .presentationDetents([.medium])
         }
     }
-
-    // MARK: - AI Обработка результата
-
-    private func handleAIResult(_ result: AiParseResult) {
-        switch result.status {
-        case .ok, .incomplete:
-            if let type = result.type {
-                switch type {
-                case "debt_payment":
-                    // Платёж по существующему долгу — ищем долг по контрагенту
-                    handleDebtPayment(result)
-                case "debt_give", "debt_take":
-                    // Новый долг → AddDebtSheet
-                    aiDebtPrefill = result
-                default:
-                    // Обычная транзакция
-                    aiParseResult = result
-                }
-            } else {
-                aiParseResult = result
-            }
-        case .rejected:
-            aiErrorMessage = result.message ?? String(localized: "error.parseRejected")
-            showAiError = true
-        }
-    }
-
-    /// Обработка debt_payment: поиск долга по контрагенту + направлению → AddPaymentSheet
-    private func handleDebtPayment(_ result: AiParseResult) {
-        guard let cpName = result.counterpartName, !cpName.isEmpty else {
-            aiErrorMessage = String(localized: "error.noCounterpart")
-            showAiError = true
-            return
-        }
-
-        // Поиск долгов по контрагенту
-        var matchingDebts: [DebtModel]
-        if let cpId = result.counterpartId {
-            matchingDebts = activeDebts.filter { $0.counterpart?.clientId == cpId }
-        } else {
-            matchingDebts = activeDebts.filter {
-                $0.counterpart?.name.localizedCaseInsensitiveCompare(cpName) == .orderedSame
-            }
-        }
-
-        // Фильтрация по направлению (payment_flow)
-        // inbound = мне возвращают → я давал (gave)
-        // outbound = я возвращаю → я брал (took)
-        if let flow = result.paymentFlow {
-            let expectedDirection: DebtDirection = flow == "inbound" ? .gave : .took
-            let filtered = matchingDebts.filter { $0.direction == expectedDirection }
-            if !filtered.isEmpty {
-                matchingDebts = filtered
-            }
-            // Если фильтр пустой — показываем все (лучше чем ничего)
-        }
-
-        if matchingDebts.count == 1 {
-            debtPaymentTarget = DebtPaymentTarget(
-                debt: matchingDebts[0],
-                prefillAmount: result.amount
-            )
-        } else if matchingDebts.count > 1 {
-            debtPickerDebts = matchingDebts
-            debtPickerAmount = result.amount
-            showDebtPicker = true
-        } else {
-            aiErrorMessage = String(localized: "error.noActiveDebts \(cpName)")
-            showAiError = true
-        }
-    }
     
     // MARK: - Приветствие
-
+    
     private var headerSection: some View {
         HStack {
-            Text("Привет, Папа! 👋")
+            Text(greetingText)
                 .font(MPTypography.screenTitle)
                 .foregroundColor(MPColors.textPrimary)
             
             Spacer()
             
-            // Кнопка скрытия сумм
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    settings.hideAmounts.toggle()
-                }
-            } label: {
-                Image(systemName: settings.hideAmounts ? "eye.slash" : "eye")
-                    .font(.system(size: 18))
-                    .foregroundColor(MPColors.textSecondary)
-                    .contentTransition(.symbolEffect(.replace))
-            }
-            
-            // Настройки
-            Button {
-                showSettings = true
-            } label: {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 22))
-                    .foregroundColor(MPColors.textSecondary)
-            }
-        }
-    }
-    
-    // MARK: - Цвета текста карточки баланса
-    
-    private var cardTextPrimary: Color {
-        colorScheme == .dark ? .white : Color(red: 0.25, green: 0.15, blue: 0.10)
-    }
-    
-    private var cardTextSecondary: Color {
-        colorScheme == .dark ? .white.opacity(0.8) : Color(red: 0.45, green: 0.35, blue: 0.28)
-    }
-    
-    // MARK: - Карточка баланса
-    
-    /// Форматированный день недели ("Вторник")
-    private var formattedDayOfWeek: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
-        formatter.dateFormat = "EEEE"
-        return formatter.string(from: currentTime).capitalizedFirstLetter
-    }
-    
-    /// Форматированное число и месяц ("1 апреля")
-    private var formattedDayMonth: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
-        formatter.dateFormat = "d MMMM"
-        return formatter.string(from: currentTime)
-    }
-
-    
-    private var balanceCard: some View {
-        HStack(alignment: .center, spacing: 0) {
-            
-            // MARK: — Левая треть: дата
-            VStack(alignment: .leading, spacing: 2) {
-                // День недели
-                Text(formattedDayOfWeek)
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundColor(cardTextPrimary)
-                    .lineLimit(1)
-                
-                // Число и месяц
-                Text(formattedDayMonth)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundColor(cardTextPrimary)
-                    .lineLimit(1)
-            }
-            .fixedSize(horizontal: true, vertical: false)
-            
-            // Вертикальный разделитель
-            // Отступ слева = MPSpacing.md = отступу карточки от края экрана
-            Rectangle()
-                .fill(cardTextSecondary.opacity(0.2))
-                .frame(width: 0.5)
-                .padding(.vertical, 6)
-                .padding(.leading, MPSpacing.md)
-                .padding(.trailing, MPSpacing.md)
-            
-            // MARK: — Правые две трети: баланс + доходы/расходы
-            VStack(alignment: .center, spacing: 4) {
-                Text("Баланс")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundColor(cardTextSecondary)
-                
-                Text(settings.hideAmounts ? "••••••" : formatAmount(monthlyBalance))
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .foregroundColor(cardTextPrimary)
-                    .minimumScaleFactor(0.7)
-                    .lineLimit(1)
-                
-                HStack(spacing: MPSpacing.md) {
-                    VStack(spacing: 1) {
-                        Text(settings.hideAmounts ? "•••" : "+\(formatAmount(monthlyIncome))")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundColor(colorScheme == .dark
-                                ? Color(red: 0.6, green: 1.0, blue: 0.6)
-                                : Color(red: 0.2, green: 0.7, blue: 0.2))
-                            .minimumScaleFactor(0.7)
-                            .lineLimit(1)
-                        Text("доходы")
-                            .font(.system(size: 10, weight: .regular, design: .rounded))
-                            .foregroundColor(cardTextSecondary)
+            HStack(spacing: 20) {
+                // Кнопка скрытия сумм
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        settings.hideAmounts.toggle()
                     }
-                    
-                    VStack(spacing: 1) {
-                        Text(settings.hideAmounts ? "•••" : "-\(formatAmount(monthlyExpenses))")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundColor(colorScheme == .dark
-                                ? Color(red: 1.0, green: 0.6, blue: 0.5)
-                                : Color(red: 0.9, green: 0.3, blue: 0.2))
-                            .minimumScaleFactor(0.7)
-                            .lineLimit(1)
-                        Text("расходы")
-                            .font(.system(size: 10, weight: .regular, design: .rounded))
-                            .foregroundColor(cardTextSecondary)
-                    }
+                } label: {
+                    Image(systemName: settings.hideAmounts ? "eye.slash" : "eye")
+                        .font(.system(size: 22))
+                        .foregroundColor(MPColors.textSecondary)
+                        .contentTransition(.symbolEffect(.replace))
                 }
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, MPSpacing.md)
-        .padding(.vertical, MPSpacing.sm + 2)
-        .background(
-            ZStack {
-                HStack(spacing: 0) {
-                    if colorScheme == .dark {
-                        Color(red: 0.55, green: 0.25, blue: 0.15).opacity(0.4)
-                        Color(red: 0.35, green: 0.18, blue: 0.12).opacity(0.5)
-                        Color(red: 0.15, green: 0.30, blue: 0.35).opacity(0.4)
-                    } else {
-                        MPColors.accentYellow.opacity(0.25)
-                        MPColors.accentCoral.opacity(0.15)
-                        MPColors.accentBlue.opacity(0.2)
-                    }
+                
+                // Настройки
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(MPColors.textSecondary)
                 }
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-            }
-        )
-        .cornerRadius(MPCornerRadius.lg)
-        .clipped()
-        .onReceive(clockTimer) { time in
-            withAnimation(.easeInOut(duration: 0.3)) {
-                currentTime = time
             }
         }
     }
@@ -421,25 +258,13 @@ struct DashboardView: View {
     
     private var recentTransactionsSection: some View {
         VStack(alignment: .leading, spacing: MPSpacing.sm) {
-            Text("Последние операции")
+            Text(String(localized: "Последние операции"))
                 .font(MPTypography.button)
                 .foregroundColor(MPColors.textPrimary)
             
             if recentTransactions.isEmpty {
-                // Пустое состояние
-                VStack(spacing: MPSpacing.sm) {
-                    Text("🏠")
-                        .font(.system(size: 40))
-                    Text("Пока нет транзакций")
-                        .font(MPTypography.body)
-                        .foregroundColor(MPColors.textSecondary)
-                    Text("Введите первую транзакцию\nв поле ниже")
-                        .font(MPTypography.caption)
-                        .foregroundColor(MPColors.textSecondary)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, MPSpacing.xl)
+                // Улучшенное пустое состояние с CTA
+                emptyStateView
             } else {
                 VStack(spacing: MPSpacing.xs) {
                     ForEach(recentTransactions, id: \.clientId) { transaction in
@@ -451,34 +276,101 @@ struct DashboardView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                
-                // Ссылка «Все транзакции» удалена по дизайну
             }
         }
+    }
+    
+    // MARK: - Пустое состояние (CTA)
+    
+    private var emptyStateView: some View {
+        VStack(spacing: MPSpacing.md) {
+            // Иконка микрофона с градиентом
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                MPColors.accentCoral.opacity(colorScheme == .dark ? 0.2 : 0.12),
+                                MPColors.accentYellow.opacity(colorScheme == .dark ? 0.12 : 0.06)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 64, height: 64)
+                
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [MPColors.accentCoral, MPColors.accentYellow],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+            
+            VStack(spacing: MPSpacing.xs) {
+                Text(String(localized: "Пока нет транзакций"))
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .foregroundColor(MPColors.textPrimary)
+                
+                Text(String(localized: "Скажите голосом: «Купил кофе за 200 руб» — или введите текст в поле ниже"))
+                    .font(.system(size: 14, weight: .regular, design: .rounded))
+                    .foregroundColor(MPColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+            }
+            
+            // Пульсирующая стрелка вниз
+            Image(systemName: "chevron.down")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(MPColors.accentCoral.opacity(0.6))
+                .offset(y: arrowBounce ? 6 : 0)
+                .animation(
+                    .easeInOut(duration: 1.0).repeatForever(autoreverses: true),
+                    value: arrowBounce
+                )
+                .onAppear { arrowBounce = true }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, MPSpacing.xl)
     }
     
     // MARK: - Кнопки ручного добавления
     
     private var actionButtonsRow: some View {
         HStack(spacing: MPSpacing.sm) {
-            actionPillButton(title: "Долг", prefix: "🤝", color: MPColors.accentBlue) {
+            actionPillButton(
+                title: String(localized: "Долг"),
+                icon: "arrow.left.arrow.right",
+                color: MPColors.accentBlue
+            ) {
                 showAddDebt = true
             }
             
-            actionPillButton(title: "Доход", prefix: "➕", color: MPColors.accentGreen) {
+            actionPillButton(
+                title: String(localized: "Доход"),
+                icon: "plus.circle.fill",
+                color: MPColors.accentGreen
+            ) {
                 manualTransactionParams = ManualTransactionParams(type: .income)
             }
             
-            actionPillButton(title: "Расход", prefix: "➖", color: MPColors.accentCoral) {
+            actionPillButton(
+                title: String(localized: "Расход"),
+                icon: "minus.circle.fill",
+                color: MPColors.accentCoral
+            ) {
                 manualTransactionParams = ManualTransactionParams(type: .expense)
             }
         }
     }
     
-    private func actionPillButton(title: String, prefix: String, color: Color, action: @escaping () -> Void) -> some View {
+    private func actionPillButton(title: String, icon: String, color: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                Text(prefix)
+                Image(systemName: icon)
                     .font(.system(size: 14, weight: .bold))
                 Text(title)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
@@ -504,7 +396,125 @@ struct DashboardView: View {
     }
 }
 
+// MARK: - AI Обработка результата
 
+extension DashboardView {
+    
+    func handleAIResult(_ result: AiParseResult) {
+        MPLog.dashboard.info("🎯 handleAIResult: status=\(String(describing: result.status), privacy: .public) type=\(result.type ?? "nil", privacy: .public) amount=\(result.amount ?? 0) cp=\(result.counterpartName ?? "nil", privacy: .public) flow=\(result.paymentFlow ?? "nil", privacy: .public)")
+        switch result.status {
+        case .ok, .incomplete:
+            if let type = result.type {
+                switch type {
+                case "debt_payment":
+                    MPLog.dashboard.info("🎯 branch → debt_payment")
+                    // Платёж по существующему долгу — ищем долг по контрагенту
+                    handleDebtPayment(result)
+                case "debt_give", "debt_take":
+                    MPLog.dashboard.info("🎯 branch → new debt (\(type, privacy: .public)) → AddDebtSheet")
+                    // Новый долг → AddDebtSheet
+                    aiDebtPrefill = result
+                default:
+                    MPLog.dashboard.info("🎯 branch → transaction (\(type, privacy: .public)) → AddTransactionSheet")
+                    // Обычная транзакция
+                    aiParseResult = result
+                }
+            } else {
+                MPLog.dashboard.notice("🎯 branch → no type, fallback to AddTransactionSheet")
+                aiParseResult = result
+            }
+        case .rejected:
+            MPLog.dashboard.notice("🎯 branch → rejected: \(result.message ?? "nil", privacy: .public)")
+            aiErrorMessage = result.message ?? String(localized: "error.parseRejected")
+            showAiError = true
+        }
+    }
+
+    /// Обработка debt_payment: поиск долга по контрагенту + направлению → AddPaymentSheet
+    func handleDebtPayment(_ result: AiParseResult) {
+        guard let cpName = result.counterpartName, !cpName.isEmpty else {
+            MPLog.dashboard.error("💸 handleDebtPayment: counterpart отсутствует → error")
+            aiErrorMessage = String(localized: "error.noCounterpart")
+            showAiError = true
+            return
+        }
+
+        MPLog.dashboard.info("💸 handleDebtPayment: cp=\"\(cpName, privacy: .public)\" cpId=\(result.counterpartId ?? "nil", privacy: .public) flow=\(result.paymentFlow ?? "nil", privacy: .public) activeDebts=\(activeDebts.count)")
+
+        // Поиск долгов по контрагенту (с учётом перестановки слов в имени)
+        var matchingDebts: [DebtModel]
+        var searchStage: String
+        if let cpId = result.counterpartId {
+            matchingDebts = activeDebts.filter { $0.counterpart?.clientId == cpId }
+            searchStage = "byId"
+        } else {
+            // 1. Точное совпадение (регистронезависимое)
+            matchingDebts = activeDebts.filter {
+                $0.counterpart?.name.localizedCaseInsensitiveCompare(cpName) == .orderedSame
+            }
+            searchStage = "exactName"
+
+            // 2. Если точного нет — пробуем перестановку слов
+            // «Иванов Степан» ↔ «Степан Иванов»
+            if matchingDebts.isEmpty {
+                let queryWords = Set(cpName.lowercased().split(separator: " ").map(String.init))
+                matchingDebts = activeDebts.filter { debt in
+                    guard let name = debt.counterpart?.name else { return false }
+                    let debtWords = Set(name.lowercased().split(separator: " ").map(String.init))
+                    return debtWords == queryWords
+                }
+                if !matchingDebts.isEmpty { searchStage = "wordSetEqual" }
+            }
+
+            // 3. Если и так нет — частичное совпадение (все слова запроса содержатся в имени)
+            if matchingDebts.isEmpty {
+                let queryWords = cpName.lowercased().split(separator: " ").map(String.init)
+                matchingDebts = activeDebts.filter { debt in
+                    guard let name = debt.counterpart?.name.lowercased() else { return false }
+                    return queryWords.allSatisfy { name.contains($0) }
+                }
+                if !matchingDebts.isEmpty { searchStage = "partialContains" }
+            }
+        }
+
+        let matchNames = matchingDebts.compactMap { $0.counterpart?.name }.joined(separator: ", ")
+        MPLog.dashboard.info("💸 поиск долга stage=\(searchStage, privacy: .public) found=\(matchingDebts.count) [\(matchNames, privacy: .public)]")
+
+        // Фильтрация по направлению (payment_flow)
+        // inbound = мне возвращают → я давал (gave)
+        // outbound = я возвращаю → я брал (took)
+        if let flow = result.paymentFlow {
+            let expectedDirection: DebtDirection = flow == "inbound" ? .gave : .took
+            let filtered = matchingDebts.filter { $0.direction == expectedDirection }
+            MPLog.dashboard.info("💸 фильтр по flow=\(flow, privacy: .public) (dir=\(expectedDirection.rawValue, privacy: .public)): \(matchingDebts.count) → \(filtered.count)")
+            if !filtered.isEmpty {
+                matchingDebts = filtered
+            } else {
+                MPLog.dashboard.notice("💸 ⚠️ фильтр пуст — оставляем все \(matchingDebts.count) долгов (лучше чем ничего)")
+            }
+            // Если фильтр пустой — показываем все (лучше чем ничего)
+        }
+
+        if matchingDebts.count == 1 {
+            MPLog.dashboard.info("💸 → AddPaymentSheet (single match: \(matchingDebts[0].counterpart?.name ?? "nil", privacy: .public))")
+            debtPaymentTarget = DebtPaymentTarget(
+                debt: matchingDebts[0],
+                prefillAmount: result.amount,
+                prefillComment: result.rawText
+            )
+        } else if matchingDebts.count > 1 {
+            MPLog.dashboard.info("💸 → DebtPicker (\(matchingDebts.count) matches)")
+            debtPickerDebts = matchingDebts
+            debtPickerAmount = result.amount
+            debtPickerComment = result.rawText
+            showDebtPicker = true
+        } else {
+            MPLog.dashboard.notice("💸 → error: noActiveDebts для \"\(cpName, privacy: .public)\"")
+            aiErrorMessage = String(localized: "error.noActiveDebts \(cpName)")
+            showAiError = true
+        }
+    }
+}
 
 // MARK: - Preview
 
@@ -532,14 +542,4 @@ struct DashboardView: View {
             DebtPaymentModel.self,
         ], inMemory: true)
         .preferredColorScheme(.dark)
-}
-
-// MARK: - String Extension
-
-extension String {
-    /// Капитализация первой буквы строки ("вторник, 1 апреля" → "Вторник, 1 апреля")
-    var capitalizedFirstLetter: String {
-        guard let first = self.first else { return self }
-        return first.uppercased() + self.dropFirst()
-    }
 }

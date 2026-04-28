@@ -78,16 +78,32 @@ final class AudioRecorderService: NSObject {
 
     // MARK: - Recording
 
+    /// Подготавливает аудиосессию на фоновом потоке.
+    /// AVAudioSession API потокобезопасен, поэтому вызов из фона безопасен.
+    /// Это позволяет не блокировать Main Thread (setActive может занять 100-200мс).
+    private func setupAudioSessionAsync() async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let session = AVAudioSession.sharedInstance()
+                    try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
+                    try session.setActive(true)
+                    continuation.resume()
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
     /// Начинает запись. Возвращает `false` если нет разрешения.
     @discardableResult
     func startRecording() async -> Bool {
         guard await requestPermission() else { return false }
 
-        // Настраиваем аудио-сессию
-        let session = AVAudioSession.sharedInstance()
+        // Настраиваем аудио-сессию на фоновом потоке (не блокируем Main Thread)
         do {
-            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
-            try session.setActive(true)
+            try await setupAudioSessionAsync()
         } catch {
             onError?(.error(String(localized: "error.audioSetup \(error.localizedDescription)")))
             return false
@@ -96,7 +112,6 @@ final class AudioRecorderService: NSObject {
         // Путь к файлу в temp
         let fileName = "monpapa_voice_\(Int(Date().timeIntervalSince1970)).m4a"
         let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-        currentFileURL = fileURL
 
         // Настройки записи: AAC, 16kHz, моно
         let settings: [String: Any] = [
@@ -106,15 +121,33 @@ final class AudioRecorderService: NSObject {
             AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
         ]
 
+        // Создание AVAudioRecorder и запуск record() — на фоновом потоке.
+        // На реальном устройстве эти вызовы блокируют поток на ~50-100мс
+        // (аллокация аудио-буферов, инициализация HAL), что вызывает микрофриз
+        // в середине spring-анимации если выполняется на Main Thread.
+        let newRecorder: AVAudioRecorder
         do {
-            recorder = try AVAudioRecorder(url: fileURL, settings: settings)
-            recorder?.isMeteringEnabled = true
-            recorder?.delegate = self
-            recorder?.record()
+            newRecorder = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<AVAudioRecorder, Error>) in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    do {
+                        let rec = try AVAudioRecorder(url: fileURL, settings: settings)
+                        rec.isMeteringEnabled = true
+                        rec.record()
+                        continuation.resume(returning: rec)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
         } catch {
             onError?(.error(String(localized: "error.audioStart \(error.localizedDescription)")))
             return false
         }
+
+        // Обновляем состояние на Main Thread
+        currentFileURL = fileURL
+        recorder = newRecorder
+        recorder?.delegate = self
 
         // Сбрасываем VAD-состояние
         speechDetected = false
@@ -138,7 +171,10 @@ final class AudioRecorderService: NSObject {
         recorder?.stop()
         isRecording = false
 
-        deactivateAudioSession()
+        // Деактивация сессии — на фоновом потоке (не блокируем UI)
+        DispatchQueue.global(qos: .utility).async {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
 
         if let url = currentFileURL, FileManager.default.fileExists(atPath: url.path) {
             state = .stopped(url)
@@ -148,7 +184,25 @@ final class AudioRecorderService: NSObject {
         return nil
     }
 
-    /// Отменяет запись и удаляет файл.
+    /// Быстрая отмена записи: стопает только таймеры и обновляет состояние.
+    /// Тяжёлые I/O операции (stop, delete, deactivate) вынесены в cleanupRecordingResources.
+    func cancelRecordingFast() {
+        stopMetering()
+        isRecording = false
+        let recorderRef = recorder
+        let fileRef = currentFileURL
+        currentFileURL = nil
+        state = .idle
+        
+        // Тяжёлые операции — асинхронно, не блокируя Main Thread
+        Task.detached(priority: .utility) {
+            recorderRef?.stop()
+            recorderRef?.deleteRecording()
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
+    }
+    
+    /// Отменяет запись и удаляет файл (синхронная версия для VAD auto-cancel).
     func cancelRecording() {
         stopMetering()
         recorder?.stop()

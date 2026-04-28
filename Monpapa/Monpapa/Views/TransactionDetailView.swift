@@ -175,8 +175,8 @@ struct TransactionDetailView: View {
 
     private var typeSegment: some View {
         HStack(spacing: 4) {
-            segmentButton(title: "Расход", type: .expense, color: MPColors.accentCoral)
-            segmentButton(title: "Доход", type: .income, color: MPColors.accentGreen)
+            segmentButton(titleKey: "Расход", type: .expense, color: MPColors.accentCoral)
+            segmentButton(titleKey: "Доход", type: .income, color: MPColors.accentGreen)
         }
         .padding(4)
         .background(MPColors.cardBackground.opacity(0.6))
@@ -184,7 +184,7 @@ struct TransactionDetailView: View {
         .padding(.horizontal, MPSpacing.xl)
     }
 
-    private func segmentButton(title: String, type: TransactionType, color: Color) -> some View {
+    private func segmentButton(titleKey: LocalizedStringKey, type: TransactionType, color: Color) -> some View {
         let isSelected = editType == type
 
         return Button {
@@ -192,7 +192,7 @@ struct TransactionDetailView: View {
                 editType = type
             }
         } label: {
-            Text(title)
+            Text(titleKey)
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .foregroundColor(isSelected ? .white : MPColors.textSecondary)
                 .frame(maxWidth: .infinity)
@@ -362,7 +362,7 @@ struct TransactionDetailView: View {
 
     private func detailRow<Content: View>(
         icon: String,
-        label: String,
+        label: LocalizedStringKey,
         @ViewBuilder content: () -> Content
     ) -> some View {
         HStack(spacing: MPSpacing.sm) {
@@ -413,7 +413,7 @@ struct TransactionDetailView: View {
     }
 
     private var categoryDisplayName: String {
-        guard let category = transaction.category else { return "Без категории" }
+        guard let category = transaction.category else { return String(localized: "Без категории") }
         if let parent = category.parent {
             return "\(parent.name) › \(category.name)"
         }
@@ -438,7 +438,7 @@ struct TransactionDetailView: View {
     }
 
     private var editCategoryDisplayName: String {
-        guard let category = editCategory else { return "Без категории" }
+        guard let category = editCategory else { return String(localized: "Без категории") }
         if let parent = category.parent {
             return "\(parent.name) › \(category.name)"
         }

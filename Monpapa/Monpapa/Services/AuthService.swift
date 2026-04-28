@@ -121,12 +121,21 @@ final class AuthService: ObservableObject {
         let body = ["email": email.lowercased().trimmingCharacters(in: .whitespaces)]
         request.httpBody = try JSONEncoder().encode(body)
 
+        print("[AuthService] 📧 requestMagicLink: URL=\(url.absoluteString), email=\(email)")
+        
         let (data, response) = try await performRequest(request)
+        
+        let httpStatus = (response as? HTTPURLResponse)?.statusCode ?? -1
+        let bodyStr = String(data: data, encoding: .utf8) ?? "<non-utf8>"
+        print("[AuthService] 📧 requestMagicLink response: HTTP \(httpStatus)")
+        print("[AuthService] 📧 requestMagicLink body: \(bodyStr)")
+        
         try validateResponse(response, data: data)
 
         // В DEV_MODE бэкенд может вернуть токен сразу
         if let devResponse = try? JSONDecoder().decode(DevModeResponse.self, from: data),
            let token = devResponse.token {
+            print("[AuthService] 🛠️ DEV_MODE: получен токен напрямую")
             userToken = token
             let normalizedEmail = email.lowercased()
             userEmail = normalizedEmail
@@ -134,11 +143,12 @@ final class AuthService: ObservableObject {
             if let userId = devResponse.userId {
                 KeychainService.save(key: KeychainService.Keys.userId, value: String(userId))
             }
-            print("[AuthService] ✅ DEV_MODE: пользователь авторизован напрямую")
+            print("[AuthService] ✅ DEV_MODE: пользователь авторизован напрямую, isAuthenticated=\(isAuthenticated)")
             return
         }
-
-        print("[AuthService] 📧 PIN-код отправлен на \(email)")
+        
+        print("[AuthService] 📧 DEV_MODE не обнаружен, PIN-код отправлен на \(email)")
+        print("[AuthService] 📧 isAuthenticated после requestMagicLink = \(isAuthenticated)")
     }
 
     /// Шаг 2: Верифицировать PIN-код, полученный на email.
@@ -156,7 +166,14 @@ final class AuthService: ObservableObject {
         )
         request.httpBody = try JSONEncoder().encode(body)
 
+        print("[AuthService] 🔑 verifyPin: URL=\(url.absoluteString), email=\(email), deviceId=\(deviceId)")
+        
         let (data, response) = try await performRequest(request)
+        
+        let httpStatus = (response as? HTTPURLResponse)?.statusCode ?? -1
+        let bodyStr = String(data: data, encoding: .utf8) ?? "<non-utf8>"
+        print("[AuthService] 🔑 verifyPin response: HTTP \(httpStatus)")
+        print("[AuthService] 🔑 verifyPin body: \(bodyStr)")
 
         // 401 = неверный PIN
         if let http = response as? HTTPURLResponse, http.statusCode == 401 {
@@ -171,7 +188,7 @@ final class AuthService: ObservableObject {
         userEmail = normalizedEmail
         KeychainService.save(key: KeychainService.Keys.userEmail, value: normalizedEmail)
 
-        print("[AuthService] ✅ Пользователь авторизован: \(email)")
+        print("[AuthService] ✅ Пользователь авторизован: \(email), isAuthenticated=\(isAuthenticated)")
     }
 
     /// Выход из аккаунта — очищает все данные из Keychain.
@@ -238,11 +255,25 @@ final class AuthService: ObservableObject {
     // MARK: - Приватные хелперы
 
     private func performRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
-        do {
-            return try await URLSession.shared.data(for: request)
-        } catch {
-            throw AuthError.networkError(error)
+        // Retry-логика: iOS переиспользует keep-alive TCP-соединения.
+        // Если сервер закрыл idle-соединение (пока пользователь читал email),
+        // iOS получает -1005 "Connection reset by peer" при повторном использовании.
+        // Retry с небольшой задержкой открывает новое соединение.
+        let maxRetries = 2
+        for attempt in 0...maxRetries {
+            do {
+                return try await URLSession.shared.data(for: request)
+            } catch let error as NSError where error.code == NSURLErrorNetworkConnectionLost && attempt < maxRetries {
+                // -1005: соединение сброшено — ждём и пробуем снова
+                print("[AuthService] ⚠️ Connection lost (attempt \(attempt + 1)/\(maxRetries + 1)), retrying...")
+                try? await Task.sleep(nanoseconds: UInt64((attempt + 1)) * 300_000_000) // 300ms, 600ms
+                continue
+            } catch {
+                throw AuthError.networkError(error)
+            }
         }
+        // unreachable, но компилятор требует
+        throw AuthError.networkError(NSError(domain: NSURLErrorDomain, code: NSURLErrorNetworkConnectionLost))
     }
 
     private func validateResponse(_ response: URLResponse, data: Data) throws {

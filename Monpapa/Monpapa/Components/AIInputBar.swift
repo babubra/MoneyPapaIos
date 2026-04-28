@@ -4,13 +4,13 @@
 
 import SwiftUI
 import Combine
+import os
 
-// MARK: - Состояния кнопок
-
+// MARK: - Состояния поля ввода
 enum AIInputState {
-    case idle       // Две кнопки: 🎤 и ➡️
-    case recording  // Запись голоса: таймер + кнопки
-    case sending    // Отправка/парсинг: спиннер
+    case idle       // Обычный ввод (кнопки скрепка + микрофон), либо печать текста
+    case recording  // Запись голоса: корзина + волна + отправка
+    case sending    // ИИ обрабатывает запрос: свечение AI
 }
 
 struct AIInputBar: View {
@@ -21,7 +21,7 @@ struct AIInputBar: View {
     var onParseResult: (AiParseResult) -> Void
     /// Вызывается после успешного AI-парсинга голоса
     var onVoiceResult: (AiParseResult) -> Void
-    /// Вызывается при ошибке (для показа снэкбара/алерта)
+    /// Вызывается при ошибке
     var onError: ((String) -> Void)?
 
     private var aiService: AIService { AIService.shared }
@@ -31,199 +31,51 @@ struct AIInputBar: View {
     @State private var pulseOpacity: Double = 0.6
     @State private var audioRecorder = AudioRecorderService()
     @State private var showMicPermissionAlert = false
+    
+    // Эффект растворения текста при отправке
+    @State private var textOpacity: Double = 1.0
 
-    @Namespace private var buttonAnimation
     @FocusState private var isFocused: Bool
     
     @Environment(\.colorScheme) private var colorScheme
     @State private var currentHintIndex = 0
     
-    private let aiHints = [
-        "Купил хлеб 150 рублей",
-        "Потратил 2000 на поход в кафе",
-        "Купил кофе на заправке. Выбери категорию Еда вне дома с родительской Еда",
-        "Получил 50 000 рублей премию. Запиши в категорию Зарплата.",
-        "Потратил 3000 на бензин.",
-        "Купил товаров для дома на 4500. Запиши в категорию Товары для дома."
-    ]
+    private var aiHints: [String] {
+        [
+            String(localized: "aiHint.groceries"),
+            String(localized: "aiHint.transfer"),
+            String(localized: "aiHint.lunch"),
+            String(localized: "aiHint.salary"),
+            String(localized: "aiHint.fuel")
+        ]
+    }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Индикатор VAD-статуса при записи
-            if state == .recording {
-                recordingStatusBar
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+        ZStack(alignment: .bottom) {
+            // Обычное поле ввода
+            if state != .recording {
+                mainInputBar
+                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .bottomTrailing)))
             }
-
+            
+            // Панель записи голоса — рендерится ТОЛЬКО при записи
+            // (lazy: AIAudioWaveformView и его Timer не создаются заранее)
             if state == .recording {
-                // MARK: - Состояние записи (полностью заменяет текстовое поле)
-                HStack(spacing: MPSpacing.md) {
-                    // Кнопка отмены записи
-                    Button(action: cancelRecording) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(MPColors.textSecondary)
-                            .frame(width: 40, height: 40)
-                            .background(MPColors.cardBackground)
-                            .clipShape(Circle())
-                            .overlay(Circle().stroke(MPColors.separator, lineWidth: 1))
-                            .matchedGeometryEffect(id: "cancelButton", in: buttonAnimation)
-                    }
-                    .transition(.scale.combined(with: .opacity))
-                    
-                    // Таймер + Звуковая волна (по центру)
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 8, height: 8)
-                            .opacity(pulseOpacity)
-                        
-                        Text(audioRecorder.formattedDuration)
-                            .font(.system(size: 15, weight: .bold, design: .monospaced))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            
-                        AIAudioWaveformView(audioLevel: audioRecorder.audioLevel)
-                    }
-                    .frame(maxWidth: .infinity)
-                    
-                    // Пульсирующая кнопка «Отправить запись»
-                    Button(action: stopAndSend) {
-                        ZStack {
-                            Circle()
-                                .stroke(MPColors.accentCoral.opacity(0.3), lineWidth: 2)
-                                .frame(width: 40, height: 40)
-                                .scaleEffect(1.0 + CGFloat(audioRecorder.audioLevel) * 0.8)
-                                .opacity(1.0 - Double(audioRecorder.audioLevel) * 0.5)
-                            
-                            Circle()
-                                .stroke(MPColors.accentCoral.opacity(0.2), lineWidth: 1.5)
-                                .frame(width: 40, height: 40)
-                                .scaleEffect(1.0 + CGFloat(audioRecorder.audioLevel) * 0.5)
-                                .opacity(1.0 - Double(audioRecorder.audioLevel) * 0.3)
-                            
-                            Image(systemName: "arrow.up")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(width: 40, height: 40)
-                                .background(MPColors.accentCoral)
-                                .clipShape(Circle())
-                                .matchedGeometryEffect(id: "actionButton", in: buttonAnimation)
-                        }
-                        .frame(width: 40, height: 40)
-                    }
-                    .transition(.scale.combined(with: .opacity))
+                VStack(spacing: 0) {
+                    recordingStatusBar
+                    recordingBar
                 }
-                .padding(.horizontal, MPSpacing.md)
-                .padding(.vertical, MPSpacing.sm)
-                .background(MPColors.cardBackground)
-                .cornerRadius(MPCornerRadius.lg)
-                .overlay(
-                    RoundedRectangle(cornerRadius: MPCornerRadius.lg)
-                        .stroke(AIColors.gradientColors[1].opacity(0.5), lineWidth: 1)
-                )
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                
-            } else {
-                // MARK: - Состояние ввода текста (.idle и .sending)
-                ZStack(alignment: .bottomTrailing) {
-                    
-                    ZStack(alignment: .topLeading) {
-                        // Само поле ввода
-                        TextField("", text: $text, axis: .vertical)
-                            .font(MPTypography.input)
-                            .foregroundColor(MPColors.textPrimary)
-                            .lineLimit(3...5) // Резервируем место под 3 строки сразу
-                            .padding(.leading, MPSpacing.md)
-                            .padding(.trailing, 52) // Место под кнопку справа
-                            .padding(.top, MPSpacing.sm)
-                            .padding(.bottom, 16)
-                            .frame(minHeight: 80) // Фиксированная минимальная высота для длинных подсказок
-                            .disabled(state == .sending)
-                        
-                        // Анимированный плейсхолдер
-                        if text.isEmpty {
-                            Text(aiHints[currentHintIndex])
-                                .font(MPTypography.input)
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.3) : .black.opacity(0.3))
-                                .transition(.asymmetric(insertion: .push(from: .bottom), removal: .push(from: .top)).combined(with: .opacity))
-                                .id(currentHintIndex)
-                                .padding(.leading, MPSpacing.md)
-                                .padding(.trailing, 52)
-                                .padding(.top, MPSpacing.sm)
-                                .allowsHitTesting(false)
-                        }
-                    }
-                    
-                    // КНОПКА внутри текстового поля
-                    Group {
-                        if state == .sending {
-                            // Спиннер загрузки
-                            ProgressView()
-                                .progressViewStyle(.circular)
-                                .tint(.white)
-                                .frame(width: 40, height: 40)
-                                .background(MPColors.accentCoral.opacity(0.7))
-                                .clipShape(Circle())
-                                .matchedGeometryEffect(id: "actionButton", in: buttonAnimation)
-                                .transition(.scale.combined(with: .opacity))
-                        } else {
-                            // Кнопка-трансформер (.idle)
-                            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                // Микрофон
-                                Button(action: startRecording) {
-                                    Image(systemName: "mic.fill")
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(.white)
-                                        .frame(width: 40, height: 40)
-                                        .background(MPColors.accentCoral)
-                                        .clipShape(Circle())
-                                        .matchedGeometryEffect(id: "actionButton", in: buttonAnimation)
-                                }
-                                .transition(.scale.combined(with: .opacity))
-                            } else {
-                                // Стрелка
-                                Button(action: sendText) {
-                                    Image(systemName: "arrow.up")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundColor(.white)
-                                        .frame(width: 40, height: 40)
-                                        .background(MPColors.accentCoral)
-                                        .clipShape(Circle())
-                                        .matchedGeometryEffect(id: "actionButton", in: buttonAnimation)
-                                }
-                                .transition(.scale.combined(with: .opacity))
-                            }
-                        }
-                    }
-                    .padding(6) // Отступы для кнопки
-                }
-                .background(MPColors.cardBackground)
-                .cornerRadius(MPCornerRadius.lg)
-                .overlay(
-                    RoundedRectangle(cornerRadius: MPCornerRadius.lg)
-                        .stroke(MPColors.separator, lineWidth: 1)
-                )
-                .focused($isFocused)
-                .transition(.move(edge: .leading).combined(with: .opacity))
-                .task {
-                    while !Task.isCancelled {
-                        try? await Task.sleep(nanoseconds: 15_000_000_000)
-                        guard text.isEmpty && state == .idle else { continue }
-                        withAnimation(.easeInOut(duration: 0.5)) {
-                            currentHintIndex = (currentHintIndex + 1) % aiHints.count
-                        }
-                    }
-                }
+                .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .bottomTrailing)))
             }
         }
         .padding(.horizontal, MPSpacing.md)
         .padding(.vertical, MPSpacing.xs)
-        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: state)
+        // Плавная пружинная анимация для элементов интерфейса
+        .animation(.spring(response: 0.25, dampingFraction: 0.8), value: state)
+        .animation(.spring(response: 0.25, dampingFraction: 0.8), value: text.isEmpty)
         
         .alert("Доступ к микрофону", isPresented: $showMicPermissionAlert) {
-            Button("Открыть Настройки") {
-                audioRecorder.openSettings()
-            }
+            Button("Открыть Настройки") { audioRecorder.openSettings() }
             Button("Отмена", role: .cancel) {}
         } message: {
             Text("Для голосового ввода транзакций нужен доступ к микрофону. Включите его в Настройках → MonPapa → Микрофон.")
@@ -232,15 +84,169 @@ struct AIInputBar: View {
             setupRecorderCallbacks()
         }
     }
-
-
-
-    // MARK: - Статус-бар записи
+    
+    // MARK: - Главное поле ввода (Telegram-style)
+    private var mainInputBar: some View {
+        HStack(alignment: .bottom, spacing: MPSpacing.sm) {
+            
+            // 🛑 Левая кнопка: Скрепка (или чек)
+            Button(action: {
+                // TODO: Открытие сканера чеков в будущем
+                let impact = UIImpactFeedbackGenerator(style: .light)
+                impact.impactOccurred()
+            }) {
+                Image(systemName: "paperclip")
+                    .font(.system(size: 20))
+                    .foregroundColor(MPColors.textSecondary)
+                    .frame(width: 40, height: 40)
+                    .background(MPColors.cardBackground)
+                    .clipShape(Circle())
+            }
+            
+            // 🛑 Центральный блок: Текстовое поле + кнопка отправки внутри
+            HStack(alignment: .bottom, spacing: 0) {
+                ZStack(alignment: .topLeading) {
+                    
+                    // Само поле ввода (от 1 до 3 строк)
+                    TextField("", text: $text, axis: .vertical)
+                        .font(MPTypography.input)
+                        .foregroundColor(MPColors.textPrimary.opacity(textOpacity))
+                        .lineLimit(1...3)
+                        .padding(.vertical, 10)
+                        .padding(.leading, MPSpacing.md)
+                        // Если идет набор текста, освобождаем место под кнопку отправки
+                        .padding(.trailing, text.isEmpty ? MPSpacing.md : 40)
+                        .disabled(state == .sending)
+                    
+                    // Плейсхолдер
+                    if text.isEmpty && state != .sending {
+                        Text(aiHints[currentHintIndex])
+                            .font(MPTypography.input)
+                            .foregroundColor(MPColors.textSecondary.opacity(0.6))
+                            .lineLimit(1)
+                            .padding(.vertical, 10)
+                            .padding(.leading, MPSpacing.md)
+                            .allowsHitTesting(false)
+                            .transition(.opacity)
+                            .id(currentHintIndex)
+                    }
+                    
+                    // Состояние AI обработки
+                    if state == .sending && text.isEmpty {
+                        HStack(spacing: 6) {
+                            ProgressView().scaleEffect(0.8)
+                            Text(String(localized: "Работает ИИ..."))
+                                .font(MPTypography.input)
+                                .foregroundColor(AIColors.gradientColors[1])
+                                .lineLimit(1)
+                        }
+                        .padding(.vertical, 10)
+                        .padding(.leading, MPSpacing.md)
+                        .transition(.opacity)
+                    }
+                }
+                
+                // Кнопка отправки самолетиком (проявляется внутри поля)
+                if !text.isEmpty {
+                    Button(action: sendText) {
+                        Image(systemName: "paperplane.fill")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color.blue)
+                            .clipShape(Circle())
+                    }
+                    .padding(.trailing, 4)
+                    .padding(.bottom, 4)
+                    .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .background(MPColors.cardBackground)
+            // Радиус 20 для округлого Telegram-вида
+            .cornerRadius(20)
+            // AI-свечение активируется во время отправки запроса
+            .aiBorderGlow(isActive: state == .sending, cornerRadius: 20, lineWidth: 2)
+            .focused($isFocused)
+            .task {
+                while !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: 8_000_000_000)
+                    guard text.isEmpty && state == .idle else { continue }
+                    withAnimation(.easeInOut(duration: 0.5)) {
+                        currentHintIndex = (currentHintIndex + 1) % aiHints.count
+                    }
+                }
+            }
+            
+            // 🛑 Правая кнопка: Микрофон (уезжает вправо при вводе текста)
+            if text.isEmpty {
+                Button(action: startRecording) {
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(MPColors.accentCoral)
+                        .frame(width: 40, height: 40)
+                        .background(MPColors.accentCoral.opacity(0.12))
+                        .clipShape(Circle())
+                }
+                .transition(.asymmetric(
+                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                    removal: .move(edge: .trailing).combined(with: .opacity)
+                ))
+            }
+        }
+    }
+    
+    // MARK: - Панель записи голоса
+    private var recordingBar: some View {
+        HStack(spacing: MPSpacing.md) {
+            
+            // Кнопка корзины (Отмена)
+            Button(action: cancelRecording) {
+                Image(systemName: "trash")
+                    .font(.system(size: 18))
+                    .foregroundColor(.white)
+                    .frame(width: 40, height: 40)
+                    .background(Color.red.opacity(0.8))
+                    .clipShape(Circle())
+            }
+            
+            // Таймер + Звуковая волна
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(Color.red)
+                    .frame(width: 8, height: 8)
+                    .opacity(pulseOpacity)
+                
+                Text(audioRecorder.formattedDuration)
+                    .font(.system(size: 15, weight: .bold, design: .monospaced))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    
+                AIAudioWaveformView(audioLevel: audioRecorder.audioLevel)
+            }
+            .frame(maxWidth: .infinity)
+            
+            // Кнопка отправки (Самолётик)
+            Button(action: stopAndSend) {
+                Image(systemName: "paperplane.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: 40, height: 40)
+                    .background(Color.blue)
+                    .clipShape(Circle())
+            }
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 4)
+        .background(MPColors.cardBackground)
+        .cornerRadius(20)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(AIColors.gradientColors[1].opacity(0.5), lineWidth: 1)
+        )
+    }
 
     private var recordingStatusBar: some View {
         HStack(spacing: MPSpacing.xs) {
             if audioRecorder.recordingDuration > 25 {
-                // Предупреждение о скором лимите
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 11))
                     .foregroundColor(.orange)
@@ -253,11 +259,10 @@ struct AIInputBar: View {
         .padding(.vertical, audioRecorder.recordingDuration > 25 ? 4 : 0)
     }
 
-    // MARK: - Recorder Callbacks
+    // MARK: - Логика действий
 
     private func setupRecorderCallbacks() {
         audioRecorder.onAutoStop = { fileURL, reason in
-            // Автостоп: отправляем файл
             sendAudioFile(fileURL)
         }
 
@@ -273,44 +278,79 @@ struct AIInputBar: View {
             }
         }
     }
-    
-    // MARK: - Actions
 
     private func sendText() {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
         isFocused = false
-        withAnimation { state = .sending }
-
-        Task {
-            defer { withAnimation { state = .idle } }
-            do {
-                let result = try await aiService.parseText(trimmed, categories: categories)
-                text = ""
-                onParseResult(result)
-            } catch AIServiceError.rateLimitExceeded {
-                onError?(String(localized: "error.rateLimitShort"))
-            } catch {
-                onError?(error.localizedDescription)
+        
+        let impact = UIImpactFeedbackGenerator(style: .medium)
+        impact.impactOccurred()
+        
+        // 1. Плавно растворяем текст
+        withAnimation(.easeOut(duration: 0.15)) {
+            textOpacity = 0.0
+        }
+        
+        // 2. Схлопываем текстовое поле и показываем спиннер AI
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                text = "" // Это вернет микрофон справа и схлопнет поле
+                textOpacity = 1.0
+                state = .sending
+            }
+            
+            // 3. Отправляем запрос
+            Task {
+                defer { withAnimation { state = .idle } }
+                let startedAt = Date()
+                MPLog.input.info("⌨️ sendText start | text=\"\(trimmed, privacy: .public)\" categories=\(categories.count)")
+                do {
+                    let result = try await aiService.parseText(trimmed, categories: categories)
+                    MPLog.input.info("⌨️ sendText done | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms | status=\(String(describing: result.status), privacy: .public)")
+                    onParseResult(result)
+                } catch AIServiceError.rateLimitExceeded {
+                    MPLog.input.notice("⌨️ sendText rateLimit | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms")
+                    onError?(String(localized: "error.rateLimitShort"))
+                } catch {
+                    MPLog.input.error("⌨️ sendText error | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms | \(error.localizedDescription, privacy: .public)")
+                    onError?(error.localizedDescription)
+                }
             }
         }
     }
 
     private func startRecording() {
-        Task {
+        let impact = UIImpactFeedbackGenerator(style: .medium)
+        impact.prepare() // Подготавливаем Taptic Engine заранее
+        impact.impactOccurred()
+        
+        // Меняем UI МОМЕНТАЛЬНО, не дожидаясь инициализации аудиосессии
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) { 
+            state = .recording 
+        }
+        startPulseAnimation()
+        
+        // await отпускает Main Thread, пока аудиосессия инициализируется.
+        // Анимация уже запущена выше и продолжает работать параллельно.
+        // Приоритет .userInitiated для быстрого старта аудио.
+        Task(priority: .userInitiated) {
             let granted = await audioRecorder.startRecording()
-            if granted {
-                withAnimation { state = .recording }
-                startPulseAnimation()
-            } else {
-                // Нет разрешения → показать алерт со ссылкой на настройки
+            if !granted {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) { 
+                    state = .idle 
+                }
+                stopPulseAnimation()
                 showMicPermissionAlert = true
             }
         }
     }
 
     private func stopAndSend() {
+        let impact = UIImpactFeedbackGenerator(style: .medium)
+        impact.impactOccurred()
+        
         stopPulseAnimation()
         guard let fileURL = audioRecorder.stopRecording() else {
             withAnimation { state = .idle }
@@ -327,17 +367,21 @@ struct AIInputBar: View {
         Task {
             defer {
                 audioRecorder.reset()
-                // Удаляем временный файл
                 try? FileManager.default.removeItem(at: fileURL)
             }
+            let startedAt = Date()
+            MPLog.input.info("🎤 sendAudioFile start | file=\(fileURL.lastPathComponent, privacy: .public) categories=\(categories.count)")
             do {
                 let result = try await aiService.parseAudio(fileURL: fileURL, categories: categories)
+                MPLog.input.info("🎤 sendAudioFile done | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms | status=\(String(describing: result.status), privacy: .public)")
                 withAnimation { state = .idle }
                 onVoiceResult(result)
             } catch AIServiceError.rateLimitExceeded {
+                MPLog.input.notice("🎤 sendAudioFile rateLimit | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms")
                 withAnimation { state = .idle }
                 onError?(String(localized: "error.audioRateLimit"))
             } catch {
+                MPLog.input.error("🎤 sendAudioFile error | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms | \(error.localizedDescription, privacy: .public)")
                 withAnimation { state = .idle }
                 onError?(error.localizedDescription)
             }
@@ -345,9 +389,16 @@ struct AIInputBar: View {
     }
 
     private func cancelRecording() {
-        audioRecorder.cancelRecording()
+        let impact = UIImpactFeedbackGenerator(style: .light)
+        impact.impactOccurred()
+        
+        // Сначала анимация — моментально обновляем UI
         stopPulseAnimation()
-        withAnimation { state = .idle }
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) { state = .idle }
+        
+        // Тяжёлые I/O операции (stop recorder, delete file, deactivate session)
+        // выполняются асинхронно, не блокируя Main Thread
+        audioRecorder.cancelRecordingFast()
     }
     
     // MARK: - Пульсация
@@ -370,61 +421,26 @@ struct AIInputBar: View {
     }
 }
 
-// MARK: - Preview
-
-#Preview("AI Input Bar") {
-    struct PreviewWrapper: View {
-        @State private var text = ""
-        
-        var body: some View {
-            VStack {
-                Spacer()
-                
-                Text("Состояние: idle")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                AIInputBar(
-                    text: $text,
-                    categories: [],
-                    onParseResult: { result in print("AI результат: \(result.status), \(result.amount ?? 0) \(result.currency ?? "")") },
-                    onVoiceResult: { result in print("Голос: \(result.status)") },
-                    onError: { error in print("Ошибка: \(error)") }
-                )
-            }
-            .background(MPColors.background)
-        }
-    }
-    
-    return PreviewWrapper()
-}
-
-
-// MARK: - AIAudioWaveformView (Анимированный эквалайзер с Apple Intelligence Glow)
+// MARK: - AIAudioWaveformView (Анимированный эквалайзер)
 
 struct AIAudioWaveformView: View {
     var audioLevel: Float
     
-    // Храним 30 последних значений уровня звука для "бегущей волны"
     @State private var history: [CGFloat] = Array(repeating: 0.05, count: 40)
     
     var body: some View {
         let maxWaveHeight: CGFloat = 36
         let barSpacing: CGFloat = 3
         
-        // Сама форма волны (маска для градиента)
         HStack(spacing: barSpacing) {
             ForEach(0..<history.count, id: \.self) { i in
                 Capsule()
-                    // Динамическая высота столбика (минимум 4 пикселя)
                     .frame(height: max(4, history[i] * maxWaveHeight))
                     .frame(maxWidth: .infinity)
             }
         }
         .frame(height: maxWaveHeight)
         .frame(maxWidth: .infinity, alignment: .center)
-        
-        // Накладываем Apple Intelligence градиент поверх капсул
         .overlay(
             LinearGradient(
                 colors: AIColors.gradientColors,
@@ -432,7 +448,6 @@ struct AIAudioWaveformView: View {
                 endPoint: .trailing
             )
         )
-        // И маскируем градиент капсулами, чтобы он рисовался только ВНУТРИ них
         .mask(
             HStack(spacing: barSpacing) {
                 ForEach(0..<history.count, id: \.self) { i in
@@ -444,13 +459,9 @@ struct AIAudioWaveformView: View {
             .frame(height: maxWaveHeight)
             .frame(maxWidth: .infinity, alignment: .center)
         )
-        
-        // Обновляем массив звука 20 раз в секунду
         .onReceive(Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()) { _ in
             withAnimation(.interactiveSpring(response: 0.15, dampingFraction: 0.7)) {
                 history.removeFirst()
-                
-                // Умножаем уровень громкости, чтобы волна была более "живой" (от 0.05 до 1.0)
                 let target = min(1.0, max(0.05, CGFloat(audioLevel) * 1.5))
                 history.append(target)
             }

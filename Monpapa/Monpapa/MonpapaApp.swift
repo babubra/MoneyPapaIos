@@ -14,9 +14,16 @@ struct MonpapaApp: App {
     @StateObject private var syncService: SyncService
     @Environment(\.scenePhase) private var scenePhase
     
+    /// Флаг завершения onboarding (сохраняется между запусками)
+    @AppStorage("monpapa.hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    
     let sharedModelContainer: ModelContainer
     
     init() {
+        // Применяем выбранный язык ДО инициализации UI,
+        // чтобы системные бандлы подхватили правильный .lproj
+        LocalizationManager.applyAtLaunch()
+
         let schema = Schema([
             CategoryModel.self,
             CounterpartModel.self,
@@ -37,17 +44,28 @@ struct MonpapaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainTabView()
-                .preferredColorScheme(settings.preferredColorScheme)
-                .environmentObject(settings)
-                .environmentObject(syncService)
-                .onAppear {
-                    SeedData.seedIfNeeded(context: sharedModelContainer.mainContext)
+            Group {
+                if hasCompletedOnboarding {
+                    MainTabView()
+                } else {
+                    OnboardingView {
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            hasCompletedOnboarding = true
+                        }
+                    }
                 }
-                .task {
-                    // Авторизуем устройство при запуске (получаем Bearer-токен для AI)
-                    await AIService.shared.authenticateIfNeeded()
-                }
+            }
+            .preferredColorScheme(settings.preferredColorScheme)
+            .environment(\.locale, LocalizationManager.effectiveLocale())
+            .environmentObject(settings)
+            .environmentObject(syncService)
+            .onAppear {
+                SeedData.seedIfNeeded(context: sharedModelContainer.mainContext)
+            }
+            .task {
+                // Авторизуем устройство при запуске (получаем Bearer-токен для AI)
+                await AIService.shared.authenticateIfNeeded()
+            }
         }
         .modelContainer(sharedModelContainer)
         .onChange(of: scenePhase) { oldPhase, newPhase in

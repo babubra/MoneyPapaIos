@@ -209,16 +209,37 @@ struct AuthCoverView: View {
         let trimmed = email.lowercased().trimmingCharacters(in: .whitespaces)
         guard isEmailValid else { authError = "Введите корректный email"; return }
         
+        print("[AuthCover] 📧 requestLink START: email=\(trimmed)")
+        print("[AuthCover] 📧 auth.isAuthenticated BEFORE = \(auth.isAuthenticated)")
+        
+        // Запоминаем состояние ДО вызова — Keychain может хранить стейл-токен
+        let wasAuthenticated = auth.isAuthenticated
+        
         withAnimation { step = .loading; authError = nil }
         
         do {
             try await auth.requestMagicLink(email: trimmed)
-            withAnimation {
-                step = auth.isAuthenticated ? .enterEmail : .enterPin
+            
+            let nowAuthenticated = auth.isAuthenticated
+            print("[AuthCover] ✅ requestMagicLink вернулся без ошибки")
+            print("[AuthCover] 📧 auth.isAuthenticated AFTER = \(nowAuthenticated)")
+            
+            // DEV_MODE: если requestMagicLink ИЗМЕНИЛ isAuthenticated с false→true
+            // Если isAuthenticated был true И ДО вызова (стейл-токен), идём на enterPin
+            if nowAuthenticated && !wasAuthenticated {
+                // DEV_MODE авторизовал напрямую — onChange сам закроет экран
+                print("[AuthCover] 📧 DEV_MODE: авторизация прямая, step остаётся")
+            } else {
+                // Обычный режим: всегда переходим на ввод PIN
+                print("[AuthCover] 📧 Переход на шаг: enterPin")
+                withAnimation { step = .enterPin }
             }
+            
             // Включаем кулдаун в 60 секунд после успешной отправки
             cooldownSeconds = 60
         } catch {
+            print("[AuthCover] ❌ requestLink ОШИБКА: \(error)")
+            print("[AuthCover] ❌ error.localizedDescription: \(error.localizedDescription)")
             withAnimation { step = .enterEmail; authError = error.localizedDescription }
         }
     }
@@ -228,11 +249,16 @@ struct AuthCoverView: View {
         let trimmedEmail = email.lowercased().trimmingCharacters(in: .whitespaces)
         guard trimmedPin.count == 6 else { authError = "PIN-код должен содержать 6 цифр"; return }
         
+        print("[AuthCover] 🔑 verifyPin START: email=\(trimmedEmail), pin=\(trimmedPin)")
+        
         withAnimation { step = .loading; authError = nil }
         
         do {
             try await auth.verifyPin(email: trimmedEmail, code: trimmedPin)
+            print("[AuthCover] ✅ verifyPin SUCCESS, isAuthenticated=\(auth.isAuthenticated)")
         } catch {
+            print("[AuthCover] ❌ verifyPin ОШИБКА: \(error)")
+            print("[AuthCover] ❌ error.localizedDescription: \(error.localizedDescription)")
             withAnimation { step = .enterPin; authError = error.localizedDescription }
         }
     }

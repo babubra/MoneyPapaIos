@@ -11,6 +11,12 @@ struct CreateCategoryView: View {
     /// Предзаполненный тип из формы транзакции
     var initialType: TransactionType
     
+    /// Предзаполненное имя и иконка (от AI)
+    var initialName: String?
+    var initialIcon: String?
+    /// Предзаполненная родительская категория (от AI)
+    var initialParentName: String?
+    
     /// Callback: вернуть созданную категорию в picker
     var onCreated: ((CategoryModel) -> Void)?
     
@@ -120,6 +126,22 @@ struct CreateCategoryView: View {
         }
         .onAppear {
             categoryType = initialType
+            // Предзаполнение из AI-предложений
+            if let n = initialName { name = n }
+            if let i = initialIcon { icon = i }
+            if let parentName = initialParentName {
+                let match = allCategories.first {
+                    $0.name.lowercased() == parentName.lowercased()
+                    && $0.type == categoryType
+                    && $0.parent == nil
+                }
+                if let match {
+                    switch categoryType {
+                    case .expense: selectedExpenseParent = match
+                    case .income: selectedIncomeParent = match
+                    }
+                }
+            }
         }
         .alert("Ошибка", isPresented: $showSaveError) {
             Button("OK", role: .cancel) { }
@@ -202,8 +224,8 @@ struct CreateCategoryView: View {
     
     private var typeSegment: some View {
         HStack(spacing: 4) {
-            segmentButton(title: "Расход", type: .expense, color: MPColors.accentCoral)
-            segmentButton(title: "Доход", type: .income, color: MPColors.accentGreen)
+            segmentButton(titleKey: "Расход", type: .expense, color: MPColors.accentCoral)
+            segmentButton(titleKey: "Доход", type: .income, color: MPColors.accentGreen)
         }
         .padding(4)
         .background(
@@ -212,7 +234,7 @@ struct CreateCategoryView: View {
         .cornerRadius(MPCornerRadius.pill)
     }
     
-    private func segmentButton(title: String, type: TransactionType, color: Color) -> some View {
+    private func segmentButton(titleKey: LocalizedStringKey, type: TransactionType, color: Color) -> some View {
         let isSelected = categoryType == type
         
         return Button {
@@ -220,7 +242,7 @@ struct CreateCategoryView: View {
                 categoryType = type
             }
         } label: {
-            Text(title)
+            Text(titleKey)
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundColor(isSelected ? .white : MPColors.textSecondary)
                 .frame(maxWidth: .infinity)

@@ -27,7 +27,7 @@ struct MPTextField: View {
         VStack(alignment: .leading, spacing: 0) {
             // Лейбл сверху (внутри карточки)
             if !text.isEmpty || isFocused {
-                Text(label)
+                Text(LocalizedStringKey(label))
                     .font(MPTypography.inputLabel)
                     .foregroundColor(MPColors.accentYellow)
                     .padding(.leading, 44)
@@ -64,7 +64,7 @@ struct MPTextField: View {
     @ViewBuilder
     private var textField: some View {
         #if os(iOS)
-        TextField(placeholder, text: $text)
+        TextField(LocalizedStringKey(placeholder), text: $text)
             .font(MPTypography.input)
             .foregroundColor(MPColors.textPrimary)
             .keyboardType(keyboardType)
@@ -72,7 +72,7 @@ struct MPTextField: View {
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
         #else
-        TextField(placeholder, text: $text)
+        TextField(LocalizedStringKey(placeholder), text: $text)
             .font(MPTypography.input)
             .foregroundColor(MPColors.textPrimary)
             .focused($isFocused)

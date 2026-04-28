@@ -2,6 +2,7 @@
 
 import SwiftUI
 import SwiftData
+import os
 
 struct AddTransactionSheet: View {
     @Environment(\.modelContext) private var modelContext
@@ -52,6 +53,7 @@ struct AddTransactionSheet: View {
     // MARK: - UI State
     
     @State private var showCategoryPicker = false
+    @State private var showAICategoryEditor = false
     @FocusState private var focusedField: Field?
     
     private enum Field {
@@ -136,8 +138,8 @@ struct AddTransactionSheet: View {
     
     private var typeSegment: some View {
         HStack(spacing: 4) {
-            segmentButton(title: "Расход", type: .expense, color: MPColors.accentCoral)
-            segmentButton(title: "Доход", type: .income, color: MPColors.accentGreen)
+            segmentButton(titleKey: "Расход", type: .expense, color: MPColors.accentCoral)
+            segmentButton(titleKey: "Доход", type: .income, color: MPColors.accentGreen)
         }
         .padding(4)
         .background(
@@ -147,7 +149,7 @@ struct AddTransactionSheet: View {
         .padding(.horizontal, MPSpacing.xs)
     }
     
-    private func segmentButton(title: String, type: TransactionType, color: Color) -> some View {
+    private func segmentButton(titleKey: LocalizedStringKey, type: TransactionType, color: Color) -> some View {
         let isSelected = transactionType == type
         
         return Button {
@@ -155,7 +157,7 @@ struct AddTransactionSheet: View {
                 transactionType = type
             }
         } label: {
-            Text(title)
+            Text(titleKey)
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundColor(isSelected ? .white : MPColors.textSecondary)
                 .frame(maxWidth: .infinity)
@@ -266,82 +268,7 @@ struct AddTransactionSheet: View {
                 .padding(.leading, 52)
 
             // 🏷️ Категория
-            Button {
-                focusedField = nil // Принудительно скрываем клавиатуру
-                showCategoryPicker = true
-            } label: {
-                HStack(spacing: MPSpacing.sm) {
-                    if let cat = selectedCategory {
-                        // Выбрана существующая категория
-                        if let icon = cat.effectiveIcon {
-                            Text(icon)
-                                .font(.system(size: 20))
-                                .frame(width: 28)
-                        }
-
-                        Text(categoryDisplayName(for: cat))
-                            .font(MPTypography.body)
-                            .foregroundColor(MPColors.textPrimary)
-                            .lineLimit(1)
-
-                        Spacer()
-
-                    } else if aiSuggestedCategoryName != nil {
-                        // AI предложил новую категорию — показываем как выбранную
-                        Text(aiSuggestedCategoryIcon ?? "🏷️")
-                            .font(.system(size: 20))
-                            .frame(width: 28)
-
-                        Text(aiSuggestedCategoryDisplayName)
-                            .font(MPTypography.body)
-                            .foregroundColor(MPColors.textPrimary)
-                            .lineLimit(1)
-
-                        Spacer()
-
-                        Text("✨ Новая")
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                LinearGradient(
-                                    colors: [
-                                        Color(red: 0.55, green: 0.35, blue: 0.95),
-                                        Color(red: 0.30, green: 0.55, blue: 1.00),
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .clipShape(Capsule())
-
-                    } else {
-                        // Не выбрана: лейбл + placeholder
-                        Text("🏷️")
-                            .font(.system(size: 20))
-                            .frame(width: 28)
-
-                        Text("Категория")
-                            .font(MPTypography.body)
-                            .foregroundColor(MPColors.textPrimary)
-
-                        Spacer()
-
-                        Text("Выберите")
-                            .font(MPTypography.body)
-                            .foregroundColor(MPColors.textSecondary)
-                    }
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(MPColors.textSecondary.opacity(0.5))
-                }
-                .padding(.horizontal, MPSpacing.md)
-                .padding(.vertical, MPSpacing.sm)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
+            categoryRow
             
             Divider()
                 .padding(.leading, 52)
@@ -376,7 +303,13 @@ struct AddTransactionSheet: View {
         }
         .background(MPColors.cardBackground)
         .cornerRadius(MPCornerRadius.lg)
-        .sheet(isPresented: $showCategoryPicker) {
+        .sheet(isPresented: $showCategoryPicker, onDismiss: {
+            // Если пользователь выбрал категорию из списка — очищаем AI-предложение
+            if selectedCategory != nil {
+                aiSuggestedCategoryName = nil
+                aiSuggestedCategoryIcon = nil
+            }
+        }) {
             NavigationStack {
                 CategoryPickerView(
                     selectedCategory: categoryBinding,
@@ -385,13 +318,146 @@ struct AddTransactionSheet: View {
                 )
             }
         }
+        .sheet(isPresented: $showAICategoryEditor) {
+            NavigationStack {
+                CreateCategoryView(
+                    initialType: transactionType,
+                    initialName: aiSuggestedCategoryName,
+                    initialIcon: aiSuggestedCategoryIcon,
+                    initialParentName: prefill?.categoryParentName,
+                    onCreated: { newCategory in
+                        // Пользователь подтвердил/отредактировал AI-категорию
+                        switch transactionType {
+                        case .expense: selectedExpenseCategory = newCategory
+                        case .income: selectedIncomeCategory = newCategory
+                        }
+                        // Очищаем AI-предложение (теперь есть реальная категория)
+                        aiSuggestedCategoryName = nil
+                        aiSuggestedCategoryIcon = nil
+                        showAICategoryEditor = false
+                    }
+                )
+            }
+        }
+    }
+    
+    // MARK: - Строка категории (с разным поведением тапа)
+    
+    private var categoryRow: some View {
+        VStack(spacing: 0) {
+            Button {
+                focusedField = nil
+                if hasAISuggestedCategory {
+                    // AI предложил новую → открываем редактор для подтверждения/изменения
+                    showAICategoryEditor = true
+                } else {
+                    // Обычный выбор из списка
+                    showCategoryPicker = true
+                }
+            } label: {
+                HStack(spacing: MPSpacing.sm) {
+                    if let cat = selectedCategory {
+                        // Выбрана существующая категория
+                        if let icon = cat.effectiveIcon {
+                            Text(icon)
+                                .font(.system(size: 20))
+                                .frame(width: 28)
+                        }
+
+                        Text(categoryDisplayName(for: cat))
+                            .font(MPTypography.body)
+                            .foregroundColor(MPColors.textPrimary)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+
+                        Spacer()
+
+                    } else if aiSuggestedCategoryName != nil {
+                        // AI предложил новую категорию
+                        Text(aiSuggestedCategoryIcon ?? "🏷️")
+                            .font(.system(size: 20))
+                            .frame(width: 28)
+
+                        Text(aiSuggestedCategoryDisplayName)
+                            .font(MPTypography.body)
+                            .foregroundColor(MPColors.textPrimary)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+
+                        Spacer()
+
+                        Text("✨ Новая")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.55, green: 0.35, blue: 0.95),
+                                        Color(red: 0.30, green: 0.55, blue: 1.00),
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .clipShape(Capsule())
+                            .fixedSize()
+
+                    } else {
+                        // Не выбрана: лейбл + placeholder
+                        Text("🏷️")
+                            .font(.system(size: 20))
+                            .frame(width: 28)
+
+                        Text("Категория")
+                            .font(MPTypography.body)
+                            .foregroundColor(MPColors.textPrimary)
+
+                        Spacer()
+
+                        Text("Выберите")
+                            .font(MPTypography.body)
+                            .foregroundColor(MPColors.textSecondary)
+                    }
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(MPColors.textSecondary.opacity(0.5))
+                }
+                .padding(.horizontal, MPSpacing.md)
+                .padding(.vertical, MPSpacing.sm)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            
+            // Кнопка «Выбрать существующую» — только когда AI предложил новую
+            if hasAISuggestedCategory {
+                Button {
+                    focusedField = nil
+                    showCategoryPicker = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "list.bullet")
+                            .font(.system(size: 11))
+                        Text("Выбрать существующую")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                    }
+                    .foregroundColor(MPColors.accentCoral.opacity(0.8))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.trailing, MPSpacing.md)
+                    .padding(.bottom, MPSpacing.xs)
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
     
     // MARK: - Универсальная строка формы
     
     private func formRow<Content: View>(
         icon: String,
-        label: String,
+        label: LocalizedStringKey,
         @ViewBuilder content: () -> Content
     ) -> some View {
         HStack(spacing: MPSpacing.sm) {
@@ -414,7 +480,16 @@ struct AddTransactionSheet: View {
     // MARK: - AI Prefill
 
     private func applyPrefill() {
-        guard let result = prefill, result.status != .rejected else { return }
+        guard let result = prefill, result.status != .rejected else {
+            if let r = prefill {
+                MPLog.prefill.notice("✨ applyPrefill skipped (status=\(String(describing: r.status), privacy: .public))")
+            }
+            return
+        }
+
+        MPLog.prefill.info("✨ applyPrefill: status=\(String(describing: result.status), privacy: .public) type=\(result.type ?? "nil", privacy: .public) amount=\(result.amount ?? 0) currency=\(result.currency ?? "nil", privacy: .public) date=\(result.date ?? "nil", privacy: .public)")
+        MPLog.prefill.info("✨   category=\(result.categoryName ?? "nil", privacy: .public)[id=\(result.categoryId ?? "nil", privacy: .public),new=\(result.categoryIsNew ?? false),icon=\(result.categoryIcon ?? "nil", privacy: .public)] itemPhrase=\"\(result.itemPhrase ?? "nil", privacy: .public)\"")
+        MPLog.prefill.debug("✨   rawText=\"\(result.rawText ?? "nil", privacy: .public)\"")
 
         // Тип транзакции
         if let typeStr = result.type {
@@ -439,8 +514,16 @@ struct AddTransactionSheet: View {
             }
         }
 
-        // Категория — ищем по имени в SwiftData
-        if let catName = result.categoryName {
+        // Категория — ищем по имени в SwiftData.
+        // Защита: отфильтровываем пустые/мусорные значения ("null", "none"),
+        // которые AI иногда возвращает как строку вместо JSON null.
+        let normalizedCatName: String? = {
+            guard let raw = result.categoryName?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !raw.isEmpty,
+                  !["null", "none"].contains(raw.lowercased()) else { return nil }
+            return raw
+        }()
+        if let catName = normalizedCatName {
             if result.categoryIsNew == true {
                 // AI предложил новую категорию
                 aiSuggestedCategoryName = catName
@@ -505,9 +588,7 @@ struct AddTransactionSheet: View {
 
             modelContext.insert(newCategory)
             categoryToSave = newCategory
-            #if DEBUG
-            print("[AddTransaction] 🆕 Создана AI-категория: \(suggestedName)")
-            #endif
+            MPLog.prefill.info("🆕 Создана AI-категория: \(suggestedName, privacy: .public)")
         }
 
         // MARK: - Auto-Learn: отправка маппинга (item_phrase → category)
@@ -526,19 +607,15 @@ struct AddTransactionSheet: View {
                     isOverride: isOverride
                 )
             }
-            #if DEBUG
             if isOverride {
-                print("[AddTransaction] 🧠 Auto-Learn OVERRIDE: AI предложил «\(aiSuggested ?? "nil")», пользователь выбрал «\(chosen.name)» → маппинг: '\(itemPhrase)' → '\(chosen.name)'")
+                MPLog.autolearn.info("🧠 Auto-Learn OVERRIDE: AI предложил «\(aiSuggested ?? "nil", privacy: .public)», пользователь выбрал «\(chosen.name, privacy: .public)» → маппинг: '\(itemPhrase, privacy: .public)' → '\(chosen.name, privacy: .public)'")
             } else {
-                print("[AddTransaction] 🧠 Auto-Learn CONFIRM: '\(itemPhrase)' → '\(chosen.name)'")
+                MPLog.autolearn.info("🧠 Auto-Learn CONFIRM: '\(itemPhrase, privacy: .public)' → '\(chosen.name, privacy: .public)'")
             }
-            #endif
         } else {
-            #if DEBUG
             let itemPhrase = prefill?.itemPhrase ?? "nil"
             let chosenName = categoryToSave?.name ?? "nil"
-            print("[AddTransaction] ℹ️ Auto-Learn пропущен: itemPhrase=\(itemPhrase), chosen=\(chosenName)")
-            #endif
+            MPLog.autolearn.notice("ℹ️ Auto-Learn пропущен: itemPhrase=\(itemPhrase, privacy: .public), chosen=\(chosenName, privacy: .public)")
         }
 
         // TODO: Рассмотреть обязательность выбора категории перед сохранением.
@@ -556,10 +633,8 @@ struct AddTransactionSheet: View {
 
         modelContext.insert(transaction)
         try? modelContext.save()
-        
-        #if DEBUG
-        print("[AddTransaction] 💾 Транзакция сохранена: \(amountValue) \(settings.defaultCurrency), категория: \(categoryToSave?.name ?? "без категории")")
-        #endif
+
+        MPLog.prefill.info("💾 Транзакция сохранена: \(amountValue, privacy: .public) \(settings.defaultCurrency, privacy: .public), категория: \(categoryToSave?.name ?? "без категории", privacy: .public)")
         
         // Триггер автосинхронизации
         NotificationCenter.default.post(name: .dataDidChange, object: nil)

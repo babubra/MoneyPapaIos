@@ -20,6 +20,7 @@ struct SettingsView: View {
     @State private var showDeleteConfirmation = false
     @State private var showDeleteError = false
     @State private var deleteErrorMessage = ""
+    @State private var showRestartHint = false
 
     var body: some View {
         NavigationStack {
@@ -46,13 +47,34 @@ struct SettingsView: View {
                 
                 // MARK: — Валюта
                 Section {
-                    pickerRow(title: "Валюта по умолчанию", icon: "dollarsign.circle.fill", color: .green, selection: $settings.defaultCurrency) {
+                    pickerRow(title: String(localized: "settings.currency.default"), icon: "dollarsign.circle.fill", color: .green, selection: $settings.defaultCurrency) {
                         Text("₽ Рубль").tag("RUB")
                         Text("$ Доллар").tag("USD")
                         Text("€ Евро").tag("EUR")
                     }
                 } header: {
-                    Text("Валюта")
+                    Text("settings.currency.title")
+                }
+
+                // MARK: — Язык
+                Section {
+                    pickerRow(title: String(localized: "settings.language.label"), icon: "globe", color: .teal, selection: $settings.appLanguage) {
+                        Text("settings.language.system").tag("system")
+                        Text("Русский").tag("ru")
+                        Text("English").tag("en")
+                    }
+                    .onChange(of: settings.appLanguage) { _, _ in
+                        showRestartHint = true
+                    }
+                } header: {
+                    Text("settings.language.title")
+                } footer: {
+                    if showRestartHint {
+                        Text("settings.language.restartHint")
+                            .foregroundColor(MPColors.accentCoral)
+                    } else {
+                        Text("settings.language.footer")
+                    }
                 }
                 
                 // MARK: — Синхронизация

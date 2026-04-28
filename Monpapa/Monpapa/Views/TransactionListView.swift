@@ -196,16 +196,16 @@ struct TransactionListView: View {
 
     private var typeSegment: some View {
         HStack(spacing: 4) {
-            segmentButton(title: "Все", type: nil)
-            segmentButton(title: "Расходы", type: .expense)
-            segmentButton(title: "Доходы", type: .income)
+            segmentButton(titleKey: "Все", type: nil)
+            segmentButton(titleKey: "Расходы", type: .expense)
+            segmentButton(titleKey: "Доходы", type: .income)
         }
         .padding(4)
         .background(MPColors.cardBackground.opacity(0.6))
         .cornerRadius(MPCornerRadius.pill)
     }
 
-    private func segmentButton(title: String, type: TransactionType?) -> some View {
+    private func segmentButton(titleKey: LocalizedStringKey, type: TransactionType?) -> some View {
         let isSelected = selectedType == type
         let color: Color = {
             switch type {
@@ -220,7 +220,7 @@ struct TransactionListView: View {
                 selectedType = type
             }
         } label: {
-            Text(title)
+            Text(titleKey)
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .foregroundColor(isSelected ? .white : MPColors.textSecondary)
                 .frame(maxWidth: .infinity)
@@ -362,12 +362,12 @@ struct TransactionListView: View {
         let calendar = Calendar.current
 
         if calendar.isDateInToday(date) {
-            return "Сегодня"
+            return String(localized: "Сегодня")
         } else if calendar.isDateInYesterday(date) {
-            return "Вчера"
+            return String(localized: "Вчера")
         } else {
             let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "ru_RU")
+            formatter.locale = Locale.current
 
             if calendar.component(.year, from: date) == calendar.component(.year, from: Date()) {
                 formatter.dateFormat = "d MMMM"
@@ -435,25 +435,25 @@ enum PeriodPreset: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .today: return "Сегодня"
-        case .week: return "Неделя"
-        case .month: return "Текущий месяц"
-        case .prevMonth: return "Прошлый месяц"
-        case .year: return "Текущий год"
-        case .prevYear: return "Прошлый год"
-        case .custom: return "Произвольный"
+        case .today: return String(localized: "Сегодня")
+        case .week: return String(localized: "Неделя")
+        case .month: return String(localized: "Текущий месяц")
+        case .prevMonth: return String(localized: "Прошлый месяц")
+        case .year: return String(localized: "Текущий год")
+        case .prevYear: return String(localized: "Прошлый год")
+        case .custom: return String(localized: "Произвольный")
         }
     }
 
     var shortTitle: String {
         switch self {
-        case .today: return "День"
-        case .week: return "Нед."
-        case .month: return "Мес."
-        case .prevMonth: return "Пр.мес."
-        case .year: return "Год"
-        case .prevYear: return "Пр.год"
-        case .custom: return "Период"
+        case .today: return String(localized: "День")
+        case .week: return String(localized: "Нед.")
+        case .month: return String(localized: "Мес.")
+        case .prevMonth: return String(localized: "Пр.мес.")
+        case .year: return String(localized: "Год")
+        case .prevYear: return String(localized: "Пр.год")
+        case .custom: return String(localized: "Период")
         }
     }
 }

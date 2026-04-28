@@ -46,7 +46,7 @@ struct MPButton: View {
                     Image(systemName: icon)
                         .font(.system(size: 18))
                 }
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .font(style == .text ? MPTypography.caption : MPTypography.button)
             }
             .frame(maxWidth: style == .text ? nil : .infinity)

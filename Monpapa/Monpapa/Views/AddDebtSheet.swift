@@ -2,6 +2,7 @@
 
 import SwiftUI
 import SwiftData
+import os
 
 struct AddDebtSheet: View {
     @Environment(\.modelContext) private var modelContext
@@ -104,15 +105,15 @@ struct AddDebtSheet: View {
 
     private var directionSegment: some View {
         HStack(spacing: 4) {
-            directionButton(title: "Я дал в долг", dir: .gave, color: MPColors.accentGreen)
-            directionButton(title: "Я взял в долг", dir: .took, color: MPColors.accentCoral)
+            directionButton(titleKey: "Я дал в долг", dir: .gave, color: MPColors.accentGreen)
+            directionButton(titleKey: "Я взял в долг", dir: .took, color: MPColors.accentCoral)
         }
         .padding(4)
         .background(MPColors.cardBackground.opacity(0.6))
         .cornerRadius(MPCornerRadius.pill)
     }
 
-    private func directionButton(title: String, dir: DebtDirection, color: Color) -> some View {
+    private func directionButton(titleKey: LocalizedStringKey, dir: DebtDirection, color: Color) -> some View {
         let isSelected = direction == dir
 
         return Button {
@@ -120,7 +121,7 @@ struct AddDebtSheet: View {
                 direction = dir
             }
         } label: {
-            Text(title)
+            Text(titleKey)
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .foregroundColor(isSelected ? .white : MPColors.textSecondary)
                 .frame(maxWidth: .infinity)
@@ -348,7 +349,7 @@ struct AddDebtSheet: View {
 
     private func formRow<Content: View>(
         icon: String,
-        label: String,
+        label: LocalizedStringKey,
         @ViewBuilder content: () -> Content
     ) -> some View {
         HStack(spacing: MPSpacing.sm) {
@@ -401,9 +402,7 @@ struct AddDebtSheet: View {
 
         try? modelContext.save()
 
-        #if DEBUG
-        print("[AddDebt] 💾 Долг сохранён: \(direction.displayName), \(amountValue) ₽, контрагент: \(counterpart?.name ?? "nil")")
-        #endif
+        MPLog.prefill.info("💾 Долг сохранён: \(direction.displayName, privacy: .public), \(amountValue, privacy: .public) ₽, контрагент: \(counterpart?.name ?? "nil", privacy: .public)")
 
         NotificationCenter.default.post(name: .dataDidChange, object: nil)
         dismiss()
@@ -431,9 +430,7 @@ struct AddDebtSheet: View {
         let newCP = CounterpartModel(name: name)
         modelContext.insert(newCP)
 
-        #if DEBUG
-        print("[AddDebt] 🆕 Создан контрагент: \(name)")
-        #endif
+        MPLog.prefill.info("🆕 Создан контрагент: \(name, privacy: .public)")
 
         return newCP
     }
@@ -442,6 +439,8 @@ struct AddDebtSheet: View {
 
     private func applyPrefill() {
         guard let result = prefill, result.status != .rejected else { return }
+
+        MPLog.prefill.info("✨ AddDebt applyPrefill: type=\(result.type ?? "nil", privacy: .public) amount=\(result.amount ?? 0) cp=\(result.counterpartName ?? "nil", privacy: .public) cpId=\(result.counterpartId ?? "nil", privacy: .public) dueDate=\(result.dueDate ?? "nil", privacy: .public)")
 
         // Направление
         switch result.type {
@@ -501,10 +500,6 @@ struct AddDebtSheet: View {
         if let rawText = result.rawText, !rawText.isEmpty {
             comment = rawText
         }
-
-        #if DEBUG
-        print("[AddDebt] ✨ AI prefill: type=\(result.type ?? "nil"), amount=\(result.amount ?? 0), counterpart=\(result.counterpartName ?? "nil"), dueDate=\(result.dueDate ?? "nil")")
-        #endif
     }
 
     // MARK: - Edit Data

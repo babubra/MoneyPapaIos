@@ -55,16 +55,25 @@ final class AppSettings: ObservableObject {
     @Published var defaultCurrency: String {
         didSet { UserDefaults.standard.set(defaultCurrency, forKey: "defaultCurrency") }
     }
-    
 
-    
+    // MARK: - Язык
+
+    /// Язык интерфейса: "system" / "ru" / "en".
+    /// При изменении пишется в `AppleLanguages` и требует перезапуска приложения.
+    @Published var appLanguage: String {
+        didSet {
+            UserDefaults.standard.set(appLanguage, forKey: "appLanguage")
+            LocalizationManager.apply(appLanguage)
+        }
+    }
+
     // MARK: - Инициализатор
     
     init() {
         self.appTheme = UserDefaults.standard.string(forKey: "appTheme") ?? "system"
         self.hideAmounts = UserDefaults.standard.bool(forKey: "hideAmounts")
         self.defaultCurrency = UserDefaults.standard.string(forKey: "defaultCurrency") ?? "RUB"
-
+        self.appLanguage = UserDefaults.standard.string(forKey: "appLanguage") ?? "system"
     }
     
     // MARK: - Вычисляемые свойства

@@ -155,6 +155,28 @@ async def _check_and_increment_audio_limit(device: Device, db: AsyncSession) -> 
 
 # ── Вызов AI (OpenAI-compatible) ──────────────────────────────────
 
+# Поля, в которых AI иногда возвращает строку "null"/"None"/"" вместо JSON null.
+# Нормализуем их в реальный None, чтобы клиент не получил литерал "null".
+_NULLABLE_FIELDS = {
+    "type", "amount", "currency", "date", "raw_text", "item_phrase",
+    "category_id", "category_name", "category_icon",
+    "category_parent_id", "category_parent_name", "category_parent_icon",
+    "counterpart_id", "counterpart_name",
+    "due_date", "payment_flow", "message",
+}
+
+
+def _normalize_null_strings(data: dict) -> dict:
+    """AI (Gemini) иногда квотит null: 'null', 'None', ''. Приводим к настоящему None."""
+    if not isinstance(data, dict):
+        return data
+    for key in _NULLABLE_FIELDS:
+        val = data.get(key)
+        if isinstance(val, str) and val.strip().lower() in {"null", "none", ""}:
+            data[key] = None
+    return data
+
+
 def _sanitize_json(text: str) -> str:
     """Очищает ответ AI от типичных проблем с JSON.
 
@@ -215,12 +237,12 @@ async def _call_ai_text(client: AsyncOpenAI, user_prompt: str) -> dict:
 
             # Парсинг JSON
             try:
-                return json.loads(text)
+                return _normalize_null_strings(json.loads(text))
             except json.JSONDecodeError:
                 sanitized = _sanitize_json(text)
                 logger.warning(f"AI невалидный JSON, очистка: {text[:200]}...")
                 try:
-                    return json.loads(sanitized)
+                    return _normalize_null_strings(json.loads(sanitized))
                 except json.JSONDecodeError as e:
                     last_error = e
                     logger.warning(f"   ⚠️ Попытка {attempt+1}/{max_retries} не удалась: {e}")
@@ -280,7 +302,10 @@ async def _call_ai_audio(client: AsyncOpenAI, audio_data: bytes, mime_type: str,
             response_format={"type": "json_object"},
         )
         text = response.choices[0].message.content.strip()
-        return json.loads(text)
+        try:
+            return _normalize_null_strings(json.loads(text))
+        except json.JSONDecodeError:
+            return _normalize_null_strings(json.loads(_sanitize_json(text)))
 
     except APIStatusError as e:
         logger.error(f"AiTunnel API ошибка {e.status_code}: {e.message}")

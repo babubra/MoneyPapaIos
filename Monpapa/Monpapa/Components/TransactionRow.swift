@@ -16,7 +16,7 @@ struct TransactionRow: View {
     
     init(transaction: TransactionModel, showDate: Bool = true) {
         self.icon = transaction.category?.effectiveIcon
-        self.name = transaction.comment ?? "Без описания"
+        self.name = transaction.comment ?? String(localized: "Без описания")
         self.category = transaction.category?.name ?? ""
         self.amount = transaction.amount
         self.type = transaction.type
@@ -96,13 +96,15 @@ struct TransactionRow: View {
         let calendar = Calendar.current
         let now = Date()
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.locale = Locale.current
         
         if calendar.isDateInToday(date) {
             // Сегодня — показываем только время
-            formatter.dateFormat = "'сегодня,' HH:mm"
+            let todayWord = String(localized: "сегодня")
+            formatter.dateFormat = "'\(todayWord),' HH:mm"
         } else if calendar.isDateInYesterday(date) {
-            formatter.dateFormat = "'вчера,' HH:mm"
+            let yesterdayWord = String(localized: "вчера")
+            formatter.dateFormat = "'\(yesterdayWord),' HH:mm"
         } else if calendar.component(.year, from: date) == calendar.component(.year, from: now) {
             // Этот год — без года
             formatter.dateFormat = "d MMM, HH:mm"
