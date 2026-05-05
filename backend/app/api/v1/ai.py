@@ -66,12 +66,16 @@ def _is_premium(user: User) -> bool:
     return expires > now
 
 
-async def _check_and_consume_trial(user: User, db: AsyncSession) -> None:
-    """Проверяет trial и инкрементит ai_trial_used.
+async def _check_trial(user: User, db: AsyncSession) -> None:
+    """Гейт ПЕРЕД вызовом AI: 402 если trial исчерпан, иначе пропускаем дальше.
 
-    Premium-юзеры пропускают check без инкремента. Free-юзеры:
-      • если ai_trial_used >= AI_TRIAL_LIMIT → 402 Payment Required
-      • иначе ai_trial_used += 1 и flush
+    НЕ инкрементирует счётчик — это делается отдельно через _consume_trial()
+    ПОСЛЕ успешного AI-вызова. Раньше эти две вещи были в одном методе, что
+    приводило к несправедливому списанию trial при сбоях AI-сервиса (502/503,
+    невалидный JSON после ретраев, AITUNNEL_API_KEY не настроен — юзер не
+    виноват, но trial уже потерян).
+
+    Premium-юзеры пропускают check полностью.
     """
     if _is_premium(user):
         return
@@ -87,6 +91,25 @@ async def _check_and_consume_trial(user: User, db: AsyncSession) -> None:
                      "X-AI-Trial-Limit": str(settings.AI_TRIAL_LIMIT)},
         )
 
+
+async def _consume_trial(user: User, db: AsyncSession) -> None:
+    """Инкрементирует ai_trial_used ПОСЛЕ успешного AI-вызова.
+
+    Что считается "успешным": _call_ai_text/_call_ai_audio вернул валидный
+    JSON-ответ от Gemini — даже если status="off_topic" / "вопрос не в тему".
+    Это справедливо: модель отработала, токены реально потрачены, и мы за
+    них заплатили. Иначе юзер может фармить бесплатные вызовы вопросами
+    "какая погода?", сливая наш AI-бюджет.
+
+    Что НЕ считается успехом (этот метод НЕ вызывается):
+      • HTTPException 502/503 — внешний AI-сервис упал
+      • HTTPException 422 — слишком длинный текст / битый multipart
+      • Любой exception до возврата result юзеру
+
+    Premium-юзеры пропускают (их trial-счётчик не имеет смысла).
+    """
+    if _is_premium(user):
+        return
     user.ai_trial_used += 1
     await db.flush()
 
@@ -311,8 +334,8 @@ async def parse_text(
             detail=f"Текст слишком длинный. Максимум {settings.AI_MAX_TEXT_LENGTH} символов.",
         )
 
-    # Trial-gate: 402 если free и trial исчерпан; инкремент произойдёт здесь же.
-    await _check_and_consume_trial(user, db)
+    # Trial-gate: 402 если free и trial исчерпан. Инкремент НЕ здесь — после AI.
+    await _check_trial(user, db)
 
     mappings = await _load_user_mappings(user.id, db)
     if mappings:
@@ -327,7 +350,15 @@ async def parse_text(
         mappings=mappings or None,
     )
 
+    # Если AI упадёт (502/503/timeout), exception пробросится наверх и
+    # _consume_trial НЕ выполнится — trial остаётся целым.
     result = await _call_ai_text(ai_client, user_prompt)
+
+    # Списываем trial только если AI реально отработал и вернул валидный JSON.
+    # Off-topic ответ ("вопрос не в тему") тоже считается успехом — мы за токены
+    # уже заплатили.
+    await _consume_trial(user, db)
+
     logger.info(f"   ✅ Результат: status={result.get('status')} type={result.get('type')} "
                 f"amount={result.get('amount')} cat=\"{result.get('category_name')}\" "
                 f"item_phrase=\"{result.get('item_phrase')}\" new={result.get('category_is_new')}")
@@ -355,7 +386,8 @@ async def parse_audio(
                 f"trial={user.ai_trial_used}/{settings.AI_TRIAL_LIMIT} locale={locale}")
     logger.info(f"   Файл: {audio.filename}, size={audio.size}, type={audio.content_type}")
 
-    await _check_and_consume_trial(user, db)
+    # Trial-gate: 402 если free и trial исчерпан. Инкремент НЕ здесь — после AI.
+    await _check_trial(user, db)
 
     audio_data = await audio.read()
     mime_type = audio.content_type or "audio/m4a"
@@ -384,7 +416,13 @@ async def parse_audio(
         mappings=mappings or None,
     )
 
+    # Если AI упадёт (502/503/timeout), exception пробросится наверх и
+    # _consume_trial НЕ выполнится — trial остаётся целым.
     result = await _call_ai_audio(ai_client, audio_data, mime_type, user_prompt)
+
+    # Списываем trial только если AI реально отработал (включая off-topic responses).
+    await _consume_trial(user, db)
+
     logger.info(f"   ✅ Результат: status={result.get('status')} type={result.get('type')} "
                 f"amount={result.get('amount')} cat=\"{result.get('category_name')}\" "
                 f"item_phrase=\"{result.get('item_phrase')}\"")
