@@ -6,6 +6,12 @@ Repo layout:
 - `todo/` — plans and audit reports
 - `todo/audit/` — production-readiness audit findings
 
+## Auth model migration (active decision)
+
+Приложение мигрирует на **обязательную авторизацию** (Sign in with Apple + magic-link fallback) с AI trial и платной sync. План: **[`todo/auth_model_C_migration.md`](todo/auth_model_C_migration.md)**.
+
+Это решение влияет на любые задачи, связанные с auth, sync, AI-квотами и онбордингом. Прежде чем фиксить такие места — свериться с планом миграции.
+
 ## Production readiness audit
 
 Идёт постепенный аудит готовности к проду. Глобальный план:
