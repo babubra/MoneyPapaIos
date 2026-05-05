@@ -1,0 +1,48 @@
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov/
+
+# Virtualenv
+venv/
+env/
+.venv/
+
+# Local data / runtime artifacts
+*.db
+*.sqlite
+*.sqlite3
+monpapa.db
+*.log
+server.log
+backend.log
+
+# Secrets — ключи задаются через env_file в compose
+.env
+.env.local
+.env.*.local
+
+# Dev-only scripts (не нужны в production-образе)
+check_cache.py
+test_db_*.py
+dev.sh
+
+# Git / IDE / OS
+.git
+.gitignore
+.idea
+.vscode
+.DS_Store
+*.swp
+*~
+
+# Docs / planning (не нужны в образе)
+README.md
+todo/
+*.md

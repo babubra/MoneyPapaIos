@@ -1,0 +1,55 @@
+# Production-конфигурация Docker Compose для MonPapa Backend.
+# Отличия от docker-compose.yml (dev):
+#   • НЕТ --reload и НЕТ bind-mount .:/app — образ self-contained
+#   • --workers 2 для базовой отказоустойчивости
+#   • --proxy-headers — нужен когда фронт-прокси (nginx/Caddy) ставит X-Forwarded-*
+#   • Порт PostgreSQL не пробрасывается наружу (подключение только из docker-сети)
+#   • Healthcheck для backend + DB
+#
+# Использование:
+#   docker compose -f docker-compose.prod.yml up --build -d
+services:
+  # ── PostgreSQL ──────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: monpapa-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # Никакого ports: 5432 наружу — БД доступна только backend'у через docker network.
+    # Если нужен прямой доступ к БД с VPS — `docker exec -it monpapa-db psql -U $POSTGRES_USER`.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── FastAPI Backend ─────────────────────────────────────────────
+  backend:
+    build: .
+    container_name: monpapa-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+    # НЕТ volumes — образ self-contained.
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    # НЕТ --reload, --workers 2, --proxy-headers для nginx/Caddy.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --workers 2 --proxy-headers
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pgdata:

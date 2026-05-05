@@ -29,8 +29,8 @@ jobs:
             # Переходим в директорию бэкенда
             cd backend
             
-            # Пересобираем и перезапускаем (--build пересобирает только изменённые слои)
-            docker compose up --build -d
+            # Пересобираем и перезапускаем (используем prod-compose без --reload и bind-mount)
+            docker compose -f docker-compose.prod.yml up --build -d
 
             # Чистим старые неиспользуемые Docker-образы для экономии памяти
             docker image prune -f
