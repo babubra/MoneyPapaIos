@@ -6,6 +6,32 @@ Repo layout:
 - `todo/` — plans and audit reports
 - `todo/audit/` — production-readiness audit findings
 
+## Local development setup
+
+**Когда триггерится:** «запусти бэкенд», «localhost», «подними сервер», «симулятор не подключается», «backend не отвечает», «сбрось БД», «свежий старт», «curl /health», «docker compose», или просто перед началом любой работы с backend / iOS-симулятором.
+
+**Архитектура dev-окружения:**
+- Backend (FastAPI + Postgres) живёт в Docker на Mac, слушает `localhost:8001`.
+- iOS-симулятор настроен ходить на `localhost:8001` (см. `Monpapa/Monpapa/Services/APIConfig.swift`).
+- Реальное iPhone-устройство `localhost` не видит — поправь `DEVICE_DEBUG_URL` в APIConfig.
+- Production-VPS `45.90.99.67` — **legacy, не используется**. Workflow auto-deploy отключён (`.github/workflows/deploy.yml.disabled`). Новый VPS появится позже.
+
+**Quick-start (90% случаев это всё, что нужно):**
+```bash
+cd backend
+docker compose up -d
+curl http://localhost:8001/health   # → 200 OK
+```
+
+После этого симулятор iOS работает «из коробки». В DEV_MODE `POST /auth/request-link {"email":"..."}` сразу возвращает user-JWT без отправки писем — это то, что AuthService автоматически подхватывает в DevModeResponse.
+
+**Полная инструкция (smoke-test, troubleshooting, сброс БД, DEV_MODE-флоу, симулятор не видит backend):** [`backend/DEVELOPMENT.md`](backend/DEVELOPMENT.md). Всегда сверяться с ней перед тем как делать ручные правки или диагностировать поломку — там же есть готовые curl/SQL-сниппеты.
+
+**Что нельзя забыть:**
+- `backend/.env` в `.gitignore`. Если нет — `cp .env.example .env` и заполнить (особенно `SECRET_KEY` через `openssl rand -hex 32` ≥32 символа, `DEV_MODE=true`, `DEV_HOST_OK=true`).
+- При изменении SQLAlchemy-моделей: `docker compose down -v && docker compose up -d --build` (Alembic пока не используется, БД пересоздаётся).
+- Перед любым предположением про backend / iOS-flow — проверить актуальное состояние через curl, не верить памяти.
+
 ## Auth model migration (active decision)
 
 Приложение мигрирует на **обязательную авторизацию** (Sign in with Apple + magic-link fallback) с AI trial и платной sync. План: **[`todo/auth_model_C_migration.md`](todo/auth_model_C_migration.md)**.
