@@ -1258,19 +1258,36 @@
         }
       }
     },
-    "paywall.benefit.sync" : {
+    "paywall.benefit.voice" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sync between devices"
+            "value" : "Unlimited voice input"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Синхронизация между устройствами"
+            "value" : "Безлимитный голосовой ввод"
+          }
+        }
+      }
+    },
+    "paywall.benefit.support" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Support the project's development"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поддержка развития проекта"
           }
         }
       }
@@ -1538,6 +1555,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Бесплатно · %1$lld / %2$lld AI-запросов"
+          }
+        }
+      }
+    },
+    "subscription.free.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premium removes the AI request limit."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premium снимает лимит AI-запросов."
           }
         }
       }

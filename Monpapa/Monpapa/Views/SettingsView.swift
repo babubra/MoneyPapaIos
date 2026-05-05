@@ -272,7 +272,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(String(localized: "subscription.free \(subscription.aiTrialUsed) \(subscription.aiTrialLimit)"))
                             .font(.body)
-                        Text("Без подписки sync только в одну сторону (read).")
+                        Text("subscription.free.subtitle")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }

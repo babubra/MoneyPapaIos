@@ -2,6 +2,7 @@
 
 > Решение принято: 2026-05-04 (диалог с Opus 4.7)
 > **Статус: 🟢 Pragmatic implementation done (2026-05-05)** — реализовано всё, что не требует Apple Developer Program. Apple Sign-In + StoreKit оставлены как заглушки с TODO. Коммиты `5384e08`..`673345f` в `main`.
+> **Update 2026-05-06:** sync-модель пересмотрена с «WRITE за подпиской» на «sync free unlimited, Premium = AI без лимита» (вариант A — подробности ниже в разделе «Зафиксированные решения»). Терять финансовые данные при переустановке приложения — плохой UX, лимитировать sync — плохая бизнес-этика для финансового приложения.
 
 ## ✅ Что сделано в pragmatic-итерации (2026-05-05)
 
@@ -18,7 +19,7 @@
 - ✅ `POST /auth/device` **полностью удалён** + `get_current_device` / `require_device` / per-device rate-limit
 - ✅ JWT subject теперь `user:{id}`, legacy device-токены отвергаются
 - ✅ AI trial gate (`/parse`, `/parse-audio` → 402 при `ai_trial_used >= 50` для не-Premium)
-- ✅ Sync gate: `POST /sync` → 402 без активной подписки; `GET /sync/changes` доступен всем (восстановление при ре-инсталле)
+- 🟡 Sync gate: реализован 402-гейт для POST `/sync` (`4549ee6`), но **снят 2026-05-06** в коммите варианта A — sync доступен всем юзерам без подписки. См. шапку файла для аргументации.
 - ✅ `/subscription/*`: `status` (реальный), `verify` (DEV-stub на 30 дней), `webhook` (заглушка)
 - ✅ In-memory IP-rate-limit на `/auth/apple` (10/мин), `/auth/request-link` (5/мин), `/auth/verify-pin` (10/мин) — закрывает PIN brute-force
 - ✅ DEV_STUB-режим в `apple_auth.py` для тестирования без реального SiwA-токена
@@ -37,7 +38,7 @@
 **Decisions, зафиксированные при реализации:**
 - AI trial = **50** запросов lifetime на user
 - БД дропается при выкатке (юзеры с нуля), миграция старых не делается
-- Sync READ доступен всем; WRITE — только Premium
+- ~~Sync READ доступен всем; WRITE — только Premium~~ — **пересмотрено 2026-05-06**: sync (push + pull) **доступен всем без подписки**. Premium = безлимитный AI, не sync. Аргументация выше в шапке файла.
 - `/auth/device` **удалён полностью** (а не 410 Gone)
 - Per-device rate-limit удалён (50 trial выполняет роль квоты)
 - Alembic baseline отложен — остаёмся на `Base.metadata.create_all` пока БД droppable
@@ -90,9 +91,12 @@
 
 ### Sync
 
-- `UserSettings.sync_enabled` уже есть — оставляем.
-- `sync_enabled=true` доступно только активной подписке.
-- Если подписка кончилась → `sync_enabled` остаётся, но push-операции возвращают 402; локальная БД продолжает работать.
+> **Update 2026-05-06**: устаревшие требования ниже зачёркнуты — sync теперь доступен всем без подписки.
+
+- `UserSettings.sync_enabled` уже есть — оставляем как user preference (юзер может выключить sync вручную).
+- ~~`sync_enabled=true` доступно только активной подписке.~~
+- ~~Если подписка кончилась → `sync_enabled` остаётся, но push-операции возвращают 402.~~
+- POST `/sync` и GET `/sync/changes` оба доступны для любого `require_user`. Локальная SwiftData продолжает работать в любом случае.
 
 ### Подписка
 
@@ -255,7 +259,7 @@ CREATE TABLE app_store_notifications (
 
 - ✅ **Размер AI trial: 50 запросов** — закрепили в `Settings.AI_TRIAL_LIMIT`.
 - ✅ **«Приземление» trial при апгрейде:** не актуально, БД дропается.
-- ✅ **Sync read без подписки:** разрешён. POST `/sync` → 402, GET `/sync/changes` → 200.
+- ✅ **Sync без подписки:** доступен полностью (push + pull). POST `/sync` → 200, GET `/sync/changes` → 200. Update 2026-05-06: переход с «WRITE Premium» на полностью бесплатный sync.
 
 ### Остались для будущих сессий
 

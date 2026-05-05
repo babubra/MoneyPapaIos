@@ -125,7 +125,8 @@ struct PaywallView: View {
     private var benefitsList: some View {
         VStack(alignment: .leading, spacing: MPSpacing.md) {
             benefitRow(icon: "wand.and.stars", text: "paywall.benefit.ai")
-            benefitRow(icon: "arrow.triangle.2.circlepath", text: "paywall.benefit.sync")
+            benefitRow(icon: "mic.fill", text: "paywall.benefit.voice")
+            benefitRow(icon: "heart.fill", text: "paywall.benefit.support")
         }
     }
 
