@@ -12,8 +12,9 @@ struct SettingsView: View {
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var syncService: SyncService
     @ObservedObject private var auth = AuthService.shared
+    @ObservedObject private var subscription = SubscriptionService.shared
     @Environment(\.dismiss) private var dismiss
-    
+
     @State private var isAuthPresented = false
     @State private var isLoggingOut = false
     @State private var isDeletingAccount = false
@@ -21,6 +22,7 @@ struct SettingsView: View {
     @State private var showDeleteError = false
     @State private var deleteErrorMessage = ""
     @State private var showRestartHint = false
+    @State private var isPaywallPresented = false
 
     var body: some View {
         NavigationStack {
@@ -33,7 +35,16 @@ struct SettingsView: View {
                         guestProfileView
                     }
                 }
-                
+
+                // MARK: — Подписка
+                if auth.isAuthenticated {
+                    Section {
+                        subscriptionRow
+                    } header: {
+                        Text("Подписка")
+                    }
+                }
+
                 // MARK: — Внешний вид
                 Section {
                     pickerRow(title: "Тема", icon: "paintbrush.fill", color: .indigo, selection: $settings.appTheme) {
@@ -198,6 +209,15 @@ struct SettingsView: View {
             } message: {
                 Text(deleteErrorMessage)
             }
+            .sheet(isPresented: $isPaywallPresented) {
+                PaywallView()
+            }
+            .task {
+                // Подтягиваем актуальный статус подписки при открытии Настроек
+                if auth.isAuthenticated {
+                    await subscription.refreshStatus()
+                }
+            }
         }
     }
     
@@ -222,7 +242,58 @@ struct SettingsView: View {
     }
     
     // MARK: - Подкомпоненты
-    
+
+    /// Строка статуса подписки + AI trial counter.
+    /// Premium → "Premium · до DD.MM.YYYY".
+    /// Free   → "Бесплатно · X / 50 AI" + кнопка "Оформить Premium".
+    @ViewBuilder
+    private var subscriptionRow: some View {
+        if subscription.isPremium {
+            HStack {
+                settingsIcon("crown.fill", color: MPColors.accentYellow)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Premium")
+                        .font(.body)
+                    if let expiresAt = subscription.expiresAt {
+                        Text(String(localized: "subscription.active \(expiresAt.formatted(date: .abbreviated, time: .omitted))"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("subscription.active.unlimited")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    settingsIcon("hourglass", color: MPColors.accentCoral)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(String(localized: "subscription.free \(subscription.aiTrialUsed) \(subscription.aiTrialLimit)"))
+                            .font(.body)
+                        Text("Без подписки sync только в одну сторону (read).")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                Button {
+                    isPaywallPresented = true
+                } label: {
+                    Text("subscription.upgrade")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(MPColors.accentCoral)
+                        .cornerRadius(10)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
     private var guestProfileView: some View {
         Button {
             isAuthPresented = true

@@ -188,6 +188,9 @@
         }
       }
     },
+    "⚠️ DEV stub — реальный StoreKit добавится позже" : {
+
+    },
     "✨" : {
       "localizations" : {
         "en" : {
@@ -1323,6 +1326,9 @@
         }
       }
     },
+    "Premium" : {
+
+    },
     "Select an item" : {
       "localizations" : {
         "en" : {
@@ -1485,7 +1491,7 @@
         }
       }
     },
-    "subscription.active" : {
+    "subscription.active %@" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -1502,36 +1508,53 @@
         }
       }
     },
-    "subscription.free" : {
+    "subscription.active.unlimited" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Free · %lld / %lld AI requests"
+            "value" : "Premium · unlimited"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Бесплатно · %lld / %lld AI-запросов"
+            "value" : "Premium · бессрочно"
           }
         }
       }
     },
-    "subscription.trial.remaining" : {
+    "subscription.free %lld %lld" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld of %lld AI requests left"
+            "value" : "Free · %1$lld / %2$lld AI requests"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Осталось %lld из %lld AI-запросов"
+            "value" : "Бесплатно · %1$lld / %2$lld AI-запросов"
+          }
+        }
+      }
+    },
+    "subscription.trial.remaining %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of %2$lld AI requests left"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Осталось %1$lld из %2$lld AI-запросов"
           }
         }
       }
@@ -1732,6 +1755,9 @@
           }
         }
       }
+    },
+    "Без подписки sync только в одну сторону (read)." : {
+
     },
     "Без родителя" : {
       "localizations" : {
@@ -3648,6 +3674,9 @@
           }
         }
       }
+    },
+    "Подписка" : {
+
     },
     "Подтверждение" : {
       "localizations" : {

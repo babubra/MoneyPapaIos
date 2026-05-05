@@ -23,6 +23,7 @@ struct DashboardView: View {
     @State private var aiInputText = ""
     @State private var showSettings = false
     @State private var showAddDebt = false
+    @State private var showPaywall = false
     
     struct ManualTransactionParams: Identifiable {
         let id = UUID()
@@ -173,6 +174,9 @@ struct DashboardView: View {
                     onError: { error in
                         aiErrorMessage = error
                         showAiError = true
+                    },
+                    onPaymentRequired: {
+                        showPaywall = true
                     }
                 )
                 .padding(.bottom, MPSpacing.sm)
@@ -180,6 +184,9 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView()
         }
         .sheet(item: $manualTransactionParams) { params in
             AddTransactionSheet(defaultType: params.type)

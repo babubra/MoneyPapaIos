@@ -25,6 +25,7 @@ struct MonpapaApp: App {
     @StateObject private var settings = AppSettings()
     @StateObject private var syncService: SyncService
     @ObservedObject private var auth = AuthService.shared
+    @ObservedObject private var subscription = SubscriptionService.shared
     @Environment(\.scenePhase) private var scenePhase
 
     let sharedModelContainer: ModelContainer
@@ -68,8 +69,16 @@ struct MonpapaApp: App {
             .environment(\.locale, LocalizationManager.effectiveLocale())
             .environmentObject(settings)
             .environmentObject(syncService)
+            .environmentObject(subscription)
             .onAppear {
                 SeedData.seedIfNeeded(context: sharedModelContainer.mainContext)
+            }
+            .onChange(of: auth.isAuthenticated) { _, isLoggedIn in
+                // Сразу после логина — подтягиваем актуальный subscription_status
+                // и AI trial counter, чтобы Dashboard и Settings показали их без задержки.
+                if isLoggedIn {
+                    Task { await subscription.refreshStatus() }
+                }
             }
         }
         .modelContainer(sharedModelContainer)
@@ -77,6 +86,7 @@ struct MonpapaApp: App {
             if newPhase == .active && auth.isAuthenticated {
                 Task {
                     await syncService.sync()
+                    await subscription.refreshStatus()
                 }
             }
         }

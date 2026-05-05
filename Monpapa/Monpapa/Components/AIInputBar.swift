@@ -23,8 +23,12 @@ struct AIInputBar: View {
     var onVoiceResult: (AiParseResult) -> Void
     /// Вызывается при ошибке
     var onError: ((String) -> Void)?
+    /// Вызывается когда backend возвращает 402 Payment Required (trial исчерпан).
+    /// Родительский экран должен показать PaywallView.
+    var onPaymentRequired: (() -> Void)?
 
     private var aiService: AIService { AIService.shared }
+    @ObservedObject private var subscription = SubscriptionService.shared
 
     @State private var state: AIInputState = .idle
     @State private var pulseScale: CGFloat = 1.0
@@ -51,21 +55,29 @@ struct AIInputBar: View {
     }
     
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // Обычное поле ввода
-            if state != .recording {
-                mainInputBar
-                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .bottomTrailing)))
+        VStack(spacing: 6) {
+            // Trial counter — показываем только free-юзерам в idle/sending состоянии
+            if subscription.shouldShowTrialCounter && state != .recording {
+                trialCounterStrip
+                    .transition(.opacity)
             }
-            
-            // Панель записи голоса — рендерится ТОЛЬКО при записи
-            // (lazy: AIAudioWaveformView и его Timer не создаются заранее)
-            if state == .recording {
-                VStack(spacing: 0) {
-                    recordingStatusBar
-                    recordingBar
+
+            ZStack(alignment: .bottom) {
+                // Обычное поле ввода
+                if state != .recording {
+                    mainInputBar
+                        .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .bottomTrailing)))
                 }
-                .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .bottomTrailing)))
+
+                // Панель записи голоса — рендерится ТОЛЬКО при записи
+                // (lazy: AIAudioWaveformView и его Timer не создаются заранее)
+                if state == .recording {
+                    VStack(spacing: 0) {
+                        recordingStatusBar
+                        recordingBar
+                    }
+                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .bottomTrailing)))
+                }
             }
         }
         .padding(.horizontal, MPSpacing.md)
@@ -85,6 +97,29 @@ struct AIInputBar: View {
         }
     }
     
+    // MARK: - AI Trial counter strip
+    /// Тонкая полоска "Осталось X / 50 AI-запросов" над input bar.
+    /// Показывается только free-юзерам (см. subscription.shouldShowTrialCounter).
+    private var trialCounterStrip: some View {
+        let remaining = subscription.trialRemaining
+        let total = subscription.aiTrialLimit
+        // Подсветка: жёлтое предупреждение когда < 20%, остальное — серый.
+        let isWarning = remaining > 0 && remaining <= max(1, total / 5)
+        let textColor = remaining == 0 ? MPColors.accentCoral
+                       : isWarning ? MPColors.accentYellow
+                       : MPColors.textSecondary
+
+        return HStack(spacing: 6) {
+            Image(systemName: remaining == 0 ? "exclamationmark.circle.fill" : "sparkles")
+                .font(.system(size: 11, weight: .semibold))
+            Text(String(localized: "subscription.trial.remaining \(remaining) \(total)"))
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+        }
+        .foregroundColor(textColor)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, MPSpacing.xs)
+    }
+
     // MARK: - Главное поле ввода (Telegram-style)
     private var mainInputBar: some View {
         HStack(alignment: .bottom, spacing: MPSpacing.sm) {
@@ -313,6 +348,15 @@ struct AIInputBar: View {
                 } catch AIServiceError.rateLimitExceeded {
                     MPLog.input.notice("⌨️ sendText rateLimit | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms")
                     onError?(String(localized: "error.rateLimitShort"))
+                } catch AIServiceError.paymentRequired {
+                    MPLog.input.notice("⌨️ sendText paywall | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms")
+                    // Trial исчерпан: подкручиваем локальный счётчик до лимита и
+                    // просим экран показать paywall.
+                    subscription.noteTrialConsumedLocally()
+                    onPaymentRequired?()
+                } catch AIServiceError.notAuthenticated {
+                    MPLog.input.notice("⌨️ sendText 401 | требуется перелогин")
+                    onError?(String(localized: "error.notAuthenticated"))
                 } catch {
                     MPLog.input.error("⌨️ sendText error | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms | \(error.localizedDescription, privacy: .public)")
                     onError?(error.localizedDescription)
@@ -380,6 +424,15 @@ struct AIInputBar: View {
                 MPLog.input.notice("🎤 sendAudioFile rateLimit | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms")
                 withAnimation { state = .idle }
                 onError?(String(localized: "error.audioRateLimit"))
+            } catch AIServiceError.paymentRequired {
+                MPLog.input.notice("🎤 sendAudioFile paywall | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms")
+                withAnimation { state = .idle }
+                subscription.noteTrialConsumedLocally()
+                onPaymentRequired?()
+            } catch AIServiceError.notAuthenticated {
+                MPLog.input.notice("🎤 sendAudioFile 401 | требуется перелогин")
+                withAnimation { state = .idle }
+                onError?(String(localized: "error.notAuthenticated"))
             } catch {
                 MPLog.input.error("🎤 sendAudioFile error | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms | \(error.localizedDescription, privacy: .public)")
                 withAnimation { state = .idle }
