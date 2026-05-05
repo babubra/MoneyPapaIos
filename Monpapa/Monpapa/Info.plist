@@ -6,6 +6,15 @@
 	<dict>
 		<key>NSExceptionDomains</key>
 		<dict>
+			<!-- Локальный Docker на Mac (симулятор подключается через localhost). -->
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+			<!-- Старый прод-VPS (legacy). После переезда на новый VPS — заменить ключ. -->
 			<key>45.90.99.67</key>
 			<dict>
 				<key>NSExceptionAllowsInsecureHTTPLoads</key>
