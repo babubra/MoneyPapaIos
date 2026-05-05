@@ -370,7 +370,12 @@ class CategoryMapping(Base):
     __tablename__ = "category_mappings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     item_phrase: Mapped[str] = mapped_column(Text, nullable=False)
     category_id: Mapped[str] = mapped_column(String(36), nullable=False)  # client_id категории (без FK — offline-first)
     category_name: Mapped[str] = mapped_column(Text, nullable=False)

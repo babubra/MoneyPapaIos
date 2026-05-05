@@ -34,7 +34,7 @@ from app.core.rate_limit import (
     pin_verify_limiter,
 )
 from app.core.security import create_access_token, create_magic_token, verify_token
-from app.db.models import Device, MagicCode, User, UserSettings
+from app.db.models import CategoryMapping, Device, MagicCode, User, UserSettings
 from app.db.session import get_db
 
 logger = logging.getLogger(__name__)
@@ -370,7 +370,7 @@ async def delete_account(
     Требование Apple App Store Review Guidelines 5.1.1(v).
 
     Каскадно удаляются: transactions, categories, counterparts,
-    debts, debt_payments, user_settings.
+    debts, debt_payments, user_settings, category_mappings.
     Devices отвязываются (user_id = NULL), но НЕ удаляются физически.
     """
     user_id = user.id
@@ -386,7 +386,14 @@ async def delete_account(
         update(Device).where(Device.user_id == user_id).values(user_id=None)
     )
 
-    # Удаляем пользователя — каскад удалит все данные (кроме devices)
+    # Удаляем category_mappings вручную — в моделях исторически отсутствовал
+    # ondelete="CASCADE" на CategoryMapping.user_id (исправлено для новых БД,
+    # но в существующих pgdata-volume FK без CASCADE). Этот явный delete
+    # обеспечивает корректное удаление аккаунта на текущей dev-БД без
+    # сброса pgdata. Можно убрать после `docker compose down -v && up`.
+    await db.execute(delete(CategoryMapping).where(CategoryMapping.user_id == user_id))
+
+    # Удаляем пользователя — каскад удалит все остальные данные (кроме devices)
     await db.delete(user)
     await db.flush()
 
