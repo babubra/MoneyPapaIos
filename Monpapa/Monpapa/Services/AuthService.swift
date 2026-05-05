@@ -1,14 +1,16 @@
 // MonPapa iOS — Auth Service
-// Авторизация пользователя: Magic Link (email → PIN → JWT)
-// Для синхронизации данных между устройствами.
+// Авторизация пользователя:
+//   • Sign in with Apple (primary) — через AuthenticationServices + backend /auth/apple
+//   • Magic Link (fallback) — email → PIN → /auth/verify-pin
 //
-// Не путать с device-auth в AIService — тот для анонимного AI-доступа.
-// AuthService = авторизация пользователя = доступ к синхронизации.
-//
-// Хранение: все секреты (token, email, userId) — в Keychain.
+// JWT хранится в Keychain (KeychainService.Keys.userToken). После Auth Model C
+// этот же токен используется для AI и Sync — отдельный device-токен из старой
+// модели больше не выдаётся (см. /auth/device → 404).
 
 import Foundation
 import Combine
+import AuthenticationServices
+import UIKit
 
 // MARK: - Ошибки авторизации
 
@@ -18,6 +20,8 @@ enum AuthError: LocalizedError {
     case invalidResponse
     case invalidCredentials
     case notAuthenticated
+    case appleSignInUnavailable      // нет entitlement, нет Apple ID, runtime error
+    case appleSignInCancelled        // пользователь отменил popup
 
     var errorDescription: String? {
         switch self {
@@ -31,6 +35,10 @@ enum AuthError: LocalizedError {
             return String(localized: "auth.error.invalidCredentials")
         case .notAuthenticated:
             return String(localized: "auth.error.notAuthenticated")
+        case .appleSignInUnavailable:
+            return String(localized: "auth.signin.apple.unavailable")
+        case .appleSignInCancelled:
+            return String(localized: "auth.signin.apple.cancelled")
         }
     }
 }
@@ -38,7 +46,7 @@ enum AuthError: LocalizedError {
 // MARK: - Auth Service
 
 @MainActor
-final class AuthService: ObservableObject {
+final class AuthService: NSObject, ObservableObject {
 
     static let shared = AuthService()
 
@@ -73,12 +81,13 @@ final class AuthService: ObservableObject {
         }
     }
 
-    /// device_id — берём общий из Keychain (общий с AIService)
+    /// device_id — общий между Auth/AI/Sync, лежит в Keychain.
+    /// После Auth Model C device_id передаётся при логине только для метаданных
+    /// на сервере (last_seen_at), но не для авторизации.
     private var deviceId: String {
         if let stored = KeychainService.load(key: KeychainService.Keys.deviceId) {
             return stored
         }
-        // Если AIService уже создал device_id в UserDefaults — мигрируем его
         if let legacy = UserDefaults.standard.string(forKey: "monpapa_device_id") {
             KeychainService.save(key: KeychainService.Keys.deviceId, value: legacy)
             return legacy
@@ -96,9 +105,16 @@ final class AuthService: ObservableObject {
 
     private var apiBase: String { "\(baseURL)/api/v1/auth" }
 
+    // MARK: - Apple Sign-In state
+
+    /// Continuation для async-обёртки над delegate-based ASAuthorizationController.
+    /// nil означает "нет активного запроса". Защищаем от двойного resume через nilling.
+    private var appleSignInContinuation: CheckedContinuation<Void, Error>?
+
     // MARK: - Инициализация
 
-    private init() {
+    private override init() {
+        super.init()
         // Миграция: перенос данных из UserDefaults → Keychain (однократно)
         migrateFromUserDefaults()
 
@@ -107,7 +123,66 @@ final class AuthService: ObservableObject {
         self.userEmail = KeychainService.load(key: KeychainService.Keys.userEmail)
     }
 
-    // MARK: - Публичный API
+    // MARK: - Sign in with Apple
+
+    /// Запускает Apple Sign-In flow и обменивает identity_token на user-JWT.
+    ///
+    /// Без entitlement `com.apple.developer.applesignin` (Personal Team Xcode) Apple
+    /// возвращает delegate-error → бросаем `.appleSignInUnavailable`. UI показывает
+    /// friendly fallback "Войдите по Email".
+    ///
+    /// TODO для production: добавить `Monpapa.entitlements` с ключом
+    /// `com.apple.developer.applesignin` и зарегистрировать Bundle ID
+    /// `fatau.Monpapa` на developer.apple.com.
+    func signInWithApple() async throws {
+        let provider = ASAuthorizationAppleIDProvider()
+        let request = provider.createRequest()
+        request.requestedScopes = [.email, .fullName]
+
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = self
+        controller.presentationContextProvider = self
+
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            self.appleSignInContinuation = continuation
+            controller.performRequests()
+        }
+    }
+
+    /// Выполняется после успешного получения identity_token от Apple.
+    /// Отправляет токен на бэкенд, получает JWT, сохраняет в Keychain.
+    private func exchangeAppleToken(identityToken: String, fullName: String?, email: String?) async throws {
+        let url = URL(string: "\(apiBase)/apple")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        var body: [String: Any] = [
+            "identity_token": identityToken,
+            "device_id": deviceId,
+        ]
+        if let fullName, !fullName.isEmpty {
+            body["full_name"] = fullName
+        }
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        print("[AuthService] 🍎 signInWithApple → POST /auth/apple deviceId=\(deviceId)")
+
+        let (data, response) = try await performRequest(request)
+        try validateResponse(response, data: data)
+
+        let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
+        userToken = tokenResponse.accessToken
+        if let email, !email.isEmpty {
+            let normalized = email.lowercased()
+            userEmail = normalized
+            KeychainService.save(key: KeychainService.Keys.userEmail, value: normalized)
+        }
+
+        print("[AuthService] ✅ Apple Sign-In success isAuthenticated=\(isAuthenticated)")
+    }
+
+    // MARK: - Magic Link (fallback)
 
     /// Шаг 1: Отправить Magic Link на email.
     /// Бэкенд отправит письмо с 6-значным PIN-кодом.
@@ -122,14 +197,12 @@ final class AuthService: ObservableObject {
         request.httpBody = try JSONEncoder().encode(body)
 
         print("[AuthService] 📧 requestMagicLink: URL=\(url.absoluteString), email=\(email)")
-        
+
         let (data, response) = try await performRequest(request)
-        
+
         let httpStatus = (response as? HTTPURLResponse)?.statusCode ?? -1
-        let bodyStr = String(data: data, encoding: .utf8) ?? "<non-utf8>"
         print("[AuthService] 📧 requestMagicLink response: HTTP \(httpStatus)")
-        print("[AuthService] 📧 requestMagicLink body: \(bodyStr)")
-        
+
         try validateResponse(response, data: data)
 
         // В DEV_MODE бэкенд может вернуть токен сразу
@@ -146,13 +219,12 @@ final class AuthService: ObservableObject {
             print("[AuthService] ✅ DEV_MODE: пользователь авторизован напрямую, isAuthenticated=\(isAuthenticated)")
             return
         }
-        
-        print("[AuthService] 📧 DEV_MODE не обнаружен, PIN-код отправлен на \(email)")
-        print("[AuthService] 📧 isAuthenticated после requestMagicLink = \(isAuthenticated)")
+
+        print("[AuthService] 📧 PIN-код отправлен на \(email)")
     }
 
     /// Шаг 2: Верифицировать PIN-код, полученный на email.
-    /// При успехе — сохраняет JWT-токен и привязывает device к user.
+    /// При успехе — сохраняет user-JWT и привязывает device к user.
     func verifyPin(email: String, code: String) async throws {
         let url = URL(string: "\(apiBase)/verify-pin")!
         var request = URLRequest(url: url)
@@ -167,13 +239,11 @@ final class AuthService: ObservableObject {
         request.httpBody = try JSONEncoder().encode(body)
 
         print("[AuthService] 🔑 verifyPin: URL=\(url.absoluteString), email=\(email), deviceId=\(deviceId)")
-        
+
         let (data, response) = try await performRequest(request)
-        
+
         let httpStatus = (response as? HTTPURLResponse)?.statusCode ?? -1
-        let bodyStr = String(data: data, encoding: .utf8) ?? "<non-utf8>"
         print("[AuthService] 🔑 verifyPin response: HTTP \(httpStatus)")
-        print("[AuthService] 🔑 verifyPin body: \(bodyStr)")
 
         // 401 = неверный PIN
         if let http = response as? HTTPURLResponse, http.statusCode == 401 {
@@ -198,31 +268,33 @@ final class AuthService: ObservableObject {
         KeychainService.delete(key: KeychainService.Keys.userToken)
         KeychainService.delete(key: KeychainService.Keys.userEmail)
         KeychainService.delete(key: KeychainService.Keys.userId)
+        // Старый device-токен тоже чистим — после Auth Model C он бесполезен.
+        KeychainService.delete(key: KeychainService.Keys.deviceToken)
         print("[AuthService] 🚪 Пользователь вышел")
     }
-    
+
     /// Полное удаление аккаунта на сервере + локальный logout.
     /// Требование Apple App Store Review Guidelines 5.1.1(v).
     func deleteAccount() async throws {
         guard let token = userToken else {
             throw AuthError.notAuthenticated
         }
-        
+
         let url = URL(string: "\(apiBase)/account")!
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
+
         let (data, response) = try await performRequest(request)
         try validateResponse(response, data: data)
-        
+
         print("[AuthService] 🗑️ Аккаунт удалён на сервере")
-        
+
         // Локальный logout
         logout()
     }
 
-    /// JWT-токен для использования в других сервисах (SyncService).
+    /// JWT-токен для использования в других сервисах (AIService, SyncService).
     /// Возвращает nil если пользователь не авторизован.
     var token: String? { userToken }
 
@@ -286,6 +358,97 @@ final class AuthService: ObservableObject {
         default:
             let message = (try? JSONDecoder().decode(ErrorDetail.self, from: data))?.detail ?? "Unknown error"
             throw AuthError.serverError(http.statusCode, message)
+        }
+    }
+}
+
+// MARK: - ASAuthorizationControllerDelegate / PresentationContextProviding
+
+extension AuthService: ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+
+    nonisolated func authorizationController(
+        controller: ASAuthorizationController,
+        didCompleteWithAuthorization authorization: ASAuthorization
+    ) {
+        // Обрабатываем результат на main actor (UI + Keychain).
+        Task { @MainActor in
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                  let tokenData = credential.identityToken,
+                  let identityToken = String(data: tokenData, encoding: .utf8) else {
+                self.finishAppleSignIn(.failure(AuthError.invalidResponse))
+                return
+            }
+
+            let givenName = credential.fullName?.givenName ?? ""
+            let familyName = credential.fullName?.familyName ?? ""
+            let combinedName = [givenName, familyName]
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            let fullName = combinedName.isEmpty ? nil : combinedName
+            let email = credential.email
+
+            do {
+                try await self.exchangeAppleToken(
+                    identityToken: identityToken,
+                    fullName: fullName,
+                    email: email
+                )
+                self.finishAppleSignIn(.success(()))
+            } catch {
+                self.finishAppleSignIn(.failure(error))
+            }
+        }
+    }
+
+    nonisolated func authorizationController(
+        controller: ASAuthorizationController,
+        didCompleteWithError error: Error
+    ) {
+        Task { @MainActor in
+            let mapped: AuthError
+            if let asError = error as? ASAuthorizationError {
+                switch asError.code {
+                case .canceled:
+                    mapped = .appleSignInCancelled
+                default:
+                    // Любая другая ошибка от Apple (включая будущие enum cases в новых iOS):
+                    // нет entitlement, неудачный handshake, etc. — для UI это «недоступно».
+                    mapped = .appleSignInUnavailable
+                }
+            } else {
+                mapped = .networkError(error)
+            }
+            print("[AuthService] ❌ Apple Sign-In error: \(error) → \(mapped)")
+            self.finishAppleSignIn(.failure(mapped))
+        }
+    }
+
+    @MainActor
+    private func finishAppleSignIn(_ result: Result<Void, Error>) {
+        guard let continuation = appleSignInContinuation else { return }
+        appleSignInContinuation = nil
+        switch result {
+        case .success: continuation.resume(returning: ())
+        case .failure(let error): continuation.resume(throwing: error)
+        }
+    }
+
+    nonisolated func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        // Apple вызывает делегат на главном потоке, поэтому assumeIsolated безопасен.
+        // Без этой обёртки Swift 6 strict-concurrency жалуется на доступ к
+        // main-actor-изолированному UIApplication.shared из nonisolated-метода.
+        MainActor.assumeIsolated {
+            if let scene = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first(where: { $0.activationState == .foregroundActive }),
+               let window = scene.windows.first(where: { $0.isKeyWindow }) ?? scene.windows.first {
+                return window
+            }
+            // Fallback — Apple покажет ошибку, мы уйдём в .appleSignInUnavailable.
+            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                return UIWindow(windowScene: scene)
+            }
+            return UIWindow()
         }
     }
 }

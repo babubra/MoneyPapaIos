@@ -1,8 +1,11 @@
 // MonPapa iOS — AI Service
-// HTTP-клиент для backend MonPapa API
-// Эндпоинты: POST /api/v1/auth/device, /api/v1/ai/parse, /api/v1/ai/parse-audio
 //
-// Хранение: device token и device_id — в Keychain (через KeychainService).
+// HTTP-клиент для backend MonPapa API: /api/v1/ai/parse, /parse-audio, /mapping.
+//
+// Auth Model C: AIService больше не выпускает собственный токен (старый
+// /auth/device удалён). Все AI-запросы идут с user-JWT из AuthService.
+// Если AuthService.shared.token == nil — кидаем .notAuthenticated, UI должен
+// показать OnboardingView.
 
 import Foundation
 import os
@@ -20,7 +23,8 @@ private enum AIServiceConfig {
 // MARK: - Ошибки сервиса
 
 enum AIServiceError: LocalizedError {
-    case noToken
+    case notAuthenticated         // нет user-JWT, нужно залогиниться
+    case paymentRequired          // 402 — AI trial исчерпан, нужна подписка
     case networkError(Error)
     case serverError(Int, String)
     case rateLimitExceeded
@@ -29,8 +33,10 @@ enum AIServiceError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .noToken:
-            return String(localized: "error.noToken")
+        case .notAuthenticated:
+            return String(localized: "error.notAuthenticated")
+        case .paymentRequired:
+            return String(localized: "error.paymentRequired")
         case .networkError(let error):
             if let urlError = error as? URLError {
                 switch urlError.code {
@@ -78,59 +84,13 @@ final class AIService {
     static let shared = AIService()
 
     private init() {
-        // Миграция: перенос device_id и token из UserDefaults → Keychain
-        migrateFromUserDefaults()
+        // Однократная миграция legacy-ключей. Сам токен больше не используется
+        // (AIService теперь читает user-JWT через AuthService.shared.token).
+        cleanupLegacyKeychain()
     }
 
-    // MARK: - Хранение токена (Keychain)
-
-    private var authToken: String? {
-        get { KeychainService.load(key: KeychainService.Keys.deviceToken) }
-        set {
-            if let value = newValue {
-                KeychainService.save(key: KeychainService.Keys.deviceToken, value: value)
-            } else {
-                KeychainService.delete(key: KeychainService.Keys.deviceToken)
-            }
-        }
-    }
-
-    private var deviceId: String {
-        if let stored = KeychainService.load(key: KeychainService.Keys.deviceId) {
-            return stored
-        }
-        let new = UUID().uuidString
-        KeychainService.save(key: KeychainService.Keys.deviceId, value: new)
-        return new
-    }
-
-    // MARK: - Авторизация устройства
-
-    /// Регистрирует устройство на сервере и сохраняет Bearer-токен.
-    /// Вызывать при запуске приложения (MonpapaApp.swift → .task {}).
-    func authenticateIfNeeded() async {
-        guard authToken == nil else { return }
-        do {
-            try await authenticate()
-        } catch {
-            MPLog.auth.error("⚠️ Авторизация не удалась: \(error.localizedDescription, privacy: .public)")
-        }
-    }
-
-    func authenticate() async throws {
-        let url = URL(string: "\(APIConfig.baseURL)\(AIServiceConfig.apiVersion)/auth/device")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONEncoder().encode(["device_id": deviceId])
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try validateResponse(response, data: data)
-
-        let decoded = try JSONDecoder().decode(AuthResponse.self, from: data)
-        authToken = decoded.accessToken
-        MPLog.auth.info("✅ Устройство авторизовано, токен сохранён")
-    }
+    /// User-JWT, выпущенный AuthService после /auth/apple или /auth/verify-pin.
+    private var token: String? { AuthService.shared.token }
 
     // MARK: - AI Текстовый парсинг
 
@@ -139,11 +99,8 @@ final class AIService {
         categories: [AICategoryDTO] = [],
         counterparts: [AICounterpartDTO] = []
     ) async throws -> AiParseResult {
-        guard let token = authToken else {
-            // Пробуем переавторизоваться один раз
-            try await authenticate()
-            guard authToken != nil else { throw AIServiceError.noToken }
-            return try await parseText(text, categories: categories, counterparts: counterparts)
+        guard let token else {
+            throw AIServiceError.notAuthenticated
         }
 
         let url = URL(string: "\(APIConfig.baseURL)\(AIServiceConfig.apiVersion)/ai/parse")!
@@ -190,14 +147,6 @@ final class AIService {
             MPLog.service.debug("📥 [\(reqId, privacy: .public)] response body: \(bodyStr, privacy: .public)")
         }
 
-        // Токен мог протухнуть → переавторизуемся и повторяем
-        if let http = response as? HTTPURLResponse, http.statusCode == 401 {
-            MPLog.service.notice("🔑 [\(reqId, privacy: .public)] 401 — переавторизация и ретрай")
-            authToken = nil
-            try await authenticate()
-            return try await parseText(text, categories: categories, counterparts: counterparts)
-        }
-
         try validateResponse(response, data: data)
         let result = try decode(AiParseResult.self, from: data, reqId: reqId)
 
@@ -213,10 +162,8 @@ final class AIService {
         categories: [AICategoryDTO] = [],
         counterparts: [AICounterpartDTO] = []
     ) async throws -> AiParseResult {
-        guard let token = authToken else {
-            try await authenticate()
-            guard authToken != nil else { throw AIServiceError.noToken }
-            return try await parseAudio(fileURL: fileURL, categories: categories, counterparts: counterparts)
+        guard let token else {
+            throw AIServiceError.notAuthenticated
         }
 
         let url = URL(string: "\(APIConfig.baseURL)\(AIServiceConfig.apiVersion)/ai/parse-audio")!
@@ -279,7 +226,8 @@ final class AIService {
         }
         switch http.statusCode {
         case 200...299: return
-        case 401:       throw AIServiceError.noToken
+        case 401:       throw AIServiceError.notAuthenticated   // токен протух / удалён
+        case 402:       throw AIServiceError.paymentRequired    // AI trial исчерпан
         case 429:       throw AIServiceError.rateLimitExceeded
         default:
             let message = (try? JSONDecoder().decode(ErrorResponse.self, from: data))?.detail ?? "Unknown error"
@@ -368,22 +316,24 @@ final class AIService {
         return body
     }
 
-    // MARK: - Миграция UserDefaults → Keychain
+    // MARK: - Cleanup legacy
 
-    /// Однократная миграция: переносим device token и device_id из UserDefaults в Keychain.
-    private func migrateFromUserDefaults() {
+    /// Однократная очистка legacy-ключей. После Auth Model C device-токен больше не
+    /// выпускается, поэтому держать его в Keychain нет смысла — может только
+    /// запутать диагностику.
+    private func cleanupLegacyKeychain() {
+        // UserDefaults legacy
         let defaults = UserDefaults.standard
-
-        if let token = defaults.string(forKey: AIServiceConfig.legacyTokenKey) {
-            KeychainService.save(key: KeychainService.Keys.deviceToken, value: token)
+        if defaults.string(forKey: AIServiceConfig.legacyTokenKey) != nil {
             defaults.removeObject(forKey: AIServiceConfig.legacyTokenKey)
-            MPLog.auth.info("🔄 Мигрирован deviceToken → Keychain")
+            MPLog.auth.info("🧹 Удалён legacy device token из UserDefaults")
         }
+        // device_id мигрируется в Keychain в AuthService.deviceId — здесь не дублируем.
 
-        if let deviceId = defaults.string(forKey: AIServiceConfig.legacyDeviceIdKey) {
-            KeychainService.save(key: KeychainService.Keys.deviceId, value: deviceId)
-            defaults.removeObject(forKey: AIServiceConfig.legacyDeviceIdKey)
-            MPLog.auth.info("🔄 Мигрирован deviceId → Keychain")
+        // Старый device-токен в Keychain — больше не нужен
+        if KeychainService.load(key: KeychainService.Keys.deviceToken) != nil {
+            KeychainService.delete(key: KeychainService.Keys.deviceToken)
+            MPLog.auth.info("🧹 Удалён legacy device token из Keychain")
         }
     }
 
@@ -397,7 +347,7 @@ final class AIService {
         categoryName: String,
         isOverride: Bool
     ) async {
-        guard let token = authToken else {
+        guard let token else {
             MPLog.autolearn.notice("⏭ sendMapping пропущен — нет токена")
             return
         }
@@ -427,16 +377,6 @@ final class AIService {
 }
 
 // MARK: - Вспомогательные Codable-структуры
-
-private struct AuthResponse: Codable {
-    let accessToken: String
-    let tokenType: String
-
-    enum CodingKeys: String, CodingKey {
-        case accessToken = "access_token"
-        case tokenType   = "token_type"
-    }
-}
 
 private struct ParseTextRequest: Codable {
     let text: String

@@ -49,7 +49,9 @@ struct OnboardingView: View {
     
     @State private var currentPage = 0
     @State private var showAuth = false
-    
+    @State private var appleSignInError: String?
+    @State private var isAppleSignInInProgress = false
+
     private let totalPages = 4
     
     /// Данные для страниц 1-3 (страница 4 — авторизация, верстается отдельно)
@@ -350,22 +352,51 @@ struct OnboardingView: View {
                 
                 // Apple Sign In
                 MPAppleSignInButton {
-                    // TODO: Авторизация через Apple
+                    triggerAppleSignIn()
+                }
+                .disabled(isAppleSignInInProgress)
+                .opacity(isAppleSignInInProgress ? 0.6 : 1.0)
+
+                if let error = appleSignInError {
+                    Text(error)
+                        .font(.system(size: 13, weight: .regular, design: .rounded))
+                        .foregroundColor(MPColors.accentCoral)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, MPSpacing.xs)
+                        .transition(.opacity)
                 }
             }
             .padding(.horizontal, MPSpacing.lg)
-            
+
             Spacer()
-            
-            // Продолжить без входа
-            Button {
-                onComplete()
-            } label: {
-                Text("Продолжить без входа")
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
-                    .foregroundColor(MPColors.textSecondary)
+        }
+    }
+
+    /// Запускает Apple Sign-In. При отсутствии entitlement / runtime-ошибке
+    /// показываем friendly fallback "Войдите по Email".
+    private func triggerAppleSignIn() {
+        guard !isAppleSignInInProgress else { return }
+        isAppleSignInInProgress = true
+        appleSignInError = nil
+
+        Task {
+            do {
+                try await auth.signInWithApple()
+                // success → onChange(auth.isAuthenticated) дёрнет sync + onComplete()
+            } catch let error as AuthError {
+                switch error {
+                case .appleSignInCancelled:
+                    // Юзер сам нажал Cancel — не считаем это ошибкой.
+                    break
+                case .appleSignInUnavailable:
+                    appleSignInError = String(localized: "auth.signin.apple.unavailable.short")
+                default:
+                    appleSignInError = error.errorDescription
+                }
+            } catch {
+                appleSignInError = error.localizedDescription
             }
-            .padding(.bottom, MPSpacing.xs)
+            isAppleSignInInProgress = false
         }
     }
     

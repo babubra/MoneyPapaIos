@@ -4,6 +4,18 @@
 //
 //  Created by fatau on 22.03.2026.
 //
+//  Auth Model C: вход в приложение защищён обязательной авторизацией.
+//  Без валидного JWT в Keychain показывается OnboardingView (Welcome + auth);
+//  после успешного входа auth.isAuthenticated → true → MainTabView.
+//
+//  TODO для production:
+//    1. Создать Monpapa.entitlements с ключом com.apple.developer.applesignin
+//       (Personal Team Xcode не выдаёт — нужен Apple Developer Program $99/год).
+//    2. Зарегистрировать Bundle ID `fatau.Monpapa` на developer.apple.com и
+//       включить capability "Sign in with Apple".
+//    3. Без entitlement Apple Sign-In падает в runtime — UI показывает friendly
+//       fallback "Войдите по Email" (см. AuthService.AuthError.appleSignInUnavailable).
+//
 
 import SwiftUI
 import SwiftData
@@ -12,13 +24,11 @@ import SwiftData
 struct MonpapaApp: App {
     @StateObject private var settings = AppSettings()
     @StateObject private var syncService: SyncService
+    @ObservedObject private var auth = AuthService.shared
     @Environment(\.scenePhase) private var scenePhase
-    
-    /// Флаг завершения onboarding (сохраняется между запусками)
-    @AppStorage("monpapa.hasCompletedOnboarding") private var hasCompletedOnboarding = false
-    
+
     let sharedModelContainer: ModelContainer
-    
+
     init() {
         // Применяем выбранный язык ДО инициализации UI,
         // чтобы системные бандлы подхватили правильный .lproj
@@ -45,14 +55,13 @@ struct MonpapaApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if hasCompletedOnboarding {
+                if auth.isAuthenticated {
                     MainTabView()
                 } else {
-                    OnboardingView {
-                        withAnimation(.easeInOut(duration: 0.5)) {
-                            hasCompletedOnboarding = true
-                        }
-                    }
+                    // OnboardingView — теперь это welcome + обязательный auth-gate.
+                    // onComplete остаётся для backward-compat, но фактически переход
+                    // происходит автоматически через onChange(auth.isAuthenticated).
+                    OnboardingView { }
                 }
             }
             .preferredColorScheme(settings.preferredColorScheme)
@@ -62,18 +71,12 @@ struct MonpapaApp: App {
             .onAppear {
                 SeedData.seedIfNeeded(context: sharedModelContainer.mainContext)
             }
-            .task {
-                // Авторизуем устройство при запуске (получаем Bearer-токен для AI)
-                await AIService.shared.authenticateIfNeeded()
-            }
         }
         .modelContainer(sharedModelContainer)
-        .onChange(of: scenePhase) { oldPhase, newPhase in
-            if newPhase == .active {
-                if AuthService.shared.isAuthenticated {
-                    Task {
-                        await syncService.sync()
-                    }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active && auth.isAuthenticated {
+                Task {
+                    await syncService.sync()
                 }
             }
         }
