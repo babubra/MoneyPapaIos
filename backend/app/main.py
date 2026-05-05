@@ -65,7 +65,17 @@ app.add_middleware(
 
 # ── Роутеры ───────────────────────────────────────────────────────
 
-from app.api.v1 import auth, ai, categories, transactions, counterparts, debts, settings, sync  # noqa: E402
+from app.api.v1 import (  # noqa: E402
+    auth,
+    ai,
+    categories,
+    transactions,
+    counterparts,
+    debts,
+    settings,
+    sync,
+    subscription,
+)
 
 app.include_router(auth.router,          prefix="/api/v1/auth",          tags=["auth"])
 app.include_router(ai.router,            prefix="/api/v1/ai",            tags=["ai"])
@@ -75,6 +85,7 @@ app.include_router(counterparts.router,  prefix="/api/v1/counterparts",  tags=["
 app.include_router(debts.router,         prefix="/api/v1/debts",         tags=["debts"])
 app.include_router(settings.router,      prefix="/api/v1/settings",      tags=["settings"])
 app.include_router(sync.router,          prefix="/api/v1/sync",          tags=["sync"])
+app.include_router(subscription.router,  prefix="/api/v1/subscription",  tags=["subscription"])
 
 
 # ── Health check ──────────────────────────────────────────────────

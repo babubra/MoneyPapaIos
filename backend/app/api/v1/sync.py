@@ -318,6 +318,23 @@ def _coerce_data_types(Model, data: dict[str, Any]) -> dict[str, Any]:
 
 # ── POST /sync — batch-операции ──────────────────────────────────
 
+def _has_active_subscription(user: User) -> bool:
+    """Проверка статуса подписки для sync-gate.
+
+    Active = subscription_status="active" И (expires_at IS NULL ИЛИ expires_at > now).
+    NULL у expires_at = бессрочная подписка (внутреннее тестирование/админ).
+    """
+    if user.subscription_status != "active":
+        return False
+    if user.subscription_expires_at is None:
+        return True
+    now = datetime.now(timezone.utc)
+    expires = user.subscription_expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    return expires > now
+
+
 @router.post("", response_model=SyncResponse, summary="Batch-синхронизация")
 async def sync_batch(
     body: SyncRequest,
@@ -326,11 +343,22 @@ async def sync_batch(
 ):
     """Принимает batch операций от клиента и применяет к БД.
 
+    Гейт: только для активных подписчиков. Free-юзеры могут читать
+    через ``GET /sync/changes`` (восстановление при ре-инсталле), но
+    запись (push) требует Premium.
+
     Стратегия:
     - create: создаёт или пропускает (если client_id уже есть → идемпотентность)
     - update: обновляет, если серверная updated_at <= клиентской (last-write-wins)
     - delete: soft delete (проставляет deleted_at)
     """
+    if not _has_active_subscription(user):
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="Синхронизация между устройствами требует активной подписки.",
+            headers={"X-Subscription-Status": user.subscription_status},
+        )
+
     results: list[SyncOperationResult] = []
     now = datetime.now(timezone.utc)
 

@@ -39,6 +39,23 @@ class User(Base):
     email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True, index=True)
     apple_user_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True, index=True)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # ── Auth Model C: AI trial + subscription ─────────────────────
+    # Сколько бесплатных AI-запросов уже потрачено (lifetime).
+    ai_trial_used: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Текущий статус подписки: free | active | expired | cancelled.
+    subscription_status: Mapped[str] = mapped_column(String(20), default="free", nullable=False)
+    # Когда заканчивается активная подписка (NULL для free).
+    subscription_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # ID продукта в App Store (например, monpapa.premium.monthly).
+    subscription_product_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Original transaction ID из StoreKit (нужен для валидации в App Store Server API).
+    subscription_original_transaction_id: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

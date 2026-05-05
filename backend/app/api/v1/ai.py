@@ -2,9 +2,18 @@
 
 POST /api/v1/ai/parse       — текстовый запрос
 POST /api/v1/ai/parse-audio — аудиозапись (multipart)
+POST /api/v1/ai/mapping     — UPSERT auto-learn маппинга
 
 Категории и контрагенты передаются клиентом в теле запроса (offline-first).
-Rate limiting: 50 текстовых/day, 5 аудио/hour на deviceId.
+
+Auth Model C:
+  • Все эндпоинты требуют авторизованного user (require_user).
+  • Trial-gate: если subscription_status != "active" и ai_trial_used >= AI_TRIAL_LIMIT
+    → 402 Payment Required. После каждого успешного вызова (для не-Premium) счётчик
+    инкрементится. Premium-юзеры безлимитны в текущей итерации.
+  • Старый per-device rate-limit (50/day text, 5/hour audio) удалён вместе с
+    /auth/device. Защита от спама внутри одного user'а — отдельная задача
+    (например, daily cap для Premium).
 """
 
 import base64
@@ -13,22 +22,20 @@ import logging
 from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from openai import AsyncOpenAI, APIStatusError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_user
 from app.core.config import get_settings
 from app.core.system_prompt import SYSTEM_PROMPT, build_ai_prompt
-from app.db.models import CategoryMapping, Device
+from app.db.models import CategoryMapping, User
 from app.db.session import get_db
 from app.schemas import MappingUpsertRequest, ParseTextRequest
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
 router = APIRouter()
-
-bearer_scheme = HTTPBearer(auto_error=False)
 
 
 # ── Singleton AI-клиент из app.state ──────────────────────────────
@@ -40,59 +47,54 @@ def get_ai_client(request: Request) -> AsyncOpenAI:
     return request.app.state.ai_client
 
 
-# ── Dependency: текущее устройство из Bearer-токена ───────────────
+# ── Trial gate ────────────────────────────────────────────────────
 
-async def require_device(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    db: AsyncSession = Depends(get_db),
-) -> Device:
-    """Валидирует Bearer-токен и возвращает Device.
+def _is_premium(user: User) -> bool:
+    """Активна ли подписка прямо сейчас.
 
-    401 — токен отсутствует или невалиден.
-    403 — устройство заблокировано.
+    Premium = subscription_status="active" И (expires_at IS NULL ИЛИ expires_at > now).
+    NULL у expires_at трактуем как "бессрочно" — это сценарий внутреннего тестирования.
     """
-    from app.core.security import decode_access_token
+    if user.subscription_status != "active":
+        return False
+    if user.subscription_expires_at is None:
+        return True
+    now = datetime.now(timezone.utc)
+    expires = user.subscription_expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    return expires > now
 
-    if not credentials:
+
+async def _check_and_consume_trial(user: User, db: AsyncSession) -> None:
+    """Проверяет trial и инкрементит ai_trial_used.
+
+    Premium-юзеры пропускают check без инкремента. Free-юзеры:
+      • если ai_trial_used >= AI_TRIAL_LIMIT → 402 Payment Required
+      • иначе ai_trial_used += 1 и flush
+    """
+    if _is_premium(user):
+        return
+
+    if user.ai_trial_used >= settings.AI_TRIAL_LIMIT:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Требуется авторизация",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail=(
+                f"AI trial исчерпан ({user.ai_trial_used}/{settings.AI_TRIAL_LIMIT}). "
+                "Оформите подписку, чтобы продолжить."
+            ),
+            headers={"X-AI-Trial-Used": str(user.ai_trial_used),
+                     "X-AI-Trial-Limit": str(settings.AI_TRIAL_LIMIT)},
         )
 
-    device_id = decode_access_token(credentials.credentials)
-    if not device_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Невалидный или истёкший токен",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    result = await db.execute(select(Device).where(Device.device_id == device_id))
-    device = result.scalar_one_or_none()
-
-    if device is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Устройство не найдено",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if device.is_blocked:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Устройство заблокировано",
-        )
-
-    return device
+    user.ai_trial_used += 1
+    await db.flush()
 
 
 # ── Загрузка маппингов ────────────────────────────────────────────
 
-async def _load_user_mappings(user_id: int | None, db: AsyncSession) -> list[dict]:
-    """Загружает маппинги пользователя для промпта. Пустой список если не залогинен."""
-    if user_id is None:
-        return []
+async def _load_user_mappings(user_id: int, db: AsyncSession) -> list[dict]:
+    """Загружает маппинги пользователя для промпта."""
     result = await db.execute(
         select(CategoryMapping)
         .where(CategoryMapping.user_id == user_id)
@@ -105,52 +107,8 @@ async def _load_user_mappings(user_id: int | None, db: AsyncSession) -> list[dic
     ]
 
 
-# ── Rate limiting ──────────────────────────────────────────────────
-
 def _today_str() -> str:
     return date.today().isoformat()  # "YYYY-MM-DD"
-
-
-def _current_hour_str() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H")  # "YYYY-MM-DDTHH"
-
-
-async def _check_and_increment_text_limit(device: Device, db: AsyncSession) -> None:
-    """Проверяет дневной лимит текстовых запросов. Сбрасывает при новом дне."""
-    today = _today_str()
-
-    if device.ai_requests_date != today:
-        device.ai_requests_today = 0
-        device.ai_requests_date = today
-
-    if device.ai_requests_today >= settings.AI_RATE_LIMIT_DAILY:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Превышен дневной лимит AI-запросов ({settings.AI_RATE_LIMIT_DAILY}/день). Попробуйте завтра.",
-            headers={"Retry-After": "86400"},
-        )
-
-    device.ai_requests_today += 1
-    await db.flush()
-
-
-async def _check_and_increment_audio_limit(device: Device, db: AsyncSession) -> None:
-    """Проверяет часовой лимит аудио-запросов. Сбрасывает при новом часе."""
-    current_hour = _current_hour_str()
-
-    if device.ai_audio_hour != current_hour:
-        device.ai_audio_requests_hour = 0
-        device.ai_audio_hour = current_hour
-
-    if device.ai_audio_requests_hour >= settings.AI_RATE_LIMIT_AUDIO_HOURLY:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Превышен лимит аудио-запросов ({settings.AI_RATE_LIMIT_AUDIO_HOURLY}/час). Попробуйте позже.",
-            headers={"Retry-After": "3600"},
-        )
-
-    device.ai_audio_requests_hour += 1
-    await db.flush()
 
 
 # ── Вызов AI (OpenAI-compatible) ──────────────────────────────────
@@ -332,13 +290,17 @@ async def _call_ai_audio(client: AsyncOpenAI, audio_data: bytes, mime_type: str,
 @router.post("/parse", summary="Парсинг текстовой транзакции")
 async def parse_text(
     body: ParseTextRequest,
-    device: Device = Depends(require_device),
+    user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
     ai_client: AsyncOpenAI = Depends(get_ai_client),
 ):
-    """Парсит текстовое описание транзакции через Gemini (via aitunnel.ru)."""
+    """Парсит текстовое описание транзакции через Gemini (via aitunnel.ru).
+
+    Trial-gate: free-юзеры расходуют 1 запрос за каждый вызов; при исчерпании — 402.
+    """
     logger.info(f"\n{'='*60}")
-    logger.info(f"📝 PARSE TEXT | device={device.device_id[:8]}... locale={body.locale}")
+    logger.info(f"📝 PARSE TEXT | user_id={user.id} sub={user.subscription_status} "
+                f"trial={user.ai_trial_used}/{settings.AI_TRIAL_LIMIT} locale={body.locale}")
     logger.info(f"   Текст: \"{body.text}\"")
     logger.info(f"   Категории ({len(body.categories)}): {[c.name for c in body.categories]}")
     logger.info(f"   Контрагенты ({len(body.counterparts)}): {[cp.name for cp in body.counterparts]}")
@@ -349,10 +311,10 @@ async def parse_text(
             detail=f"Текст слишком длинный. Максимум {settings.AI_MAX_TEXT_LENGTH} символов.",
         )
 
-    await _check_and_increment_text_limit(device, db)
+    # Trial-gate: 402 если free и trial исчерпан; инкремент произойдёт здесь же.
+    await _check_and_consume_trial(user, db)
 
-    # Загружаем маппинги (только для залогиненных)
-    mappings = await _load_user_mappings(device.user_id, db)
+    mappings = await _load_user_mappings(user.id, db)
     if mappings:
         logger.info(f"   🧠 Маппинги ({len(mappings)}): {[(m['item_phrase'], m['category_name'], m['weight']) for m in mappings[:5]]}...")
 
@@ -379,20 +341,21 @@ async def parse_audio(
     categories: str = Form(default="[]", description="JSON-массив категорий"),
     counterparts: str = Form(default="[]", description="JSON-массив контрагентов"),
     locale: str = Form(default="ru", description="Языковая локаль клиента"),
-    device: Device = Depends(require_device),
+    user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
     ai_client: AsyncOpenAI = Depends(get_ai_client),
 ):
     """Парсит голосовое описание транзакции через Gemini (via aitunnel.ru).
 
+    Trial-gate: free-юзеры расходуют 1 запрос за каждый вызов; при исчерпании — 402.
     Принимает аудиофайл + категории/контрагенты как multipart/form-data.
-    Лимит: 5 аудио-запросов/час на устройство.
     """
     logger.info(f"\n{'='*60}")
-    logger.info(f"🎤 PARSE AUDIO | device={device.device_id[:8]}... locale={locale}")
+    logger.info(f"🎤 PARSE AUDIO | user_id={user.id} sub={user.subscription_status} "
+                f"trial={user.ai_trial_used}/{settings.AI_TRIAL_LIMIT} locale={locale}")
     logger.info(f"   Файл: {audio.filename}, size={audio.size}, type={audio.content_type}")
 
-    await _check_and_increment_audio_limit(device, db)
+    await _check_and_consume_trial(user, db)
 
     audio_data = await audio.read()
     mime_type = audio.content_type or "audio/m4a"
@@ -408,8 +371,7 @@ async def parse_audio(
 
     logger.info(f"   Категории ({len(categories_list)}): {[c.get('name') for c in categories_list]}")
 
-    # Загружаем маппинги (только для залогиненных)
-    mappings = await _load_user_mappings(device.user_id, db)
+    mappings = await _load_user_mappings(user.id, db)
     if mappings:
         logger.info(f"   🧠 Маппинги ({len(mappings)}): {[(m['item_phrase'], m['category_name']) for m in mappings[:5]]}...")
 
@@ -435,20 +397,16 @@ async def parse_audio(
 @router.post("/mapping", summary="Сохранить маппинг товар → категория")
 async def upsert_mapping(
     body: MappingUpsertRequest,
-    device: Device = Depends(require_device),
+    user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Создаёт или обновляет маппинг item_phrase → category.
 
-    - Если пользователь не залогинен → skip
     - Если маппинг не существует → INSERT (weight=1)
     - Если та же категория → weight += 1
     - Если другая категория (override) → UPDATE category, weight = 1
     """
-    if device.user_id is None:
-        return {"status": "skipped", "reason": "user not authenticated"}
-
-    user_id = device.user_id
+    user_id = user.id
     phrase_lower = body.item_phrase.strip().lower()
 
     # Ищем существующий маппинг
