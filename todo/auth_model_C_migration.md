@@ -1,7 +1,48 @@
 # Auth Model C — миграция на обязательную авторизацию
 
 > Решение принято: 2026-05-04 (диалог с Opus 4.7)
-> Статус: 📝 Planning — код не трогаем, пока не закончен аудит и не закрыты A1-крит.
+> **Статус: 🟢 Pragmatic implementation done (2026-05-05)** — реализовано всё, что не требует Apple Developer Program. Apple Sign-In + StoreKit оставлены как заглушки с TODO. Коммиты `5384e08`..`673345f` в `main`.
+
+## ✅ Что сделано в pragmatic-итерации (2026-05-05)
+
+> Полный план реализации: `~/.claude/plans/parallel-orbiting-lamport.md`. Ниже — резюме закрытого скоупа.
+
+**Backend (`5384e08`, `4549ee6`):**
+- ✅ SECRET_KEY fail-fast (`field_validator` в `config.py` отвергает placeholder и `<32` символов)
+- ✅ Раздельный `docker-compose.prod.yml` без `--reload`, `--workers 2`, `--proxy-headers`, healthcheck, БД не наружу
+- ✅ `.dockerignore` — dev-артефакты не попадают в прод-образ
+- ✅ DEV_MODE hardening (`@model_validator` запрещает не-localhost кроме явного `DEV_HOST_OK=true`)
+- ✅ CORS wildcard `["*"]` убран из `main.py`
+- ✅ User-поля: `ai_trial_used`, `subscription_status`, `subscription_expires_at`, `subscription_product_id`, `subscription_original_transaction_id`
+- ✅ `POST /auth/apple` — реальная проверка через Apple JWKS (RS256, audience=APPLE_BUNDLE_ID, issuer)
+- ✅ `POST /auth/device` **полностью удалён** + `get_current_device` / `require_device` / per-device rate-limit
+- ✅ JWT subject теперь `user:{id}`, legacy device-токены отвергаются
+- ✅ AI trial gate (`/parse`, `/parse-audio` → 402 при `ai_trial_used >= 50` для не-Premium)
+- ✅ Sync gate: `POST /sync` → 402 без активной подписки; `GET /sync/changes` доступен всем (восстановление при ре-инсталле)
+- ✅ `/subscription/*`: `status` (реальный), `verify` (DEV-stub на 30 дней), `webhook` (заглушка)
+- ✅ In-memory IP-rate-limit на `/auth/apple` (10/мин), `/auth/request-link` (5/мин), `/auth/verify-pin` (10/мин) — закрывает PIN brute-force
+- ✅ DEV_STUB-режим в `apple_auth.py` для тестирования без реального SiwA-токена
+
+**iOS (`a23592d`, `673345f`):**
+- ✅ Mandatory auth gate в `MonpapaApp.swift` (по `auth.isAuthenticated`); кнопка «Продолжить без входа» удалена
+- ✅ `signInWithApple()` через `AuthenticationServices` + `withCheckedThrowingContinuation` + graceful fallback при отсутствии entitlement (`AuthError.appleSignInUnavailable`)
+- ✅ `AIService` использует `AuthService.shared.token` (user-JWT); 402 → `AIServiceError.paymentRequired`
+- ✅ `SubscriptionService` (refresh status / purchaseStub / trialRemaining / isPremium)
+- ✅ `PaywallView` (DEV-stub: «Оформить подписку» дёргает `/subscription/verify` с моком)
+- ✅ Trial counter «Осталось X / 50» над input bar в Dashboard, подсветка по уровню остатка
+- ✅ Секция «Подписка» в Settings (Premium · до DD.MM.YYYY / Free · X / 50 + кнопка)
+- ✅ Авто-paywall при получении 402 от backend
+- ✅ +18 локализаций (auth, paywall, subscription)
+
+**Decisions, зафиксированные при реализации:**
+- AI trial = **50** запросов lifetime на user
+- БД дропается при выкатке (юзеры с нуля), миграция старых не делается
+- Sync READ доступен всем; WRITE — только Premium
+- `/auth/device` **удалён полностью** (а не 410 Gone)
+- Per-device rate-limit удалён (50 trial выполняет роль квоты)
+- Alembic baseline отложен — остаёмся на `Base.metadata.create_all` пока БД droppable
+
+---
 
 ---
 
@@ -158,71 +199,91 @@ CREATE TABLE app_store_notifications (
 
 > Каждый этап — отдельная сессия с отдельной веткой. Тесты + ручная проверка между этапами.
 
-1. **Закрыть A1-критики, не зависящие от auth-модели** *(до миграции)*
-   - Ротация `SECRET_KEY`, секрет-менеджер.
-   - Раздельный `docker-compose.prod.yml` без `--reload`.
-   - Alembic baseline + миграции.
-   - Это не блокируется решением C — нужно сделать в любом случае.
+1. ✅ **Закрыть A1-критики, не зависящие от auth-модели** — `5384e08`
+   - ✅ SECRET_KEY fail-fast (`field_validator`)
+   - ✅ Раздельный `docker-compose.prod.yml` без `--reload`
+   - ⏸️ Alembic baseline — **отложен**, БД droppable, сделать при первом реальном юзере
 
-2. **Backend: Alembic baseline + добавить поля в `User`**
-   - Миграция `0001_baseline_schema.py` (snapshot текущих моделей).
-   - Миграция `0002_user_subscription_fields.py`.
+2. 🟡 **Backend: добавить поля в `User`** — `4549ee6` (без Alembic, через `create_all`)
+   - ✅ Поля subscription_*, ai_trial_used добавлены в models.py
+   - ⏸️ Alembic-миграции `0001_baseline.py` / `0002_user_subscription_fields.py` — отложены
 
-3. **Backend: Sign in with Apple**
-   - Эндпоинт `/api/v1/auth/apple` + проверка identity_token (JWKS Apple).
-   - Тесты: stub identity_token валидным/невалидным.
+3. ✅ **Backend: Sign in with Apple** — `4549ee6`
+   - ✅ `/api/v1/auth/apple` + JWKS-проверка identity_token (`apple_auth.py`)
+   - ✅ DEV_STUB-режим для тестирования (apple_sub привязан к device_id)
+   - ⏳ Тесты `pytest test_apple_auth.py` — TODO
 
-4. **Backend: подписки (StoreKit server-side)**
-   - `/subscription/verify`, `/subscription/status`, webhook.
-   - Тестовый sandbox-аккаунт App Store.
+4. 🟡 **Backend: подписки (StoreKit server-side)** — `4549ee6`
+   - ✅ `/subscription/status` (реальный)
+   - 🟡 `/subscription/verify` (DEV-stub: 30 дней active) — нужна реальная проверка через App Store Server API
+   - 🟡 `/subscription/webhook` (заглушка) — нужна реальная App Store Server Notifications V2 валидация
 
-5. **Backend: AI trial-гейт + sync-гейт**
-   - `require_user` вместо `require_device` в `/ai/*`.
-   - Проверка trial / subscription_status.
-   - 402 ответы.
+5. ✅ **Backend: AI trial-гейт + sync-гейт** — `4549ee6`
+   - ✅ `require_user` в `/ai/parse`, `/ai/parse-audio`, `/ai/mapping`
+   - ✅ 402 при `ai_trial_used >= 50` для не-Premium
+   - ✅ POST `/sync` → 402 без подписки; GET `/sync/changes` доступен всем
 
-6. **Backend: rate-limit инфраструктура**
-   - SlowAPI (или Redis-counter) для `/auth/*`.
-   - IP-rate-limit на `/auth/apple`, `/auth/request-link`, `/auth/verify-pin`.
+6. ✅ **Backend: rate-limit инфраструктура** — `4549ee6`
+   - ✅ In-memory sliding-window IP-rate-limit (`rate_limit.py`)
+   - ✅ `/auth/apple` 10/мин, `/auth/request-link` 5/мин, `/auth/verify-pin` 10/мин
+   - ⏳ TODO для multi-instance — заменить на Redis-counter
 
-7. **Backend: deprecate `/auth/device`**
-   - Возвращать 410 Gone (или удалить).
+7. ✅ **Backend: удалить `/auth/device`** — `4549ee6`
+   - ✅ Полностью удалён + `get_current_device` / `require_device` / per-device rate-limit
 
-8. **iOS: Welcome screen + SiwA**
-   - Гейт перед главным экраном.
+8. ✅ **iOS: Welcome screen + SiwA wiring** — `a23592d`
+   - ✅ Gate в `MonpapaApp.swift` по `auth.isAuthenticated`
+   - ✅ `signInWithApple()` + graceful fallback `appleSignInUnavailable`
+   - ⏳ TODO: `Monpapa.entitlements` + регистрация Bundle ID при наличии Apple Developer Program
 
-9. **iOS: paywall + StoreKit 2**
+9. 🟡 **iOS: paywall + StoreKit 2** — `673345f`
+   - ✅ `SubscriptionService` + `PaywallView` + AI trial counter + Settings секция
+   - 🟡 Реальный StoreKit 2 (`Product.products` / `.purchase()` / `Transaction.verify()`) — заглушка
 
-10. **iOS: миграция локальных данных**
-    - При первом логине после апдейта — диалог «у нас на сервере есть данные, что делать?».
+10. ⏸️ **iOS: миграция локальных данных** — **скип**
+    - Зафиксировано: БД дропается, юзеры создаются с нуля → миграцию не делаем
 
-11. **App Store Review submission**
-    - Apple обязательно проверяет SiwA + delete account (последнее уже есть — `/auth/account` DELETE).
+11. ⏳ **App Store Review submission** — TODO
+    - Требует Apple Developer Program ($99) + реальный SiwA + StoreKit
+    - `/auth/account` DELETE уже есть — Apple Guidelines 5.1.1(v) выполнен
 
 ---
 
-## Открытые вопросы (нужно решить до старта)
+## Открытые вопросы
 
-- **Размер AI trial:** 30 / 50 / 100 запросов? Подсмотреть у конкурентов (Cleo, Copilot Money).
-- **Структура подписки:** monthly / yearly / lifetime? Цена.
-- **«Приземление» trial при апгрейде:** старым юзерам полный trial, или сразу paywall, или 50% trial?
-- **Sync read без подписки** разрешать или нет (восстановление при ре-инсталле).
-- **Apple Sign in revocation webhook**: пользователь может отозвать SiwA из настроек Apple ID — Apple шлёт нотификацию. Обрабатывать?
-- **Web-версия для onboarding ссылок** — нужна, потому что Magic Link открывается в браузере. Сейчас `/auth/verify` отвечает JSON-ом, что не годится для web-юзера. Заменить на HTML-страницу с deeplink в приложение.
+### Решённые при реализации (2026-05-05)
+
+- ✅ **Размер AI trial: 50 запросов** — закрепили в `Settings.AI_TRIAL_LIMIT`.
+- ✅ **«Приземление» trial при апгрейде:** не актуально, БД дропается.
+- ✅ **Sync read без подписки:** разрешён. POST `/sync` → 402, GET `/sync/changes` → 200.
+
+### Остались для будущих сессий
+
+- **Структура подписки:** monthly / yearly / lifetime? Цена в App Store Connect. Сейчас в коде хардкод «299 ₽/мес».
+- **Apple Sign in revocation webhook**: пользователь может отозвать SiwA из настроек Apple ID — Apple шлёт нотификацию. Обрабатывать? Сейчас не реализовано.
+- **Web-версия для onboarding ссылок** — Magic Link открывается в браузере, но `/auth/verify` отвечает JSON-ом. Нужна HTML-страница с deeplink в приложение.
+- **Refresh-token + revocation list** — текущие 30-дневные JWT остаются.
 
 ---
 
 ## Связь с production-readiness аудитом
 
-Решение C **не отменяет** аудит — большинство findings из A1 валидны при любой архитектуре. Но **3 критика из A1 закрываются автоматически** при переходе на C:
+После реализации pragmatic-итерации (2026-05-05) актуальный статус критов A1:
 
-| Критик A1 | Закрывается переходом на C? |
-|-----------|------------------------------|
-| 🔴 SECRET_KEY дефолт | ❌ нет, нужно фиксить отдельно |
-| 🔴 `/auth/device` фабрика квот | ✅ да — эндпоинт удаляется |
-| 🔴 DEV_MODE auto-login | 🟡 частично — DEV_MODE остаётся, но без анонимного device |
-| 🔴 PIN brute-force | ❌ нет, magic-link/PIN остаётся как fallback |
-| 🔴 IDOR через category_id | ❌ нет, нужно фиксить отдельно |
-| 🔴 `--reload` в проде | ❌ нет, нужно фиксить отдельно |
+| Критик A1 | Статус после реализации |
+|-----------|-------------------------|
+| 🔴 SECRET_KEY дефолт | ✅ **закрыт** — fail-fast `field_validator` (`config.py`) |
+| 🔴 `/auth/device` фабрика квот | ✅ **закрыт** — эндпоинт удалён, токенов на анонимный device больше не выдаётся |
+| 🔴 DEV_MODE auto-login | 🟡 **ужесточён** — `@model_validator` запрещает не-localhost без явного `DEV_HOST_OK=true` + WARNING-логи. DEV_MODE всё ещё может выдать dev-юзера, но только на dev-машине. |
+| 🔴 PIN brute-force на `/verify-pin` | 🟡 **частично** — IP-rate-limit 10/мин (`rate_limit.py`). Под одну подсеть всё ещё уязвимо при долгом окне атаки. |
+| 🔴 IDOR через `category_id` / `counterpart_id` в CRUD | ❌ **остался** — нужно отдельной сессией добавить mass-assignment защиту в transactions/debts |
+| 🔴 `--reload` в production-контейнере | ✅ **закрыт** — `docker-compose.prod.yml` без `--reload`/bind-mount, `--workers 2`, healthcheck |
+| 🟡 CORS wildcard `["*"]` + `allow_credentials=True` | ✅ **закрыт** — wildcard убран в `main.py` |
+| 🟡 Dev-скрипты в production-образе | ✅ **закрыт** — `.dockerignore` исключает `check_cache.py`, `test_db_*.py`, `*.db`, `*.log` |
+| 🟡 Host-header injection в magic-link | ❌ **остался** — `request.headers.get("host")` всё ещё доверяется без allow-list |
+| 🟡 PII в логах (raw_text транзакций, full prompt) | ❌ **остался** — `ai.py` всё ещё логирует SYSTEM+USER prompt на INFO |
+| 🟡 `/docs`, `/redoc` открыты в проде | ❌ **остался** — нужно гейтить за `DEV_MODE` или auth |
+| 🟡 `x-forwarded-proto` без `forwarded_allow_ips` | 🟡 **частично** — prod-compose использует `--proxy-headers`, но `forwarded_allow_ips` не задан |
+| 🟢 Нет healthcheck для backend | ✅ **закрыт** в prod-compose (curl /health) |
 
-→ После C-миграции аудит A1 нужно **частично переснять** (проверить, что новые эндпоинты не добавили новых дыр), но фундаментальные проблемы остаются.
+**Итог:** 6 из 13 критов/medium закрыты, 2 ужесточены, 5 остались — это отдельная сессия (можно назвать «**A1-fixups**» или включить в **A2-аудит**). Начать стоит с **IDOR** — он самый опасный из оставшихся.

@@ -9,6 +9,8 @@
 
 > **2026-05-04 — изменение auth-модели.** Принято решение перейти со схемы «опциональный логин» на схему **C** (обязательная авторизация + AI trial + платная sync). Полный план миграции: [`auth_model_C_migration.md`](auth_model_C_migration.md). Аудит A1 после этого решения частично теряет силу (см. update в [`audit/A1_backend_surface.md`](audit/A1_backend_surface.md)), но большинство findings валидны при любой архитектуре.
 
+> **2026-05-05 — pragmatic-миграция Auth Model C реализована** (коммиты `5384e08`..`673345f`). Закрыто 6 из 13 findings A1 (SECRET_KEY, `/auth/device`, `--reload`, CORS wildcard, dev-скрипты в образе, healthcheck), 2 ужесточены (DEV_MODE, PIN brute-force). Подробности в [`auth_model_C_migration.md`](auth_model_C_migration.md) → раздел «Связь с production-readiness аудитом». Apple Sign-In runtime + StoreKit 2 оставлены как заглушки (требуют Apple Developer Program).
+
 Приложение работает, но не готово к проду. Известные проблемы:
 - Открытые эндпоинты в бэкенде
 - DeviceID-based rate-limiting на клиенте (легко обходится — можно накидать миллион случайных deviceID и слить AI-квоту)
@@ -70,14 +72,15 @@
 
 По убыванию пользы за токен:
 
-1. **A1** — backend attack surface (фундамент для всего security)
-2. **C1 + C2** — AI prompt & cost (горящие деньги)
-3. **A2** — auth & rate-limit (закрытие самых опасных дыр из A1)
-4. **B1 + B2** — frontend архитектура (техдолг растёт быстрее тут)
-5. **B3** — UI smoothness (после B1 часть jank уйдёт сама)
-6. **A3, A4** — data, dev/prod (важно, но менее срочно)
-7. **C3** — качество AI-ответов
-8. **D1–D3** — infra (когда код готов к проду)
+1. ✅ **A1** — backend attack surface (фундамент для всего security)
+2. 🟡 **A1-fixups** — оставшиеся криты из A1 после Auth Model C: **IDOR через `category_id`** (главный приоритет), host-header injection в magic-link, `/docs` в проде, PII в логах, `forwarded_allow_ips`
+3. **C1 + C2** — AI prompt & cost (горящие деньги; PII в логах из A1-fixups здесь же)
+4. **A2** — auth & rate-limit (на новой архитектуре после миграции C: brute-force `/verify-pin` под multi-IP, нет per-user daily-cap для Premium, refresh-token lifecycle)
+5. **B1 + B2** — frontend архитектура (техдолг растёт быстрее тут)
+6. **B3** — UI smoothness (после B1 часть jank уйдёт сама)
+7. **A3, A4** — data, dev/prod (важно, но менее срочно)
+8. **C3** — качество AI-ответов
+9. **D1–D3** — infra (когда код готов к проду; включая VPS deploy + Alembic baseline)
 
 ---
 
@@ -137,6 +140,8 @@
 | Блок | Статус | Сессия | Отчёт |
 |------|--------|--------|-------|
 | A1 | ✅ Done | 2026-05-04 (Opus 4.7) | [`audit/A1_backend_surface.md`](audit/A1_backend_surface.md) |
+| **C-migration** | 🟢 Pragmatic done | 2026-05-05 (Opus 4.7) | [`auth_model_C_migration.md`](auth_model_C_migration.md) — коммиты `5384e08`..`673345f` |
+| **A1-fixups** | ⬜ TODO | — | оставшиеся криты A1: IDOR, host-header, PII, `/docs`, `forwarded_allow_ips` |
 | A2 | ⬜ TODO | — | — |
 | A3 | ⬜ TODO | — | — |
 | A4 | ⬜ TODO | — | — |
@@ -147,7 +152,7 @@
 | C1 | ⬜ TODO | — | — |
 | C2 | ⬜ TODO | — | — |
 | C3 | ⬜ TODO | — | — |
-| D1 | ⬜ TODO | — | — |
+| D1 | ⬜ TODO | — | VPS deploy + Alembic baseline (когда вернётся VPS) |
 | D2 | ⬜ TODO | — | — |
 | D3 | ⬜ TODO | — | — |
 
@@ -158,3 +163,6 @@
 ## История ревизий плана
 
 - 2026-05-04 — план создан (Opus 4.7), сессия `inspiring-dewdney-4e595d`
+- 2026-05-04 — добавлен баннер про Auth Model C (план миграции вышел отдельным файлом)
+- 2026-05-04 — A1-аудит выполнен, отчёт `audit/A1_backend_surface.md`, статус → ✅ Done
+- 2026-05-05 — pragmatic-реализация Auth Model C (коммиты `5384e08`..`673345f`), 6/13 критов A1 закрыто, 2 ужесточены. Добавлены блоки `C-migration` (✅) и `A1-fixups` (⬜) в tracker. Сессия `parallel-orbiting-lamport`.
