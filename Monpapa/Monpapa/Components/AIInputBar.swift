@@ -344,6 +344,10 @@ struct AIInputBar: View {
                 do {
                     let result = try await aiService.parseText(trimmed, categories: categories)
                     MPLog.input.info("⌨️ sendText done | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms | status=\(String(describing: result.status), privacy: .public)")
+                    // Backend инкрементирует ai_trial_used при успешном вызове
+                    // (для не-Premium). Двигаем локальный счётчик сразу, чтобы UI
+                    // в Dashboard обновился без round-trip к /subscription/status.
+                    subscription.noteTrialConsumedLocally()
                     onParseResult(result)
                 } catch AIServiceError.rateLimitExceeded {
                     MPLog.input.notice("⌨️ sendText rateLimit | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms")
@@ -419,6 +423,8 @@ struct AIInputBar: View {
                 let result = try await aiService.parseAudio(fileURL: fileURL, categories: categories)
                 MPLog.input.info("🎤 sendAudioFile done | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms | status=\(String(describing: result.status), privacy: .public)")
                 withAnimation { state = .idle }
+                // См. комментарий в sendText() — оптимистичный инкремент trial counter.
+                subscription.noteTrialConsumedLocally()
                 onVoiceResult(result)
             } catch AIServiceError.rateLimitExceeded {
                 MPLog.input.notice("🎤 sendAudioFile rateLimit | \(Int(Date().timeIntervalSince(startedAt) * 1000))ms")
