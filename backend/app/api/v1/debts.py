@@ -13,8 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.api.deps import require_user
-from app.db.models import Debt, DebtPayment, User
+from app.api.deps import assert_owns, require_user
+from app.db.models import Counterpart, Debt, DebtPayment, User
 from app.db.session import get_db
 from app.schemas import (
     DebtCreate,
@@ -25,6 +25,19 @@ from app.schemas import (
 )
 
 router = APIRouter()
+
+# Поля Debt, разрешённые к изменению через PUT — defense-in-depth
+# от mass-assignment, если в DebtUpdate появится новое поле.
+_UPDATABLE_FIELDS: tuple[str, ...] = (
+    "counterpart_id",
+    "direction",
+    "amount",
+    "currency",
+    "comment",
+    "debt_date",
+    "due_date",
+    "is_closed",
+)
 
 
 @router.get("", response_model=list[DebtResponse])
@@ -82,9 +95,23 @@ async def create_debt(
                 detail="Долг с таким client_id уже существует",
             )
 
+    # IDOR: counterpart_id должен принадлежать пользователю.
+    await assert_owns(
+        db, Counterpart, body.counterpart_id, user.id, "Контрагент не найден",
+    )
+
+    # Явный whitelist полей (без **body.model_dump()) — защита от mass-assignment.
     debt = Debt(
         user_id=user.id,
-        **body.model_dump(),
+        counterpart_id=body.counterpart_id,
+        direction=body.direction,
+        amount=body.amount,
+        currency=body.currency,
+        comment=body.comment,
+        raw_text=body.raw_text,
+        client_id=body.client_id,
+        debt_date=body.debt_date,
+        due_date=body.due_date,
     )
     db.add(debt)
     await db.flush()
@@ -117,8 +144,19 @@ async def update_debt(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Долг не найден")
 
     update_data = body.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(debt, field, value)
+
+    # IDOR: новый counterpart_id должен принадлежать пользователю
+    # (None допустим — это «отвязать контрагента»).
+    if update_data.get("counterpart_id") is not None:
+        await assert_owns(
+            db, Counterpart, update_data["counterpart_id"], user.id,
+            "Контрагент не найден",
+        )
+
+    # Whitelist обновляемых полей — defense-in-depth от mass-assignment.
+    for field in _UPDATABLE_FIELDS:
+        if field in update_data:
+            setattr(debt, field, update_data[field])
 
     await db.flush()
     await db.refresh(debt, attribute_names=["counterpart", "payments", "created_at", "updated_at"])

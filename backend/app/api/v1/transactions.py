@@ -13,7 +13,7 @@ from sqlalchemy import case, extract, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.api.deps import require_user
+from app.api.deps import assert_owns, require_user
 from app.db.models import Category, Transaction, User
 from app.db.session import get_db
 from app.schemas import (
@@ -24,6 +24,19 @@ from app.schemas import (
 )
 
 router = APIRouter()
+
+# Поля Transaction, разрешённые к изменению через PUT. Любое поле
+# вне whitelist (id, user_id, client_id, created_at, deleted_at, …)
+# игнорируется при update — защита от mass-assignment, если Pydantic-
+# схема случайно расширится.
+_UPDATABLE_FIELDS: tuple[str, ...] = (
+    "category_id",
+    "type",
+    "amount",
+    "currency",
+    "comment",
+    "transaction_date",
+)
 
 
 def _enrich_category_fields(data: TransactionResponse, transaction: Transaction) -> TransactionResponse:
@@ -115,9 +128,21 @@ async def create_transaction(
                 detail="Транзакция с таким client_id уже существует",
             )
 
+    # IDOR: category_id должен принадлежать пользователю.
+    await assert_owns(db, Category, body.category_id, user.id, "Категория не найдена")
+
+    # Явный whitelist полей вместо **body.model_dump() — защита от
+    # mass-assignment, если в TransactionCreate появится новое поле.
     transaction = Transaction(
         user_id=user.id,
-        **body.model_dump(),
+        category_id=body.category_id,
+        type=body.type,
+        amount=body.amount,
+        currency=body.currency,
+        comment=body.comment,
+        raw_text=body.raw_text,
+        client_id=body.client_id,
+        transaction_date=body.transaction_date,
     )
     db.add(transaction)
     await db.flush()
@@ -155,8 +180,18 @@ async def update_transaction(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Транзакция не найдена")
 
     update_data = body.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(transaction, field, value)
+
+    # IDOR: новый category_id должен принадлежать пользователю
+    # (None допустим — это «отвязать категорию»).
+    if update_data.get("category_id") is not None:
+        await assert_owns(
+            db, Category, update_data["category_id"], user.id, "Категория не найдена",
+        )
+
+    # Whitelist обновляемых полей — defense-in-depth от mass-assignment.
+    for field in _UPDATABLE_FIELDS:
+        if field in update_data:
+            setattr(transaction, field, update_data[field])
 
     await db.flush()
 

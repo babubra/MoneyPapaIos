@@ -11,6 +11,8 @@
 
 > **2026-05-05 — pragmatic-миграция Auth Model C реализована** (коммиты `5384e08`..`673345f`). Закрыто 6 из 13 findings A1 (SECRET_KEY, `/auth/device`, `--reload`, CORS wildcard, dev-скрипты в образе, healthcheck), 2 ужесточены (DEV_MODE, PIN brute-force). Подробности в [`auth_model_C_migration.md`](auth_model_C_migration.md) → раздел «Связь с production-readiness аудитом». Apple Sign-In runtime + StoreKit 2 оставлены как заглушки (требуют Apple Developer Program).
 
+> **2026-05-06 — A1-fixups выполнен.** Закрыты оставшиеся criticals/mediums: 🔴 IDOR через `category_id`/`counterpart_id`/`parent_id` (CRUD + sync), host-header injection в magic-link, PII в логах, `/docs` в проде, audio size + MIME whitelist, `forwarded_allow_ips`, `EmailStr`, mass-assignment whitelist. Verified curl-сценариями (см. секцию «Update 2026-05-06» в [`audit/A1_backend_surface.md`](audit/A1_backend_surface.md)). Отложено по дизайну: refresh-tokens (A2), Alembic (D1), secrets-management (D3).
+
 Приложение работает, но не готово к проду. Известные проблемы:
 - Открытые эндпоинты в бэкенде
 - DeviceID-based rate-limiting на клиенте (легко обходится — можно накидать миллион случайных deviceID и слить AI-квоту)
@@ -73,8 +75,8 @@
 По убыванию пользы за токен:
 
 1. ✅ **A1** — backend attack surface (фундамент для всего security)
-2. 🟡 **A1-fixups** — оставшиеся криты из A1 после Auth Model C: **IDOR через `category_id`** (главный приоритет), host-header injection в magic-link, `/docs` в проде, PII в логах, `forwarded_allow_ips`
-3. **C1 + C2** — AI prompt & cost (горящие деньги; PII в логах из A1-fixups здесь же)
+2. ✅ **A1-fixups** — IDOR + host-header + /docs + PII + audio limit + EmailStr + forwarded_allow_ips закрыты (2026-05-06)
+3. **C1 + C2** — AI prompt & cost (горящие деньги) ← **следующая сессия**
 4. **A2** — auth & rate-limit (на новой архитектуре после миграции C: brute-force `/verify-pin` под multi-IP, нет per-user daily-cap для Premium, refresh-token lifecycle)
 5. **B1 + B2** — frontend архитектура (техдолг растёт быстрее тут)
 6. **B3** — UI smoothness (после B1 часть jank уйдёт сама)
@@ -141,7 +143,7 @@
 |------|--------|--------|-------|
 | A1 | ✅ Done | 2026-05-04 (Opus 4.7) | [`audit/A1_backend_surface.md`](audit/A1_backend_surface.md) |
 | **C-migration** | 🟢 Pragmatic done | 2026-05-05 (Opus 4.7) | [`auth_model_C_migration.md`](auth_model_C_migration.md) — коммиты `5384e08`..`673345f` |
-| **A1-fixups** | ⬜ TODO | — | оставшиеся криты A1: IDOR, host-header, PII, `/docs`, `forwarded_allow_ips` |
+| **A1-fixups** | ✅ Done | 2026-05-06 (Opus 4.7) | IDOR + mass-assignment + host-header + `/docs` + PII + audio + `forwarded_allow_ips` + `EmailStr` — см. секцию «Update 2026-05-06» в [`audit/A1_backend_surface.md`](audit/A1_backend_surface.md) |
 | A2 | ⬜ TODO | — | — |
 | A3 | ⬜ TODO | — | — |
 | A4 | ⬜ TODO | — | — |
@@ -166,3 +168,4 @@
 - 2026-05-04 — добавлен баннер про Auth Model C (план миграции вышел отдельным файлом)
 - 2026-05-04 — A1-аудит выполнен, отчёт `audit/A1_backend_surface.md`, статус → ✅ Done
 - 2026-05-05 — pragmatic-реализация Auth Model C (коммиты `5384e08`..`673345f`), 6/13 критов A1 закрыто, 2 ужесточены. Добавлены блоки `C-migration` (✅) и `A1-fixups` (⬜) в tracker. Сессия `parallel-orbiting-lamport`.
+- 2026-05-06 — выполнен блок **A1-fixups** (Opus 4.7, сессия `precious-wigderson`): IDOR (category_id/counterpart_id/parent_id) в CRUD и sync, mass-assignment whitelist, host-header injection (BASE_URL), PII в логах (DEBUG + email mask), `/docs` gate, audio size + MIME whitelist, `--forwarded-allow-ips`, `EmailStr`. Verified curl-сценариями.

@@ -38,6 +38,19 @@ settings = get_settings()
 router = APIRouter()
 
 
+# Whitelist допустимых MIME-типов для /parse-audio. Всё остальное → 415.
+_ALLOWED_AUDIO_MIME: frozenset[str] = frozenset({
+    "audio/m4a", "audio/x-m4a", "audio/mp4",
+    "audio/wav", "audio/wave", "audio/x-wav",
+    "audio/webm",
+    "audio/mpeg", "audio/mp3",
+})
+
+# Максимальный размер аудио-файла в байтах. Защита от OOM (UploadFile.read()
+# тянет всё в память) и от траты AI-токенов на гигантские записи.
+_MAX_AUDIO_BYTES: int = settings.AI_MAX_AUDIO_SIZE_MB * 1024 * 1024
+
+
 # ── Singleton AI-клиент из app.state ──────────────────────────────
 # Клиент создаётся ОДИН РАЗ при старте приложения (lifespan в main.py)
 # и переиспользуется всеми запросами — httpx держит пул соединений.
@@ -200,7 +213,12 @@ async def _call_ai_text(client: AsyncOpenAI, user_prompt: str) -> dict:
     max_retries = 2
     last_error = None
 
-    logger.info(f"\n{'='*20} FULL AI PROMPT {'='*20}\n[SYSTEM PROMPT]:\n{SYSTEM_PROMPT}\n\n[USER PROMPT]:\n{user_prompt}\n{'='*56}")
+    # Полный prompt — это PII (текст транзакции пользователя + список его
+    # категорий). Пишем на DEBUG, чтобы в проде на INFO не утекало в stdout.
+    logger.debug(
+        "FULL AI PROMPT\n[SYSTEM PROMPT]:\n%s\n\n[USER PROMPT]:\n%s",
+        SYSTEM_PROMPT, user_prompt,
+    )
     for attempt in range(max_retries):
         try:
             response = await client.chat.completions.create(
@@ -214,7 +232,7 @@ async def _call_ai_text(client: AsyncOpenAI, user_prompt: str) -> dict:
                 response_format={"type": "json_object"},
             )
             text = response.choices[0].message.content.strip()
-            logger.info(f"   🤖 AI raw (попытка {attempt+1}): {text[:500]}")
+            logger.debug("AI raw (попытка %s): %s", attempt + 1, text[:500])
 
             # Парсинг JSON
             try:
@@ -321,12 +339,18 @@ async def parse_text(
 
     Trial-gate: free-юзеры расходуют 1 запрос за каждый вызов; при исчерпании — 402.
     """
-    logger.info(f"\n{'='*60}")
-    logger.info(f"📝 PARSE TEXT | user_id={user.id} sub={user.subscription_status} "
-                f"trial={user.ai_trial_used}/{settings.AI_TRIAL_LIMIT} locale={body.locale}")
-    logger.info(f"   Текст: \"{body.text}\"")
-    logger.info(f"   Категории ({len(body.categories)}): {[c.name for c in body.categories]}")
-    logger.info(f"   Контрагенты ({len(body.counterparts)}): {[cp.name for cp in body.counterparts]}")
+    # PII-минимизация: на INFO — только метаданные. Сам текст транзакции
+    # (PII + финансовая информация) пишется только на DEBUG.
+    logger.info(
+        "PARSE TEXT | user_id=%s sub=%s trial=%s/%s locale=%s text_len=%s cats=%s cps=%s",
+        user.id, user.subscription_status,
+        user.ai_trial_used, settings.AI_TRIAL_LIMIT,
+        body.locale, len(body.text),
+        len(body.categories), len(body.counterparts),
+    )
+    logger.debug("Текст: %r", body.text)
+    logger.debug("Категории: %s", [c.name for c in body.categories])
+    logger.debug("Контрагенты: %s", [cp.name for cp in body.counterparts])
 
     if len(body.text) > settings.AI_MAX_TEXT_LENGTH:
         raise HTTPException(
@@ -339,7 +363,12 @@ async def parse_text(
 
     mappings = await _load_user_mappings(user.id, db)
     if mappings:
-        logger.info(f"   🧠 Маппинги ({len(mappings)}): {[(m['item_phrase'], m['category_name'], m['weight']) for m in mappings[:5]]}...")
+        # item_phrase — слово, которое юзер произнёс/набрал (PII). На DEBUG.
+        logger.debug(
+            "Mappings (%s): %s",
+            len(mappings),
+            [(m["item_phrase"], m["category_name"], m["weight"]) for m in mappings[:5]],
+        )
 
     user_prompt = build_ai_prompt(
         user_text=body.text,
@@ -359,10 +388,16 @@ async def parse_text(
     # уже заплатили.
     await _consume_trial(user, db)
 
-    logger.info(f"   ✅ Результат: status={result.get('status')} type={result.get('type')} "
-                f"amount={result.get('amount')} cat=\"{result.get('category_name')}\" "
-                f"item_phrase=\"{result.get('item_phrase')}\" new={result.get('category_is_new')}")
-    logger.info(f"{'='*60}\n")
+    # Финансовые поля и текст транзакции — на DEBUG, на INFO только статус.
+    logger.info(
+        "PARSE TEXT done | user_id=%s status=%s new=%s",
+        user.id, result.get("status"), result.get("category_is_new"),
+    )
+    logger.debug(
+        "Result: type=%s amount=%s cat=%r item_phrase=%r",
+        result.get("type"), result.get("amount"),
+        result.get("category_name"), result.get("item_phrase"),
+    )
     return result
 
 
@@ -381,16 +416,42 @@ async def parse_audio(
     Trial-gate: free-юзеры расходуют 1 запрос за каждый вызов; при исчерпании — 402.
     Принимает аудиофайл + категории/контрагенты как multipart/form-data.
     """
-    logger.info(f"\n{'='*60}")
-    logger.info(f"🎤 PARSE AUDIO | user_id={user.id} sub={user.subscription_status} "
-                f"trial={user.ai_trial_used}/{settings.AI_TRIAL_LIMIT} locale={locale}")
-    logger.info(f"   Файл: {audio.filename}, size={audio.size}, type={audio.content_type}")
+    logger.info(
+        "PARSE AUDIO | user_id=%s sub=%s trial=%s/%s locale=%s size=%s type=%s",
+        user.id, user.subscription_status,
+        user.ai_trial_used, settings.AI_TRIAL_LIMIT,
+        locale, audio.size, audio.content_type,
+    )
+
+    # Content-type whitelist — отсекаем не-аудио сразу, до чтения в память.
+    content_type = (audio.content_type or "").lower()
+    if content_type not in _ALLOWED_AUDIO_MIME:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=(
+                f"Неподдерживаемый формат аудио: {audio.content_type or 'unknown'}. "
+                f"Допустимы: m4a, mp3, wav, webm."
+            ),
+        )
+
+    # Размер: предварительная проверка по UploadFile.size (Content-Length),
+    # затем — повторная после чтения, на случай если size не был выставлен.
+    if audio.size is not None and audio.size > _MAX_AUDIO_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Аудиофайл слишком большой. Максимум {settings.AI_MAX_AUDIO_SIZE_MB} MB.",
+        )
 
     # Trial-gate: 402 если free и trial исчерпан. Инкремент НЕ здесь — после AI.
     await _check_trial(user, db)
 
     audio_data = await audio.read()
-    mime_type = audio.content_type or "audio/m4a"
+    if len(audio_data) > _MAX_AUDIO_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Аудиофайл слишком большой. Максимум {settings.AI_MAX_AUDIO_SIZE_MB} MB.",
+        )
+    mime_type = content_type or "audio/m4a"
 
     try:
         categories_list = json.loads(categories)
@@ -401,11 +462,15 @@ async def parse_audio(
             detail="Невалидный JSON в categories или counterparts",
         )
 
-    logger.info(f"   Категории ({len(categories_list)}): {[c.get('name') for c in categories_list]}")
+    logger.debug("Категории (%s): %s", len(categories_list), [c.get("name") for c in categories_list])
 
     mappings = await _load_user_mappings(user.id, db)
     if mappings:
-        logger.info(f"   🧠 Маппинги ({len(mappings)}): {[(m['item_phrase'], m['category_name']) for m in mappings[:5]]}...")
+        logger.debug(
+            "Mappings (%s): %s",
+            len(mappings),
+            [(m["item_phrase"], m["category_name"]) for m in mappings[:5]],
+        )
 
     user_prompt = build_ai_prompt(
         user_text="[аудиозапись — расшифруй и распарси]",
@@ -423,10 +488,15 @@ async def parse_audio(
     # Списываем trial только если AI реально отработал (включая off-topic responses).
     await _consume_trial(user, db)
 
-    logger.info(f"   ✅ Результат: status={result.get('status')} type={result.get('type')} "
-                f"amount={result.get('amount')} cat=\"{result.get('category_name')}\" "
-                f"item_phrase=\"{result.get('item_phrase')}\"")
-    logger.info(f"{'='*60}\n")
+    logger.info(
+        "PARSE AUDIO done | user_id=%s status=%s",
+        user.id, result.get("status"),
+    )
+    logger.debug(
+        "Result: type=%s amount=%s cat=%r item_phrase=%r",
+        result.get("type"), result.get("amount"),
+        result.get("category_name"), result.get("item_phrase"),
+    )
     return result
 
 
@@ -466,19 +536,22 @@ async def upsert_mapping(
             weight=1,
         )
         db.add(mapping)
-        logger.info(f"🧠 Mapping INSERT: '{body.item_phrase}' → '{body.category_name}' (user={user_id})")
+        logger.info("Mapping INSERT user=%s", user_id)
+        logger.debug("  '%s' → '%s'", body.item_phrase, body.category_name)
     elif existing.category_id == body.category_id:
         # Confirm — та же категория
         existing.weight += 1
         existing.updated_at = datetime.now(timezone.utc)
-        logger.info(f"🧠 Mapping CONFIRM: '{body.item_phrase}' → '{body.category_name}' (w={existing.weight}, user={user_id})")
+        logger.info("Mapping CONFIRM user=%s w=%s", user_id, existing.weight)
+        logger.debug("  '%s' → '%s'", body.item_phrase, body.category_name)
     else:
         # Override — смена категории, сброс веса
         existing.category_id = body.category_id
         existing.category_name = body.category_name
         existing.weight = 1
         existing.updated_at = datetime.now(timezone.utc)
-        logger.info(f"🧠 Mapping OVERRIDE: '{body.item_phrase}' → '{body.category_name}' (reset w=1, user={user_id})")
+        logger.info("Mapping OVERRIDE user=%s reset w=1", user_id)
+        logger.debug("  '%s' → '%s'", body.item_phrase, body.category_name)
 
     await db.commit()
     return {"status": "ok"}

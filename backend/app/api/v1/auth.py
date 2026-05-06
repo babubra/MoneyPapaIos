@@ -20,7 +20,7 @@ import random
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,6 +47,18 @@ def _user_subject(user: User) -> str:
     return f"user:{user.id}"
 
 
+def _mask_email(email: str | None) -> str:
+    """Маскирует e-mail для логов: `a***@gmail.com`. PII-минимизация."""
+    if not email:
+        return "<no-email>"
+    if "@" not in email:
+        return "<***>"
+    local, domain = email.split("@", 1)
+    if not local:
+        return f"***@{domain}"
+    return f"{local[0]}***@{domain}"
+
+
 # ── Pydantic-схемы (локальные для auth) ──────────────────────────
 
 class TokenResponse(BaseModel):
@@ -57,12 +69,12 @@ class TokenResponse(BaseModel):
 
 class MagicLinkRequest(BaseModel):
     """Запрос на отправку Magic Link."""
-    email: str = Field(..., min_length=3)
+    email: EmailStr
 
 
 class PinVerifyRequest(BaseModel):
     """Верификация по PIN-коду."""
-    email: str = Field(..., min_length=3)
+    email: EmailStr
     code: str = Field(..., min_length=6, max_length=6)
     # device_id остаётся в запросе для backward compatibility iOS-клиента и
     # для метаданных (last_seen_at). Не участвует в JWT.
@@ -118,7 +130,7 @@ async def _get_or_create_user_by_email(db: AsyncSession, email: str) -> User:
         db.add(user)
         await db.flush()
         await _ensure_user_settings(db, user)
-        logger.info(f"Новый пользователь создан (email): {email}")
+        logger.info("Новый пользователь создан (email): %s", _mask_email(email))
     return user
 
 
@@ -148,14 +160,20 @@ async def _get_or_create_user_by_apple_sub(
             if full_name and not user.display_name:
                 user.display_name = full_name
             await db.flush()
-            logger.info(f"Apple sub привязан к существующему user_id={user.id} email={email}")
+            logger.info(
+                "Apple sub привязан к существующему user_id=%s email=%s",
+                user.id, _mask_email(email),
+            )
             return user
 
     user = User(email=email, apple_user_id=apple_sub, display_name=full_name)
     db.add(user)
     await db.flush()
     await _ensure_user_settings(db, user)
-    logger.info(f"Новый пользователь создан (Apple): apple_sub={apple_sub} email={email}")
+    logger.info(
+        "Новый пользователь создан (Apple): user_id=%s email=%s",
+        user.id, _mask_email(email),
+    )
     return user
 
 
@@ -233,6 +251,7 @@ async def request_magic_link(
     magic_link_limiter.check(request)
 
     email = body.email.lower().strip()
+    masked_email = _mask_email(email)
 
     # DEV_MODE — возвращаем токен сразу
     if settings.DEV_MODE:
@@ -267,14 +286,13 @@ async def request_magic_link(
     # Создаём Magic Link токен
     token = create_magic_token(email)
 
-    # Определяем base_url
-    scheme = request.headers.get("x-forwarded-proto", "https")
-    host = request.headers.get("host", "")
-    base_url = f"{scheme}://{host}"
-
-    sent = await send_magic_link(email, token, base_url, pin_code)
+    # base_url берём из конфигурации, а НЕ из Host/X-Forwarded-Proto заголовков
+    # запроса — иначе атакующий мог бы подменить ссылку в письме
+    # (host-header injection), отправив `Host: attacker.com` от имени жертвы.
+    sent = await send_magic_link(email, token, settings.BASE_URL, pin_code)
 
     if not sent:
+        logger.error("Не удалось отправить magic-link для %s", masked_email)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Не удалось отправить письмо",
@@ -375,7 +393,7 @@ async def delete_account(
     """
     user_id = user.id
     user_email = user.email
-    logger.info(f"Удаление аккаунта: user_id={user_id}, email={user_email}")
+    logger.info("Удаление аккаунта: user_id=%s email=%s", user_id, _mask_email(user_email))
 
     # Удаляем magic codes для этого email
     if user_email:
@@ -397,7 +415,7 @@ async def delete_account(
     await db.delete(user)
     await db.flush()
 
-    logger.info(f"Аккаунт удалён: user_id={user_id}, email={user_email}")
+    logger.info("Аккаунт удалён: user_id=%s email=%s", user_id, _mask_email(user_email))
     return {"message": "Аккаунт и все данные удалены"}
 
 

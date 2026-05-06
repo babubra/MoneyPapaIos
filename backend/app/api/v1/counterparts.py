@@ -17,6 +17,9 @@ from app.schemas import CounterpartCreate, CounterpartResponse, CounterpartUpdat
 
 router = APIRouter()
 
+# Поля Counterpart, разрешённые к изменению через PUT.
+_UPDATABLE_FIELDS: tuple[str, ...] = ("name", "icon")
+
 
 @router.get("", response_model=list[CounterpartResponse])
 async def list_counterparts(
@@ -103,8 +106,10 @@ async def update_counterpart(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Контрагент не найден")
 
     update_data = body.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(counterpart, field, value)
+    # Whitelist обновляемых полей — defense-in-depth от mass-assignment.
+    for field in _UPDATABLE_FIELDS:
+        if field in update_data:
+            setattr(counterpart, field, update_data[field])
 
     await db.flush()
     await db.refresh(counterpart)

@@ -190,6 +190,16 @@ _FK_RESOLVE_MAP: dict[str, type] = {
     "debt_id": Debt,
 }
 
+# IDOR-защита: какие FK-поля каждой сущности проверять на ownership
+# после резолва и type-coercion. Все целевые модели имеют user_id,
+# поэтому проверка — `id = ? AND user_id = current_user`.
+_FK_OWNERSHIP_MAP: dict[str, list[tuple[str, type]]] = {
+    "category": [("parent_id", Category)],
+    "transaction": [("category_id", Category)],
+    "debt": [("counterpart_id", Counterpart)],
+    "debt_payment": [("debt_id", Debt)],
+}
+
 
 async def _resolve_fk_fields(
     db: AsyncSession, user: User, entity: str, data: dict[str, Any]
@@ -248,6 +258,39 @@ async def _resolve_fk_fields(
             logger.info(f"FK resolved: {fk_field} via client_id {related_client_id} → {resolved_id}")
     
     return data
+
+
+async def _validate_fk_ownership(
+    db: AsyncSession, user: User, entity: str, data: dict[str, Any]
+) -> str | None:
+    """Проверяет ownership FK-полей перед `Model(**data)` / `setattr`.
+
+    Защита от IDOR: атакующий может отправить sync-операцию с явным
+    числовым `category_id` чужой категории. Без этой проверки Transaction
+    создавалась с FK на чужую запись (утечка имени категории через
+    joinedload, искажение аналитики).
+
+    Возвращает строку с описанием ошибки если ownership не сошёлся,
+    иначе None. None у FK-значения трактуется как «нет привязки» и
+    пропускается (если поле опциональное).
+    """
+    checks = _FK_OWNERSHIP_MAP.get(entity, [])
+    for fk_field, FKModel in checks:
+        fk_value = data.get(fk_field)
+        if fk_value is None:
+            continue
+        result = await db.execute(
+            select(FKModel.id).where(
+                FKModel.id == fk_value,
+                FKModel.user_id == user.id,
+            )
+        )
+        if result.scalar_one_or_none() is None:
+            return (
+                f"{fk_field}={fk_value}: запись не найдена или "
+                "принадлежит другому пользователю"
+            )
+    return None
 
 
 def _serialize_row(row) -> dict[str, Any]:
@@ -409,10 +452,10 @@ async def _sync_create(
     # Подготавливаем данные
     data = {k: v for k, v in op.data.items() if k not in PROTECTED_FIELDS}
     data["client_id"] = op.client_id
-    
+
     # Резолвим FK-поля через client_id (для batch-создания зависимостей)
     data = await _resolve_fk_fields(db, user, op.entity, data)
-    
+
     data = _coerce_data_types(Model, data)
 
     # Привязка к пользователю
@@ -420,17 +463,16 @@ async def _sync_create(
     if user_id_field:
         data[user_id_field] = user.id
 
-    # Для debt_payment — проверяем что долг принадлежит пользователю
-    if op.entity == "debt_payment" and "debt_id" in data:
-        debt_result = await db.execute(
-            select(Debt).where(Debt.id == data["debt_id"], Debt.user_id == user.id)
+    # IDOR: ownership FK-полей (category_id, counterpart_id, debt_id,
+    # parent_id) — после резолва и coerce. Без этого через явный numeric
+    # FK можно прицепиться к чужой записи.
+    fk_error = await _validate_fk_ownership(db, user, op.entity, data)
+    if fk_error:
+        return SyncOperationResult(
+            client_id=op.client_id,
+            status="error",
+            message=fk_error,
         )
-        if not debt_result.scalar_one_or_none():
-            return SyncOperationResult(
-                client_id=op.client_id,
-                status="error",
-                message="Долг не найден",
-            )
 
     row = Model(**data)
     db.add(row)
@@ -482,11 +524,21 @@ async def _sync_update(
 
     # Обновляем поля
     data = {k: v for k, v in op.data.items() if k not in PROTECTED_FIELDS}
-    
+
     # Резолвим FK-поля через client_id
     data = await _resolve_fk_fields(db, user, op.entity, data)
-    
+
     data = _coerce_data_types(Model, data)
+
+    # IDOR: ownership FK-полей перед setattr.
+    fk_error = await _validate_fk_ownership(db, user, op.entity, data)
+    if fk_error:
+        return SyncOperationResult(
+            client_id=op.client_id,
+            status="error",
+            message=fk_error,
+        )
+
     for field, value in data.items():
         if hasattr(existing, field):
             setattr(existing, field, value)

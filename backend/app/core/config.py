@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     AI_RATE_LIMIT_AUDIO_HOURLY: int = 5
     AI_MAX_TEXT_LENGTH: int = 500
     AI_MAX_AUDIO_SECONDS: int = 30
+    # Лимит размера аудио-файла на /parse-audio (в мегабайтах). Защита от OOM
+    # при загрузке гигантских файлов и от траты AI-токенов на мусор.
+    AI_MAX_AUDIO_SIZE_MB: int = 5
 
     # ── Auth Model C ────────────────────────────────────────────────
     # Лимит бесплатных AI-запросов на пользователя (lifetime).
@@ -62,6 +65,12 @@ class Settings(BaseSettings):
 
     # ── CORS ────────────────────────────────────────────────────────
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8080"
+
+    # ── Magic-link base URL ─────────────────────────────────────────
+    # Базовый URL для magic-link в письме. ОБЯЗАТЕЛЬНО задать в проде —
+    # иначе можно подделать ссылку через `Host`-заголовок (host-header
+    # injection). Локально дефолт работает для симулятора и `curl`.
+    BASE_URL: str = "http://localhost:8001"
 
     # ── Validators ──────────────────────────────────────────────────
 

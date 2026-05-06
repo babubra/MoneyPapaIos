@@ -4,6 +4,13 @@
 > Аудит блока **A1** из [`../claude_code_opus_4.7_plan.md`](../claude_code_opus_4.7_plan.md)
 > Код **не правился** — только этот отчёт.
 
+> ## ✅ Update 2026-05-06 — выполнен блок A1-fixups
+>
+> Закрыты оставшиеся criticals/mediums (включая 🔴 IDOR через `category_id`/`counterpart_id`/`parent_id`,
+> host-header injection в magic-link, PII в логах, `/docs` в проде, audio size + MIME whitelist,
+> `forwarded-allow-ips`, `EmailStr` валидация). Подробности — секция «Update 2026-05-06» внизу файла
+> и обновлённые ✅-метки у соответствующих findings ниже.
+
 > ## ✅ Update 2026-05-05 — реализована pragmatic-миграция Auth Model C
 >
 > Коммиты `5384e08`, `4549ee6`, `a23592d`, `673345f`. Закрыто 6/13 findings + 2 ужесточены.
@@ -106,7 +113,7 @@
   - Рекомендация: (a) счётчик `attempts` в `magic_codes`, инвалидация после 5 промахов; (b) IP rate-limit на `/verify-pin`; (c) `MagicCode.used` сейчас вообще не выставляется в `verify-pin` (только удаление при успехе); (d) рассмотреть PIN ≥8 символов с буквами или одноразовые TOTP.
 
 - **IDOR через `category_id` / `counterpart_id` в CRUD** — [`backend/app/api/v1/transactions.py:118-122`](../../backend/app/api/v1/transactions.py), [`debts.py:85-88`](../../backend/app/api/v1/debts.py), `update_*` в тех же файлах
-  - **❌ ОСТАЛСЯ** — главный приоритет для следующей сессии (`A1-fixups`). Auth Model C не закрывает: чужой category_id всё ещё можно прицепить через mass-assignment.
+  - **✅ Закрыт в A1-fixups (2026-05-06)** — добавлен `assert_owns()` helper в `deps.py`, проверка ownership FK во всех CRUD-роутерах + sync.py (`_validate_fk_ownership` после `_resolve_fk_fields`). Также `parent_id` в `categories.py`. Mass-assignment whitelist в `transactions/debts/counterparts/categories` (явный список полей вместо `**body.model_dump()`). Verified: 404 «Категория не найдена» / «Контрагент не найден» при попытке прицепить чужой FK.
   - Что: `Transaction(user_id=user.id, **body.model_dump())` копирует `category_id` без проверки `Category.user_id == user.id`. То же для `Debt.counterpart_id`, `update_transaction.setattr`, `update_debt.setattr`. В `sync.py:402-413` `_resolve_fk_fields` валидирует только когда FK = NULL и резолвит через client_id; явно переданный числовой `category_id` другого юзера попадает в БД.
   - Риск: атакующий, зная числовые id чужих категорий/контрагентов, прицепляет к ним свои транзакции/долги. На чтение это не повлияет (в `list_*` всё ещё фильтруется по `user_id`), но `summary` и аналитика чужой стороны искажаются; либо клиент может «утянуть» имя категории (joinedload в response отдаёт имя). Утечка имени чужой категории/контрагента через `_enrich_category_fields` в `transactions.py:29-42`.
   - Рекомендация: добавить общий `_owns(model, id, user)` helper и вызывать перед setattr; либо whitelist полей в Pydantic-схеме без FK и резолвить FK через `client_id` единообразно (как в `sync._resolve_fk_fields`).
@@ -126,7 +133,7 @@
   - Рекомендация: убрать `["*"]`; в проде оставить только `https://app.monpapa.io`-подобные домены; для нативного iOS CORS не нужен, его можно включить только для veb-onboarding страницы.
 
 - **Magic-link использует `Host` и `X-Forwarded-Proto` из запроса без allow-list** — [`backend/app/api/v1/auth.py:175-180`](../../backend/app/api/v1/auth.py)
-  - **❌ ОСТАЛСЯ** — фиксить в `A1-fixups`: ввести `BASE_URL` в `Settings`, перестать читать заголовки.
+  - **✅ Закрыт в A1-fixups (2026-05-06)** — введён `BASE_URL` в `Settings` (default `http://localhost:8001`), `auth.py` больше не читает `request.headers["host"]`/`x-forwarded-proto`. В прод-`.env` нужно выставить публичный URL.
   - Что: `scheme = request.headers.get("x-forwarded-proto", "https"); host = request.headers.get("host", "")`; этот URL вшивается в HTML письма как `verify_url`.
   - Риск: классический host-header injection — атакующий, зная email цели, делает запрос с `Host: attacker.com`, цель получает фишинговую ссылку, переход = передача краденого `magic_token` атакующему. Также `X-Forwarded-Proto: http` понижает scheme.
   - Рекомендация: (a) хардкодить `BASE_URL` (env-var) вместо вычисления; (b) либо middleware `TrustedHost` с allow-list; (c) уверенно установить `forwarded_allow_ips` в uvicorn.
@@ -138,19 +145,19 @@
   - Рекомендация: (a) IP rate-limit (1 запрос/мин/IP, 5/час/IP); (b) rate-limit per-email (1/мин); (c) одинаковый ответ независимо от того, есть ли email в allow-list; (d) HCaptcha/Turnstile перед отправкой — при первом запросе с IP.
 
 - **PII в логах без ретеншена** — [`backend/app/api/v1/ai.py:222, 236, 341-344`](../../backend/app/api/v1/ai.py); [`auth.py:118-120, 266, 270, 316, 338, 353`](../../backend/app/api/v1/auth.py); [`backend/server.log`](../../backend/server.log)
-  - **❌ ОСТАЛСЯ** — `ai.py` всё ещё логирует FULL AI PROMPT + raw_text на INFO. Фиксить в C1/C2 (audit AI prompt) или в `A1-fixups`.
+  - **✅ Закрыт в A1-fixups (2026-05-06)** — full prompt + raw_text транзакции + `category_name`/`item_phrase` ушли на DEBUG в `ai.py`. На INFO остались только метаданные (user_id, status, len). E-mail маскируется в логах через `_mask_email("a***@gmail.com")` (`auth.py`, `core/email.py`). Log retention / централизованный sink — отдельная задача D2 (Observability).
   - Что: в `INFO` логе пишутся: полный текст транзакций пользователя (`Купил коврики в машину за 3000`), полный AI prompt (включая список категорий), email, device_id (полностью в auth, обрезается до 8 символов в ai), user_id. `server.log` — 40KB plain-text без ротации в репо (локально).
   - Риск: GDPR/152-ФЗ: персональные данные + финансовая информация в файле без срока хранения. На VPS этот же лог пишется в stdout контейнера → попадёт в любую систему агрегации логов; также `docker logs` будет читать любой, у кого есть SSH.
   - Рекомендация: (a) в проде логировать на DEBUG только содержимое транзакций; (b) маскировать email (`a***@gmail.com`); (c) включить log rotation (logrotate / `--log-config`); (d) централизованный sink (Loki/CloudWatch) с retention.
 
 - **Нет лимита размера тела/файла на `/parse-audio`** — [`backend/app/api/v1/ai.py:376-397`](../../backend/app/api/v1/ai.py)
-  - **❌ ОСТАЛСЯ** — фиксить в `A1-fixups`: проверка `audio.size` до чтения, либо `Content-Length` middleware.
+  - **✅ Закрыт в A1-fixups (2026-05-06)** — `AI_MAX_AUDIO_SIZE_MB=5` в `Settings`, проверка `audio.size` до чтения (413), повторная проверка `len(audio_data)` после чтения, MIME-whitelist (m4a/mp3/wav/webm → 415 на остальное). Verified: `audio/m4a` 6MB → 413; `text/plain` → 415.
   - Что: `audio: UploadFile = File(...)` принимает файл любого размера; `audio.read()` загружает всё в память, потом base64-кодируется (×1.33). Лимит `AI_MAX_AUDIO_SECONDS=30` нигде не валидируется до отправки в AI.
   - Риск: одного запроса с файлом на 1 GB достаточно, чтобы убить процесс OOM. Также бесплатно жжём AI-токены, потому что rate-limit увеличивается ДО проверки размера → попытка без квоты = квота уже скушана. Стоп — на самом деле rate-limit идёт первым (`_check_and_increment_audio_limit` в строке 395), так что финансовый риск ограничен. Память не ограничена.
   - Рекомендация: (a) проверять `Content-Length` в middleware (отклонять >5MB); (b) ограничивать `audio.size` явным `if audio.size > MAX: raise 413`; (c) валидировать `content_type` whitelist (`audio/m4a`, `audio/wav`, `audio/webm`).
 
 - **Mass-assignment через `Model(**body.model_dump())`** — `transactions.py:121`, `debts.py:87`
-  - **❌ ОСТАЛСЯ** — связан с IDOR Critical-#5; чинить вместе.
+  - **✅ Закрыт в A1-fixups (2026-05-06)** — заменено на явные kwargs в `transactions.py`/`debts.py` create. Update-роутеры (`transactions/debts/counterparts/categories`) используют whitelist `_UPDATABLE_FIELDS` вместо `for field, value in update_data.items(): setattr(...)`.
   - Что: Pydantic-схемы `TransactionCreate`/`DebtCreate` сейчас не содержат вредных полей — но при их расширении любое новое поле модели автоматически становится записываемым. Также `update_*` делает `setattr(transaction, field, value)` на основе body без явного whitelisting.
   - Риск: regression-вектор. Пример: добавили `Transaction.user_id` в `TransactionUpdate` (по ошибке) → можно перепривязать чужую транзакцию.
   - Рекомендация: явный whitelist полей при создании/обновлении (как сделано в `sync.PROTECTED_FIELDS`).
@@ -162,7 +169,7 @@
   - Рекомендация: завести `backend/alembic/`, сгенерировать baseline-миграцию из текущих моделей, в `lifespan` заменить `create_all` на запуск `alembic upgrade head` (или вынести в init-job).
 
 - **`/docs` и `/redoc` открыты в проде** — [`main.py:53-54`](../../backend/app/main.py)
-  - **❌ ОСТАЛСЯ** — фиксить в `A1-fixups`: `docs_url=None if not DEV_MODE else "/docs"`.
+  - **✅ Закрыт в A1-fixups (2026-05-06)** — `docs_url`, `redoc_url`, `openapi_url` = `None` если `not DEV_MODE`. Корневой `GET /` тоже скрывает hint в проде.
   - Что: `docs_url="/docs"`, `redoc_url="/redoc"` без условия. Атакующему сразу выдан полный список эндпоинтов и схема запросов.
   - Риск: ускоренная разведка; не критично само по себе, но усиливает все остальные дыры.
   - Рекомендация: `docs_url=None if not settings.DEV_MODE else "/docs"`; либо защитить basic-auth.
@@ -199,6 +206,7 @@
   - Рекомендация: логировать full error на сервере, клиенту отдавать общий код (`"db_error"`) + correlation-id.
 
 - **`request-link`: `Field(..., min_length=3)` вместо `EmailStr`** — [`auth.py:48-49`](../../backend/app/api/v1/auth.py)
+  - **✅ Закрыт в A1-fixups (2026-05-06)** — `MagicLinkRequest.email` и `PinVerifyRequest.email` теперь `EmailStr`. Битые форматы (`"abc"`) → 422; `.local`-TLD тоже отвергаются как special-use (это побочный фикс — реальные пользователи регистрируются на нормальных доменах).
   - Что: `email-validator` в requirements, но не используется. Принимаются строки вроде `"abc"`.
   - Рекомендация: `from pydantic import EmailStr`; заменить тип.
 
@@ -216,7 +224,7 @@
   - Рекомендация: переключиться на тэги, требовать `gpg --verify`, либо OIDC + подписанные образы.
 
 - **`x-forwarded-proto` доверие без `forwarded_allow_ips`** — [`auth.py:176`](../../backend/app/api/v1/auth.py); uvicorn без `--proxy-headers` или `--forwarded-allow-ips`
-  - **🟡 Частично закрыт в `5384e08`** — prod-compose теперь запускает uvicorn с `--proxy-headers`. Но `forwarded_allow_ips` всё ещё не задан, и `auth.py:176` всё ещё читает `request.headers.get("x-forwarded-proto")` напрямую. Полный фикс — в `A1-fixups` вместе с host-header injection.
+  - **✅ Закрыт в A1-fixups (2026-05-06)** — `auth.py` больше не читает `x-forwarded-proto` (см. host-header fix выше). В `docker-compose.prod.yml` явно `--forwarded-allow-ips=127.0.0.1` (uvicorn-default тот же, но явное указание лучше документирует ожидание nginx/Caddy на том же VPS).
   - Что: uvicorn по умолчанию читает `X-Forwarded-*` только при `--proxy-headers`. Сейчас флаг не передаётся, но код всё равно его читает — означает, что заголовок принимается как есть, без проверки доверенного прокси.
   - Рекомендация: связано с 🟡 host-header injection. Зафиксировать `BASE_URL` в env, перестать читать заголовки.
 
@@ -240,3 +248,70 @@
 - **CSRF**: не покрыто — для чисто Bearer-API это не нужно, но если будут добавляться cookie-сессии для веб, нужно вернуться.
 - **Apple Sign in** (`User.apple_user_id`): поле есть, но эндпоинт не виден — вероятно, не реализован. Это либо TODO в коде, либо отсутствие фичи.
   - **✅ Реализован в `4549ee6`** — `POST /api/v1/auth/apple` + `core/apple_auth.py` (JWKS-проверка). Runtime-сторона iOS требует Apple Developer Program + entitlement (заглушка с graceful fallback пока).
+
+---
+
+## Update 2026-05-06 — A1-fixups (детали)
+
+Сессия: 2026-05-06, модель: claude-opus-4-7. Скоуп: оставшиеся criticals/mediums после Auth Model C.
+
+### Что закрыто
+
+| Severity | Finding | Коротко как |
+|----------|---------|-------------|
+| 🔴 | IDOR через `category_id`/`counterpart_id`/`parent_id` (CRUD + sync) | `assert_owns()` helper в `deps.py`, `_validate_fk_ownership` в `sync.py` |
+| 🟡 | Mass-assignment через `**body.model_dump()` | Явные kwargs в create, `_UPDATABLE_FIELDS` whitelist в update (`transactions/debts/counterparts/categories`) |
+| 🟡 | Host-header injection в magic-link | `BASE_URL` в `Settings`, `auth.py` больше не читает `Host`/`X-Forwarded-Proto` |
+| 🟡 | PII в логах (full prompt + raw_text + email) | DEBUG для prompt/raw_text/category_name/item_phrase; `_mask_email("a***@gmail.com")` в `auth.py`/`core/email.py` |
+| 🟡 | `/docs` и `/redoc` в проде | `docs_url=None if not DEV_MODE` (то же для `redoc`/`openapi.json`) |
+| 🟡 | `forwarded_allow_ips` не задан | `--forwarded-allow-ips=127.0.0.1` в `docker-compose.prod.yml` |
+| 🟡 | Нет лимита `/parse-audio` | `AI_MAX_AUDIO_SIZE_MB=5` (двойная проверка размера) + MIME whitelist (m4a/mp3/wav/webm) |
+| 🟢 | `EmailStr` вместо `min_length=3` | `MagicLinkRequest`/`PinVerifyRequest` теперь `EmailStr` |
+
+### Verification (curl)
+
+Все проверки локально, DEV_MODE=true:
+
+| # | Сценарий | Результат |
+|---|----------|-----------|
+| 1 | EmailStr: `{"email":"abc"}` | 422 ✅ |
+| 2 | `/docs` в DEV_MODE | 200 ✅ (в проде → 404) |
+| 3 | Bob → POST `/transactions` с category_id Алисы | 404 «Категория не найдена» ✅ |
+| 4 | Bob → PUT `/transactions/{B's id}` с category_id Алисы | 404 ✅ |
+| 5 | Bob → POST `/debts` с counterpart_id Алисы | 404 «Контрагент не найден» ✅ |
+| 6 | Bob → POST `/categories` с parent_id Алисы | 404 «Родительская категория не найдена» ✅ |
+| 7 | Bob → POST `/sync` op=create transaction с numeric category_id Алисы | `error: category_id=N: запись не найдена или принадлежит другому пользователю` ✅ |
+| 8 | POST `/parse-audio` с `Content-Type: text/plain` | 415 ✅ |
+| 9 | POST `/parse-audio` с 6MB `audio/m4a` | 413 ✅ |
+| 10 | Логи: `t***@test1.ru` вместо полного email | ✅ |
+
+### Файлы, тронутые в A1-fixups
+
+- `backend/app/api/deps.py` — `assert_owns()` helper
+- `backend/app/core/config.py` — `BASE_URL`, `AI_MAX_AUDIO_SIZE_MB`
+- `backend/app/main.py` — `docs_url`/`redoc_url`/`openapi_url` под `DEV_MODE`
+- `backend/app/api/v1/categories.py` — `parent_id` IDOR + whitelist
+- `backend/app/api/v1/transactions.py` — `category_id` IDOR + whitelist
+- `backend/app/api/v1/debts.py` — `counterpart_id` IDOR + whitelist
+- `backend/app/api/v1/counterparts.py` — whitelist (без FK)
+- `backend/app/api/v1/sync.py` — `_validate_fk_ownership` + `_FK_OWNERSHIP_MAP`
+- `backend/app/api/v1/auth.py` — `BASE_URL`, `_mask_email`, `EmailStr`
+- `backend/app/api/v1/ai.py` — DEBUG-уровни PII, audio size + MIME whitelist
+- `backend/app/core/email.py` — `_mask_email`
+- `backend/docker-compose.prod.yml` — `--forwarded-allow-ips`
+- `backend/.env.example` — новые переменные
+
+### Что осталось из A1 (отложено по дизайну)
+
+- 🟡 **Bearer 30 дней без refresh / revocation** — отложено до **A2 (Auth lifecycle)**
+- 🟡 **Schema через `Base.metadata.create_all` (нет Alembic)** — отложено до **D1 (Deploy)**, БД пока droppable
+- 🟢 **Security headers middleware** — для нативного iOS не критично; добавить вместе с web-onboarding
+- 🟢 **`/auth/logout` no-op** — пара к refresh-tokens (A2)
+- 🟢 **`MagicCode.used` мёртвый код** — несущественно, `delete()` после `verify-pin` обеспечивает одноразовость
+- 🟢 **`AITUNNEL_API_KEY`/`SMTP_PASSWORD` в plain-text `.env`** — D3 (secrets management)
+- 🟢 **Deploy `git reset --hard` без подписи** — D1 (deploy pipeline)
+- 🟢 **Server response leaks DB error в sync** — низкая критичность, можно глянуть в A3
+
+### Apple Sign-In runtime
+
+Заглушка остаётся: backend готов (`POST /auth/apple` с реальной JWKS-проверкой), iOS-сторона требует Apple Developer Program и `Sign in with Apple` entitlement в Xcode-проекте. До получения программы — `signInWithApple()` падает с `appleSignInUnavailable`, magic-link фолбэк работает.

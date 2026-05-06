@@ -110,3 +110,34 @@ async def require_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+
+async def assert_owns(
+    db: AsyncSession,
+    Model,
+    obj_id: int | None,
+    user_id: int,
+    not_found_detail: str = "Запись не найдена",
+) -> None:
+    """Проверяет, что объект Model с id=obj_id принадлежит user_id (защита от IDOR).
+
+    Используется перед сохранением FK-полей в CRUD: category_id, counterpart_id,
+    parent_id и т.п. Если obj_id is None — пропускает (NULL FK допустим). Если
+    объект не существует ИЛИ принадлежит другому юзеру → 404 с тем же detail,
+    что и при запросе чужой записи (не выдаём факт существования).
+
+    Model должен иметь колонки `id` и `user_id`.
+    """
+    if obj_id is None:
+        return
+    result = await db.execute(
+        select(Model.id).where(
+            Model.id == obj_id,
+            Model.user_id == user_id,
+        )
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=not_found_detail,
+        )

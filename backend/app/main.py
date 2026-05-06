@@ -45,13 +45,18 @@ async def lifespan(app: FastAPI):
     logger.info("Соединения закрыты, приложение остановлено")
 
 
+_docs_url = "/docs" if app_settings.DEV_MODE else None
+_redoc_url = "/redoc" if app_settings.DEV_MODE else None
+_openapi_url = "/openapi.json" if app_settings.DEV_MODE else None
+
 app = FastAPI(
     title="MonPapa API",
     description="Backend для iOS-приложения MonPapa — учёт личных финансов с AI-вводом.",
     version="2.0.0",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=_docs_url,
+    redoc_url=_redoc_url,
+    openapi_url=_openapi_url,
 )
 
 # CORS
@@ -97,4 +102,5 @@ async def health() -> dict:
 
 @app.get("/", tags=["system"], include_in_schema=False)
 async def root() -> dict:
-    return {"message": "MonPapa API v2. Документация: /docs"}
+    docs_hint = "Документация: /docs" if app_settings.DEV_MODE else "API v2"
+    return {"message": f"MonPapa {docs_hint}"}

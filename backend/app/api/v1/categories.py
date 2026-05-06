@@ -10,12 +10,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_user
+from app.api.deps import assert_owns, require_user
 from app.db.models import Category, User
 from app.db.session import get_db
 from app.schemas import CategoryCreate, CategoryResponse, CategoryUpdate
 
 router = APIRouter()
+
+# Поля Category, которые можно изменять через PUT. Всё, что не в этом
+# whitelist (id, user_id, client_id, created_at, deleted_at, …), игнорируется
+# даже если попадёт в Pydantic-схему по ошибке.
+_UPDATABLE_FIELDS: tuple[str, ...] = ("name", "type", "parent_id", "icon")
 
 
 @router.get("", response_model=list[CategoryResponse])
@@ -58,6 +63,9 @@ async def create_category(
                 detail="Категория с таким client_id уже существует",
             )
 
+    # IDOR: parent_id должен принадлежать тому же пользователю.
+    await assert_owns(db, Category, body.parent_id, user.id, "Родительская категория не найдена")
+
     category = Category(
         user_id=user.id,
         name=body.name,
@@ -92,8 +100,23 @@ async def update_category(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Категория не найдена")
 
     update_data = body.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(category, field, value)
+
+    # IDOR: новый parent_id должен принадлежать пользователю.
+    if update_data.get("parent_id") is not None:
+        if update_data["parent_id"] == category.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Категория не может быть родителем самой себя",
+            )
+        await assert_owns(
+            db, Category, update_data["parent_id"], user.id,
+            "Родительская категория не найдена",
+        )
+
+    # Whitelist: только поля из _UPDATABLE_FIELDS попадают в setattr.
+    for field in _UPDATABLE_FIELDS:
+        if field in update_data:
+            setattr(category, field, update_data[field])
 
     await db.flush()
     await db.refresh(category)

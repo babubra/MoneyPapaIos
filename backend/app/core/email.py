@@ -15,6 +15,16 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
+def _mask_email(email: str) -> str:
+    """`a***@gmail.com` — PII-минимизация для логов."""
+    if not email or "@" not in email:
+        return "<***>"
+    local, domain = email.split("@", 1)
+    if not local:
+        return f"***@{domain}"
+    return f"{local[0]}***@{domain}"
+
+
 async def send_magic_link(email: str, token: str, base_url: str = "", pin_code: str = "") -> bool:
     """Отправляет Magic Link и PIN-код на указанный email.
 
@@ -77,8 +87,8 @@ async def send_magic_link(email: str, token: str, base_url: str = "", pin_code: 
             start_tls=start_tls,
             validate_certs=False,  # macOS: системные сертификаты Python не установлены
         )
-        logger.info(f"Magic Link отправлен на {email}")
+        logger.info("Magic Link отправлен на %s", _mask_email(email))
         return True
     except Exception as e:
-        logger.error(f"Ошибка отправки Magic Link на {email}: {e}")
+        logger.error("Ошибка отправки Magic Link на %s: %s", _mask_email(email), e)
         return False
