@@ -130,11 +130,23 @@ async def _consume_trial(user: User, db: AsyncSession) -> None:
 # ── Загрузка маппингов ────────────────────────────────────────────
 
 async def _load_user_mappings(user_id: int, db: AsyncSession) -> list[dict]:
-    """Загружает маппинги пользователя для промпта."""
+    """Загружает топ-N маппингов пользователя для промпта.
+
+    Сортировка по weight DESC — самые подтверждённые маппинги первыми; среди
+    равных weights — по updated_at DESC, чтобы выдача была детерминированной
+    (иначе при ties Gemini implicit-cache никогда не сработает).
+
+    LIMIT защищает от линейного роста стоимости prompt-а с возрастом аккаунта
+    (см. C1.5 в todo/audit/C1_C2_ai_layer.md).
+    """
     result = await db.execute(
         select(CategoryMapping)
         .where(CategoryMapping.user_id == user_id)
-        .order_by(CategoryMapping.weight.desc())
+        .order_by(
+            CategoryMapping.weight.desc(),
+            CategoryMapping.updated_at.desc(),
+        )
+        .limit(settings.AI_MAPPINGS_PROMPT_LIMIT)
     )
     mappings = result.scalars().all()
     return [
@@ -267,7 +279,11 @@ async def _call_ai_text(client: AsyncOpenAI, user_prompt: str, *, user_id: int) 
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt},
                 ],
-                temperature=0.1,
+                # temperature=0 — детерминированный greedy decoding для JSON-парсинга
+                # финансовых транзакций. Эмпирически проверено: на gemini-2.5-flash-lite
+                # даёт стабильно лучшее качество на ru-кейсах, чем 0.1, и устраняет
+                # стохастику в category_name/item_phrase (см. C2.16 в audit/C1_C2_ai_layer.md).
+                temperature=0,
                 max_tokens=1024,
                 response_format={"type": "json_object"},
             )
@@ -345,7 +361,9 @@ async def _call_ai_audio(
                     ],
                 },
             ],
-            temperature=0.1,
+            # temperature=0 — симметрично _call_ai_text. См. комментарий выше.
+            temperature=0,
+            max_tokens=1024,
             response_format={"type": "json_object"},
         )
         _log_ai_usage(response, mode="audio", user_id=user_id)
@@ -411,6 +429,11 @@ async def parse_text(
     await _check_trial(user, db)
 
     mappings = await _load_user_mappings(user.id, db)
+    # Счётчик — на INFO (без PII). Сам список phrase→category — DEBUG.
+    logger.info(
+        "PARSE TEXT mappings | user_id=%s count=%s/%s",
+        user.id, len(mappings), settings.AI_MAPPINGS_PROMPT_LIMIT,
+    )
     if mappings:
         # item_phrase — слово, которое юзер произнёс/набрал (PII). На DEBUG.
         logger.debug(
@@ -511,9 +534,22 @@ async def parse_audio(
             detail="Невалидный JSON в categories или counterparts",
         )
 
+    # Дублируем cap из ParseTextRequest (Pydantic-схема не применяется к Form-полям).
+    # См. C2.7 в todo/audit/C1_C2_ai_layer.md.
+    if len(categories_list) > 200 or len(counterparts_list) > 200:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Слишком много категорий или контрагентов (максимум 200).",
+        )
+
     logger.debug("Категории (%s): %s", len(categories_list), [c.get("name") for c in categories_list])
 
     mappings = await _load_user_mappings(user.id, db)
+    # Счётчик — на INFO (без PII). Сам список phrase→category — DEBUG.
+    logger.info(
+        "PARSE AUDIO mappings | user_id=%s count=%s/%s",
+        user.id, len(mappings), settings.AI_MAPPINGS_PROMPT_LIMIT,
+    )
     if mappings:
         logger.debug(
             "Mappings (%s): %s",
@@ -585,8 +621,35 @@ async def upsert_mapping(
             weight=1,
         )
         db.add(mapping)
+        await db.flush()  # чтобы новая запись попала в подсчёт ниже
         logger.info("Mapping INSERT user=%s", user_id)
         logger.debug("  '%s' → '%s'", body.item_phrase, body.category_name)
+
+        # Cap по общему количеству маппингов на юзера. Защита от роста
+        # маппинг-таблицы у долгоиграющих пользователей (см. C1.5).
+        # Срабатывает только в INSERT-ветке: CONFIRM/OVERRIDE total не растят.
+        count_result = await db.execute(
+            select(func.count(CategoryMapping.id))
+            .where(CategoryMapping.user_id == user_id)
+        )
+        total = count_result.scalar() or 0
+        if total > settings.AI_MAPPINGS_TOTAL_LIMIT:
+            excess = total - settings.AI_MAPPINGS_TOTAL_LIMIT
+            old_q = await db.execute(
+                select(CategoryMapping)
+                .where(CategoryMapping.user_id == user_id)
+                .order_by(
+                    CategoryMapping.weight.asc(),
+                    CategoryMapping.updated_at.asc(),
+                )
+                .limit(excess)
+            )
+            for m in old_q.scalars().all():
+                await db.delete(m)
+            logger.warning(
+                "Mapping cleanup | user=%s deleted=%s (total %s > cap %s)",
+                user_id, excess, total, settings.AI_MAPPINGS_TOTAL_LIMIT,
+            )
     elif existing.category_id == body.category_id:
         # Confirm — та же категория
         existing.weight += 1

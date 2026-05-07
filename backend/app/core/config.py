@@ -44,6 +44,14 @@ class Settings(BaseSettings):
     # ── Auth Model C ────────────────────────────────────────────────
     # Лимит бесплатных AI-запросов на пользователя (lifetime).
     AI_TRIAL_LIMIT: int = 50
+
+    # ── Auto-learn mappings caps (см. C1.5 в audit/C1_C2_ai_layer.md) ──
+    # Сколько маппингов из БД попадает в AI-prompt (топ-N по weight).
+    # Защита от линейного роста стоимости промпта с возрастом аккаунта.
+    AI_MAPPINGS_PROMPT_LIMIT: int = 30
+    # Общий cap количества маппингов на пользователя в БД.
+    # Превышающие удаляются по `(weight ASC, updated_at ASC)` в /mapping upsert.
+    AI_MAPPINGS_TOTAL_LIMIT: int = 200
     # Bundle ID для верификации Apple identity_token (audience claim).
     APPLE_BUNDLE_ID: str = "fatau.Monpapa"
 

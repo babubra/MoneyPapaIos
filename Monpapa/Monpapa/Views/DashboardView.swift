@@ -61,16 +61,31 @@ struct DashboardView: View {
         Array(allTransactions.prefix(4))
     }
     
-    /// Категории для AI (конвертируем SwiftData → DTO)
+    /// Топ-50 категорий, отсортированных по последнему использованию (recently used).
+    /// Защита от раздувания AI-prompt'а у пользователей с большой историей категорий
+    /// (см. C2.7 в todo/audit/C1_C2_ai_layer.md). Бэкенд дополнительно режет на 200.
     private var aiCategoryDTOs: [AICategoryDTO] {
-        allCategories.compactMap { cat in
-            guard let clientId = cat.clientId else { return nil }
-            return AICategoryDTO(
-                id: clientId,
-                name: cat.name,
-                type: cat.typeRaw
-            )
+        let withDates: [(category: CategoryModel, lastUsed: Date)] = allCategories.compactMap { cat in
+            guard cat.clientId != nil else { return nil }
+            // proxy для recency: максимальная дата создания транзакции в категории.
+            // Категории без транзакций → distantPast и уезжают в хвост.
+            let lastUsed = cat.transactions
+                .filter { $0.deletedAt == nil }
+                .map(\.createdAt)
+                .max() ?? .distantPast
+            return (cat, lastUsed)
         }
+        return withDates
+            .sorted { $0.lastUsed > $1.lastUsed }
+            .prefix(50)
+            .compactMap { entry in
+                guard let clientId = entry.category.clientId else { return nil }
+                return AICategoryDTO(
+                    id: clientId,
+                    name: entry.category.name,
+                    type: entry.category.typeRaw
+                )
+            }
     }
     
     /// Общий доход за текущий месяц

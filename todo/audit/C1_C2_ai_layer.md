@@ -438,10 +438,10 @@ parts.append(f"Target locale for translations: {lang_name}")
 | 1  | 🔴 | Нет prompt caching | `ai.py:222-233`, `system_prompt.py` |
 | 2  | 🔴 | Trial-bypass + Device.ai_requests_today мёртвый | `ai.py:82-127`, `models.py:99-107` |
 | 3  | 🔴 | Нет retry/идемпотентности на клиенте | `AIService.swift:109,172,223-236` |
-| 4  | 🔴 | `/parse-audio` без `max_tokens` | `ai.py:282-302` |
-| 5  | 🔴 | `_load_user_mappings` без LIMIT | `ai.py:132-143`, `models.py:363-388` |
-| 6  | 🟡 | Нет логирования `usage` tokens | `ai.py:204-326` |
-| 7  | 🟡 | Pydantic без `max_items` + клиент шлёт все категории | `schemas.py:26-31`, `DashboardView.swift:65-74` |
+| 4  | ✅ 🔴 | `/parse-audio` без `max_tokens` (закрыт 2026-05-07) | `ai.py:282-302` |
+| 5  | ✅ 🔴 | `_load_user_mappings` без LIMIT (закрыт 2026-05-07: prompt-LIMIT=30, total-cap=200, cleanup в upsert) | `ai.py:132-143`, `models.py:363-388` |
+| 6  | ✅ 🟡 | Нет логирования `usage` tokens (закрыт 2026-05-07, M6) | `ai.py:204-326` |
+| 7  | ✅ 🟡 | Pydantic без `max_items` + клиент шлёт все категории (закрыт 2026-05-07: max_length=200 + top-50 на клиенте) | `schemas.py:26-31`, `DashboardView.swift:65-74` |
 | 8  | 🟡 | Нет client-cache AI-ответов | `AIService.swift` |
 | 9  | 🟡 | `json_object` вместо `json_schema` | `ai.py:232,301` |
 | 10 | 🟡 | `AI_MAX_AUDIO_SECONDS` не валидируется | `ai.py:404-453`, `config.py:39` |
@@ -450,7 +450,7 @@ parts.append(f"Target locale for translations: {lang_name}")
 | 13 | 🟡 | SYSTEM_PROMPT redundancy ~30-40% | `system_prompt.py:1-126` |
 | 14 | 🟡 | Нет per-locale evals + нет тестов | `backend/tests/` (отсутствует) |
 | 15 | 🟡 | Premium без daily-cap | `ai.py:82-105` |
-| 16 | 🟢 | `temperature=0.1` → 0 | `ai.py:230,300` |
+| 16 | ✅ 🟢 | `temperature=0.1` → 0 (закрыт 2026-05-07: в обоих парсерах, эмпирически проверено лучшее качество на ru) | `ai.py:230,300` |
 | 17 | 🟢 | `AI_RATE_LIMIT_*` мёртвый конфиг | `config.py:36-37` |
 | 18 | 🟢 | UNIQUE `(user_id, item_phrase)` не реализован | `models.py:363-388` |
 | 19 | 🟢 | `_sanitize_json` режет `//` в URL | `ai.py:194-195` |
@@ -458,3 +458,9 @@ parts.append(f"Target locale for translations: {lang_name}")
 | 21 | 🟢 | Locale fallback в промпт сырой | `system_prompt.py:170`, `schemas.py:31` |
 
 **Итого:** 5 🔴 / 10 🟡 / 6 🟢. Рекомендуемый порядок C1+C2-fixups: M6 (usage-логирование, чтобы измерить baseline) → C3-евал-инфраструктура (M14, минимум 10 примеров) → C1.4, C1.5, C2.10 (быстрые caps по 1 строке) → C1.1, C1.3 (структурные правки) → остальное.
+
+**Статус закрытия (по сессиям):**
+- 2026-05-07: ✅ #6 (M6 — usage-логирование).
+- 2026-05-07: ✅ #4, #5, #7 — быстрые caps (audit/C1_C2_baseline.md → todo). Verified curl-сценариями: 201 cats → 422, 200 cats → 200; mappings count=30/30; cleanup `total > cap → deleted`. iOS-сторона #7 (top-50 фильтр в `DashboardView.aiCategoryDTOs`) — собирается следующим Xcode-build'ом.
+- 2026-05-07: ✅ #16 — `temperature=0` в обоих парсерах. Юзер эмпирически проверил, что на `gemini-2.5-flash-lite` это даёт лучшее качество на ru-кейсах + устраняет стохастику между идентичными запросами. Verified: два одинаковых `/parse` → идентичный JSON.
+- Открыто: #1, #2, #3, #8-#15, #17-#21. Дальше по приоритету: **M14** (eval-набор) → **M13** (promptlen) → **#1** (prompt caching) → **#3** (retry/idemp) → **#15** (Premium cap) → остальное.

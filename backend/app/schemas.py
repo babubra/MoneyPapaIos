@@ -26,8 +26,11 @@ class CounterpartContext(BaseModel):
 class ParseTextRequest(BaseModel):
     """Тело запроса для текстового парсинга."""
     text: str = Field(..., min_length=1, max_length=500)
-    categories: list[CategoryContext] = Field(default_factory=list)
-    counterparts: list[CounterpartContext] = Field(default_factory=list)
+    # max_length=200 — защита от DoS-вектора через раздувание prompt-а
+    # десятками тысяч элементов. Реальные пользователи имеют 30-100 категорий
+    # (см. C2.7 в todo/audit/C1_C2_ai_layer.md).
+    categories: list[CategoryContext] = Field(default_factory=list, max_length=200)
+    counterparts: list[CounterpartContext] = Field(default_factory=list, max_length=200)
     locale: str = Field(default="ru", max_length=5, description="Языковая локаль клиента")
 
 
