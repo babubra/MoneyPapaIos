@@ -77,6 +77,12 @@
 | D2 | Observability | Логи, метрики, алерты (особенно по AI cost), error tracking |
 | D3 | Backup & secrets | БД бэкапы, ротация ключей, где хранятся secrets (env? vault?) |
 
+### E. Future work (после всех аудит-блоков)
+
+| ID | Тема | Что включает |
+|----|------|--------------|
+| E1 | AI usage telemetry & admin dashboard | Persistent storage AI usage (таблица `AiUsageDaily(user_id, date, prompt/completion/cached/total tokens, count_text, count_audio)`), `INSERT … ON CONFLICT (user_id, date) DO UPDATE … += EXCLUDED.*` после каждого AI-вызова, админ-эндпоинт `GET /api/v1/admin/ai-usage` (фильтры по дате/юзеру, top-N), доступ через `ALLOWED_ADMINS` (CSV email в `.env`) — без отдельного `is_admin` поля. Web-UI — отдельным следующим шагом (Jinja-страница в FastAPI или внешний фронт). Зависит от: M6 (baseline-лог, формат полей должен совпадать), `D1` (Alembic baseline) — желательно, чтобы добавление таблицы не требовало `docker compose down -v`. |
+
 ---
 
 ## Рекомендуемый порядок выполнения
@@ -92,6 +98,7 @@
 7. **A3, A4** — data, dev/prod (важно, но менее срочно)
 8. **C3** — качество AI-ответов
 9. **D1–D3** — infra (когда код готов к проду; включая VPS deploy + Alembic baseline)
+10. **E1** — AI usage telemetry & admin dashboard (поверх baseline-логов M6, в самую последнюю очередь — когда D1 готов и остальное стабильно)
 
 ---
 
@@ -160,12 +167,14 @@
 | B2 | ⬜ TODO | — | — |
 | B3 | ⬜ TODO | — | — |
 | B4 | ⬜ TODO | — | — |
-| C1 | ⬜ TODO | — | — |
-| C2 | ⬜ TODO | — | — |
+| C1 | ✅ Done | 2026-05-06 (Opus 4.7) | [`audit/C1_C2_ai_layer.md`](audit/C1_C2_ai_layer.md) (объединён с C2) |
+| C2 | ✅ Done | 2026-05-06 (Opus 4.7) | [`audit/C1_C2_ai_layer.md`](audit/C1_C2_ai_layer.md) (объединён с C1) |
+| **C1+C2-fixups** | 🔄 In progress | 2026-05-07 (Opus 4.7) | M6 (usage-логирование) реализован — baseline для последующих fixups по [`audit/C1_C2_ai_layer.md`](audit/C1_C2_ai_layer.md) |
 | C3 | ⬜ TODO | — | — |
 | D1 | ⬜ TODO | — | VPS deploy + Alembic baseline (когда вернётся VPS) |
 | D2 | ⬜ TODO | — | — |
 | D3 | ⬜ TODO | — | — |
+| E1 | ⬜ TODO | — | AI usage telemetry + admin dashboard (поверх M6, требует Alembic — D1) |
 
 > Обновляй эту таблицу после каждой сессии: ⬜ TODO → 🔄 In progress → ✅ Done
 
@@ -178,3 +187,5 @@
 - 2026-05-04 — A1-аудит выполнен, отчёт `audit/A1_backend_surface.md`, статус → ✅ Done
 - 2026-05-05 — pragmatic-реализация Auth Model C (коммиты `5384e08`..`673345f`), 6/13 критов A1 закрыто, 2 ужесточены. Добавлены блоки `C-migration` (✅) и `A1-fixups` (⬜) в tracker. Сессия `parallel-orbiting-lamport`.
 - 2026-05-06 — выполнен блок **A1-fixups** (Opus 4.7, сессия `precious-wigderson`): IDOR (category_id/counterpart_id/parent_id) в CRUD и sync, mass-assignment whitelist, host-header injection (BASE_URL), PII в логах (DEBUG + email mask), `/docs` gate, audio size + MIME whitelist, `--forwarded-allow-ips`, `EmailStr`. Verified curl-сценариями.
+- 2026-05-06 — выполнен объединённый блок **C1 + C2** (Opus 4.7, сессия `giggly-dragon`): аудит AI-слоя (prompt engineering + cost & latency). Отчёт `audit/C1_C2_ai_layer.md`: 5 🔴 / 10 🟡 / 6 🟢 findings. Главные направления для C1+C2-fixups: prompt caching, retry/идемпотентность на клиенте, активация `Device.ai_requests_today` против trial-bypass, `max_tokens` для `/parse-audio`, LIMIT для `_load_user_mappings`, usage-логирование как baseline. Status tracker: C1, C2 → ✅ Done, добавлен блок `C1+C2-fixups` (⬜).
+- 2026-05-07 — стартован блок **C1+C2-fixups** (Opus 4.7, сессия `nervous-dewdney`): реализован **M6** — usage-логирование AI-вызовов (`_log_ai_usage` в `backend/app/api/v1/ai.py`), включая retry-цикл `_call_ai_text` и `_call_ai_audio`. Лог пишется на INFO с user_id, mode, prompt/completion/total/cached. DB-персистенция вынесена в новый блок `E1` (см. ниже). Добавлены: раздел `### E. Future work` с блоком **E1** (AI usage telemetry & admin dashboard, поверх M6, требует D1/Alembic), пункт 10 в «Рекомендуемый порядок выполнения», строка `E1 ⬜ TODO` в Status tracker. Status tracker: `C1+C2-fixups` → 🔄 In progress.

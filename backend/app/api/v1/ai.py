@@ -201,7 +201,47 @@ def _sanitize_json(text: str) -> str:
     return text.strip()
 
 
-async def _call_ai_text(client: AsyncOpenAI, user_prompt: str) -> dict:
+def _log_ai_usage(response, *, mode: str, user_id: int, attempt: int = 1) -> None:
+    """Логирует usage tokens из AI response для мониторинга стоимости.
+
+    Baseline до prompt-cache / promptlen-сокращений (см. C1+C2-fixups). Это
+    metadata (без PII) — безопасно на INFO в проде. Лог пишется на каждом
+    billable вызове (включая ретраи в _call_ai_text), потому что каждая
+    попытка создаёт реальную трату токенов у провайдера.
+
+    Поля:
+      • prompt / completion / total — есть всегда у OpenAI-совместимых API
+      • cached — prompt_tokens_details.cached_tokens; у aitunnel может
+        отсутствовать, тогда выводим 0 — это сам по себе baseline-сигнал
+        «prompt-caching не работает» (см. C1.1).
+      • attempt — номер попытки в retry-цикле (1 для первой; для audio всегда 1).
+    """
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        logger.warning(
+            "AI usage | mode=%s user_id=%s model=%s — usage отсутствует в ответе",
+            mode, user_id, settings.AI_MODEL,
+        )
+        return
+
+    prompt_tokens = getattr(usage, "prompt_tokens", 0) or 0
+    completion_tokens = getattr(usage, "completion_tokens", 0) or 0
+    total_tokens = getattr(usage, "total_tokens", 0) or 0
+
+    cached_tokens = 0
+    details = getattr(usage, "prompt_tokens_details", None)
+    if details is not None:
+        cached_tokens = getattr(details, "cached_tokens", 0) or 0
+
+    extra = f" attempt={attempt}" if attempt > 1 else ""
+    logger.info(
+        "AI usage | mode=%s user_id=%s model=%s prompt=%d completion=%d total=%d cached=%d%s",
+        mode, user_id, settings.AI_MODEL,
+        prompt_tokens, completion_tokens, total_tokens, cached_tokens, extra,
+    )
+
+
+async def _call_ai_text(client: AsyncOpenAI, user_prompt: str, *, user_id: int) -> dict:
     """Вызывает aitunnel.ru с текстовым промтом, возвращает распарсенный JSON.
     При невалидном ответе — автоматический retry (до 2 попыток)."""
     if not settings.AITUNNEL_API_KEY:
@@ -231,6 +271,7 @@ async def _call_ai_text(client: AsyncOpenAI, user_prompt: str) -> dict:
                 max_tokens=1024,
                 response_format={"type": "json_object"},
             )
+            _log_ai_usage(response, mode="text", user_id=user_id, attempt=attempt + 1)
             text = response.choices[0].message.content.strip()
             logger.debug("AI raw (попытка %s): %s", attempt + 1, text[:500])
 
@@ -265,7 +306,14 @@ async def _call_ai_text(client: AsyncOpenAI, user_prompt: str) -> dict:
         detail="AI вернул невалидный ответ. Попробуйте ещё раз.",
     )
 
-async def _call_ai_audio(client: AsyncOpenAI, audio_data: bytes, mime_type: str, user_prompt: str) -> dict:
+async def _call_ai_audio(
+    client: AsyncOpenAI,
+    audio_data: bytes,
+    mime_type: str,
+    user_prompt: str,
+    *,
+    user_id: int,
+) -> dict:
     """Вызывает aitunnel.ru с аудио (base64) + текстовым промтом.
 
     Использует мультимодальный формат OpenAI (image_url-подобный для аудио).
@@ -300,6 +348,7 @@ async def _call_ai_audio(client: AsyncOpenAI, audio_data: bytes, mime_type: str,
             temperature=0.1,
             response_format={"type": "json_object"},
         )
+        _log_ai_usage(response, mode="audio", user_id=user_id)
         text = response.choices[0].message.content.strip()
         try:
             return _normalize_null_strings(json.loads(text))
@@ -381,7 +430,7 @@ async def parse_text(
 
     # Если AI упадёт (502/503/timeout), exception пробросится наверх и
     # _consume_trial НЕ выполнится — trial остаётся целым.
-    result = await _call_ai_text(ai_client, user_prompt)
+    result = await _call_ai_text(ai_client, user_prompt, user_id=user.id)
 
     # Списываем trial только если AI реально отработал и вернул валидный JSON.
     # Off-topic ответ ("вопрос не в тему") тоже считается успехом — мы за токены
@@ -483,7 +532,7 @@ async def parse_audio(
 
     # Если AI упадёт (502/503/timeout), exception пробросится наверх и
     # _consume_trial НЕ выполнится — trial остаётся целым.
-    result = await _call_ai_audio(ai_client, audio_data, mime_type, user_prompt)
+    result = await _call_ai_audio(ai_client, audio_data, mime_type, user_prompt, user_id=user.id)
 
     # Списываем trial только если AI реально отработал (включая off-topic responses).
     await _consume_trial(user, db)
