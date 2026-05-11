@@ -137,6 +137,7 @@
       }
     },
     "•••" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -256,6 +257,7 @@
       }
     },
     "🏠" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -538,6 +540,7 @@
       }
     },
     "AI-парсинг" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1258,23 +1261,6 @@
         }
       }
     },
-    "paywall.benefit.voice" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unlimited voice input"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Безлимитный голосовой ввод"
-          }
-        }
-      }
-    },
     "paywall.benefit.support" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1288,6 +1274,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Поддержка развития проекта"
+          }
+        }
+      }
+    },
+    "paywall.benefit.voice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlimited voice input"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Безлимитный голосовой ввод"
           }
         }
       }
@@ -1659,6 +1662,7 @@
       }
     },
     "Аккаунт" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1717,6 +1721,7 @@
       }
     },
     "Аналитика" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1789,9 +1794,6 @@
           }
         }
       }
-    },
-    "Без подписки sync только в одну сторону (read)." : {
-
     },
     "Без родителя" : {
       "localizations" : {
@@ -2338,6 +2340,7 @@
       }
     },
     "Данные на всех устройствах.\nВойдите — и ничего не потеряется" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3857,6 +3860,7 @@
       }
     },
     "Понятная статистика расходов\nи доходов в реальном времени" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4051,6 +4055,7 @@
 
     },
     "Просто скажите или напишите\n«Купил кофе 200 руб» — AI всё поймёт" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4618,6 +4623,7 @@
       }
     },
     "Тема" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
