@@ -59,6 +59,12 @@ backend/*.sqlite
 backend/monpapa.db
 backend/*.log
 
+# Local prompt dumps (могут содержать PII — категории/маппинги реальных юзеров)
+backend/prompt_*.txt
+
+# Claude Code local agent state (не должно попадать в репо)
+.claude/
+
 # macOS
 .DS_Store
 
