@@ -509,6 +509,7 @@ struct AddTransactionSheet: View {
         if let dateStr = result.date {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
+            formatter.timeZone = TimeZone(identifier: "UTC")
             if let date = formatter.date(from: dateStr) {
                 transactionDate = date
             }

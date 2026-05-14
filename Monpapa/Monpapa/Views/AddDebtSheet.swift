@@ -463,6 +463,7 @@ struct AddDebtSheet: View {
         if let dateStr = result.date {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
+            formatter.timeZone = TimeZone(identifier: "UTC")
             if let date = formatter.date(from: dateStr) {
                 debtDate = date
             }
@@ -472,6 +473,7 @@ struct AddDebtSheet: View {
         if let dueDateStr = result.dueDate {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
+            formatter.timeZone = TimeZone(identifier: "UTC")
             if let parsed = formatter.date(from: dueDateStr) {
                 dueDate = parsed
                 showDueDate = true

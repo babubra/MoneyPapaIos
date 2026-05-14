@@ -99,6 +99,7 @@ final class SyncService: ObservableObject {
         let dateOnly = DateFormatter()
         dateOnly.dateFormat = "yyyy-MM-dd"
         dateOnly.locale = Locale(identifier: "en_US_POSIX")
+        dateOnly.timeZone = TimeZone(identifier: "UTC")
         
         decoder.dateDecodingStrategy = .custom { decoder -> Date in
             let container = try decoder.singleValueContainer()
