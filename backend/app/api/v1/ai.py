@@ -17,10 +17,12 @@ Auth Model C:
 """
 
 import base64
+import io
 import json
 import logging
 from datetime import date, datetime, timezone
 
+import mutagen
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from openai import AsyncOpenAI, APIStatusError
 from sqlalchemy import func, select
@@ -50,6 +52,45 @@ _ALLOWED_AUDIO_MIME: frozenset[str] = frozenset({
 # Максимальный размер аудио-файла в байтах. Защита от OOM (UploadFile.read()
 # тянет всё в память) и от траты AI-токенов на гигантские записи.
 _MAX_AUDIO_BYTES: int = settings.AI_MAX_AUDIO_SIZE_MB * 1024 * 1024
+
+
+def _get_audio_duration_seconds(audio_data: bytes) -> float:
+    """Парсит header аудио-файла и возвращает длительность в секундах.
+
+    Используется для server-side валидации в /parse-audio (#10 в audit/
+    C1_C2_ai_layer.md). Клиент-сторонний `AudioRecorderService.maxActiveSpeech=30`
+    легко обходится модифицированным клиентом или прямым curl на API; без
+    server-check атакующий может прислать 5-минутный AAC в пределах 5 MB
+    (≈7500 input-токенов multimodal на запрос).
+
+    Не декодирует аудио, только header — миллисекунды. Поддерживает форматы из
+    `_ALLOWED_AUDIO_MIME` (mutagen покрывает m4a/aac/mp3/wav/webm-opus).
+
+    Raises:
+        HTTPException 422: файл не парсится либо длительность <= 0
+                           (битый header, не-аудио, обрезан).
+    """
+    try:
+        meta = mutagen.File(io.BytesIO(audio_data))
+    except mutagen.MutagenError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Не удалось определить длительность аудио (битый файл).",
+        ) from exc
+
+    if meta is None or meta.info is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Неизвестный формат аудио — длительность определить невозможно.",
+        )
+
+    duration = float(getattr(meta.info, "length", 0) or 0)
+    if duration <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Длительность аудио = 0. Возможно, файл повреждён или обрезан.",
+        )
+    return duration
 
 
 # ── Singleton AI-клиент из app.state ──────────────────────────────
@@ -663,6 +704,21 @@ async def parse_audio(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail=f"Аудиофайл слишком большой. Максимум {settings.AI_MAX_AUDIO_SIZE_MB} MB.",
             )
+
+        # Server-side duration cap (C1+C2 #10). AI_MAX_AUDIO_SECONDS=30 client-side
+        # обходится модифицированным клиентом — на сервере парсим header через mutagen.
+        duration_sec = _get_audio_duration_seconds(audio_data)
+        if duration_sec > settings.AI_MAX_AUDIO_SECONDS:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=(
+                    f"Аудиозапись слишком длинная: {duration_sec:.1f}s "
+                    f"(максимум {settings.AI_MAX_AUDIO_SECONDS}s)."
+                ),
+                headers={"X-Audio-Duration": f"{duration_sec:.2f}",
+                         "X-Audio-Duration-Limit": str(settings.AI_MAX_AUDIO_SECONDS)},
+            )
+
         mime_type = content_type or "audio/m4a"
 
         try:
