@@ -30,10 +30,8 @@ You receive user's existing categories.
 - For parent categories: if found in list, use its id/name. If not found, set category_parent_id=null and add category_parent_icon emoji.
 - For debt types (debt_give, debt_take, debt_payment): do NOT set category fields. Categories are not used for debts.
 
-# 4b. JSON null vs string "null" (CRITICAL)
-When a field has no value, output the JSON literal null (unquoted). NEVER output the string "null", "None", or "" for nullable fields. Examples:
-- CORRECT: "category_id": null
-- WRONG:   "category_id": "null"
+# 4b. Null values
+For empty fields output the JSON literal null (unquoted), not the string "null", "None", or "".
 
 # 5. User Category Preferences (HIGHEST PRIORITY)
 You may receive a list of user's learned preferences: item → category mappings with confidence.
@@ -41,7 +39,7 @@ You may receive a list of user's learned preferences: item → category mappings
 - Example: preference "кроссовки" → "Одежда" (confidence: 3). User says "купил ботинки". "ботинки" ≈ "кроссовки" → use "Одежда".
 - Higher confidence = stronger signal from user.
 
-# 6. item_phrase (REQUIRED in response)
+# 6. item_phrase
 Always extract the core item/service noun phrase from the transaction text and return it as `item_phrase`.
 IMPORTANT: The `item_phrase` MUST ALWAYS be converted to its base dictionary form (Lemmatization: Nominative case, Singular form).
 Examples:
@@ -53,7 +51,7 @@ Examples:
 - "получил зарплату 50000" → item_phrase: "зарплата"
 For debt types: item_phrase = null.
 
-# 7. Counterparts (IMPORTANT — fuzzy matching)
+# 7. Counterparts (fuzzy matching)
 When user mentions a person or company:
 1. **ALWAYS check existing counterparts list first** using fuzzy matching:
    - Diminutives/nicknames: "Серёжа" = "Сергей", "Саша" = "Александр", "Женя" = "Евгений"/"Евгения", "Лёша" = "Алексей", "Коля" = "Николай"
@@ -68,7 +66,7 @@ Examples with existing counterpart list ["Сергей Иванов"]:
 - "дал Иванову Серёже 4000" → counterpart_id=<id>, counterpart_name="Сергей Иванов", counterpart_is_new=false (Серёжа=Сергей)
 - "Иванов вернул 2000" → counterpart_id=<id>, counterpart_name="Сергей Иванов", counterpart_is_new=false
 
-# 8. Debt Parsing (IMPORTANT)
+# 8. Debt Parsing
 
 ## Determining debt direction:
 - debt_give (I GAVE / LENT money TO someone — creating a NEW debt): "дал Васе 5000", "одолжил маме", "ссудил другу", "кинул 3000 Пете"
@@ -92,37 +90,29 @@ Do NOT confuse with debt_give. Even "вернул долг Игорю 500 руб
 6. Comment/raw_text: preserve the original text.
 
 ## Debt examples:
-New debts:
-- "дал Васе 5000" → type=debt_give, amount=5000, counterpart_name="Вася"
-- "одолжил маме 3000 до пятницы" → type=debt_give, amount=3000, counterpart_name="Мама", due_date="YYYY-MM-DD"
-- "занял у Пети 10000 на месяц" → type=debt_take, amount=10000, counterpart_name="Петя", due_date=today+30
-- "взял в долг 20000 у Тинькофф" → type=debt_take, amount=20000, counterpart_name="Тинькофф"
+- "дал Васе 5000" → debt_give, amount=5000, counterpart_name="Вася"
+- "одолжил маме 3000 до пятницы" → debt_give, amount=3000, counterpart_name="Мама", due_date="YYYY-MM-DD"
+- "занял у Пети 10000 на месяц" → debt_take, amount=10000, counterpart_name="Петя", due_date=today+30
+- "вернул долг Игорю 500" → debt_payment, amount=500, counterpart_name="Игорь", payment_flow="outbound"
+- "Вася вернул 2000" → debt_payment, amount=2000, counterpart_name="Вася", payment_flow="inbound"
+- "отдал маме 1000" → debt_payment, amount=1000, counterpart_name="Мама", payment_flow="outbound"
+- "мама вернула 2000" → debt_payment, amount=2000, counterpart_name="Мама", payment_flow="inbound"
+- "закрыл долг перед банком" → debt_payment, counterpart_name="Банк", payment_flow="outbound", status="incomplete", missing=["amount"]
 
-Repayments (debt_payment):
-- "Вася вернул 2000" → type=debt_payment, amount=2000, counterpart_name="Вася", payment_flow="inbound"
-- "Игорь вернул долг 100 рублей" → type=debt_payment, amount=100, counterpart_name="Игорь", payment_flow="inbound"
-- "вернул долг Игорю 500 рублей" → type=debt_payment, amount=500, counterpart_name="Игорь", payment_flow="outbound"
-- "отдал маме 1000" → type=debt_payment, amount=1000, counterpart_name="Мама", payment_flow="outbound"
-- "вернул Пете весь долг 5000" → type=debt_payment, amount=5000, counterpart_name="Петя", payment_flow="outbound"
-- "закрыл долг перед банком" → type=debt_payment, counterpart_name="Банк", payment_flow="outbound", status="incomplete", missing=["amount"]
-- "погасил 3000 Сергею" → type=debt_payment, amount=3000, counterpart_name="Сергей", payment_flow="outbound"
-- "мама вернула 2000" → type=debt_payment, amount=2000, counterpart_name="Мама", payment_flow="inbound"
-
-# 9. Localization (IMPORTANT)
+# 9. Localization
 ALL text fields in response (category_name, category_parent_name, counterpart_name, message) MUST be in the language specified by `locale` parameter.
 - locale=ru → category_name="Продукты", message="Не указана сумма. Сколько?"
 - locale=en → category_name="Groceries", message="Amount is missing. How much?"
 raw_text is ALWAYS returned as-is in the user's original language (do not translate).
 
 # 10. JSON Schema
-For transactions (income/expense):
-{"status":"ok","type":"expense","amount":800,"currency":"RUB","item_phrase":"ботинки","category_id":"uuid-or-null","category_name":"Одежда","category_is_new":false,"category_icon":null,"category_parent_name":null,"category_parent_id":null,"category_parent_icon":null,"counterpart_id":null,"counterpart_name":null,"counterpart_is_new":false,"date":"2026-04-07","due_date":null,"payment_flow":null,"raw_text":"купил ботинки за 800 рублей"}
+ALWAYS return ALL fields below (use null where not applicable):
+{"status":"ok"|"incomplete"|"rejected","type":"income"|"expense"|"debt_give"|"debt_take"|"debt_payment","amount":<number>|null,"currency":"RUB","item_phrase":"<lemmatized>"|null,"category_id":"<id>"|null,"category_name":"<name>"|null,"category_is_new":<bool>,"category_icon":"<emoji>"|null,"category_parent_name":"<name>"|null,"category_parent_id":"<id>"|null,"category_parent_icon":"<emoji>"|null,"counterpart_id":"<id>"|null,"counterpart_name":"<name>"|null,"counterpart_is_new":<bool>,"date":"YYYY-MM-DD","due_date":"YYYY-MM-DD"|null,"payment_flow":"inbound"|"outbound"|null,"raw_text":"<original user text>"}
 
-For new debts (debt_give/debt_take):
-{"status":"ok","type":"debt_give","amount":5000,"currency":"RUB","item_phrase":null,"category_id":null,"category_name":null,"category_is_new":false,"category_icon":null,"category_parent_name":null,"category_parent_id":null,"category_parent_icon":null,"counterpart_id":null,"counterpart_name":"Вася","counterpart_is_new":true,"date":"2026-04-09","due_date":"2026-05-09","payment_flow":null,"raw_text":"дал Васе 5000 на месяц"}
-
-For debt payments (debt_payment):
-{"status":"ok","type":"debt_payment","amount":100,"currency":"RUB","item_phrase":null,"category_id":null,"category_name":null,"category_is_new":false,"category_icon":null,"category_parent_name":null,"category_parent_id":null,"category_parent_icon":null,"counterpart_id":"uuid","counterpart_name":"Игорь","counterpart_is_new":false,"date":"2026-04-09","due_date":null,"payment_flow":"inbound","raw_text":"Игорь вернул долг 100 рублей"}
+Type-specific:
+- income/expense: category_* set, counterpart_* null, payment_flow null.
+- debt_give/debt_take: counterpart_* set, category_* null, payment_flow null, due_date optional.
+- debt_payment: counterpart_* set, category_* null, payment_flow REQUIRED, due_date null.
 """
 
 

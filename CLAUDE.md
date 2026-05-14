@@ -32,6 +32,21 @@ curl http://localhost:8001/health   # → 200 OK
 - При изменении SQLAlchemy-моделей: `docker compose down -v && docker compose up -d --build` (Alembic пока не используется, БД пересоздаётся).
 - Перед любым предположением про backend / iOS-flow — проверить актуальное состояние через curl, не верить памяти.
 
+## Тесты (pytest) для AI-слоя
+
+**Когда триггерится:** правка `backend/app/api/v1/ai.py`, `backend/app/core/system_prompt.py`, смена `AI_MODEL`, upgrade `openai`-SDK, или просто перед коммитом любых backend-изменений.
+
+`backend/tests/` — постоянная pytest-инфраструктура (создана в сессии M14, 2026-05-11). Два слоя: mock-тесты (без сети, <1s) + golden-тесты на реальный aitunnel (~20s, ~$0.03 за прогон). Текущее состояние: 57 passed, 4 xfailed.
+
+**Полная инструкция (структура, когда что прогонять, что значат xfail-маркеры, как добавить кейс):** [`backend/tests/README.md`](backend/tests/README.md). Перед любой правкой AI-слоя — читать первым делом.
+
+Минимум:
+```bash
+cd backend && source venv/bin/activate
+pytest tests/ --ignore=tests/golden  # быстро, без сети
+pytest tests/                         # полно, с aitunnel (нужен AITUNNEL_API_KEY в .env)
+```
+
 ## Auth model migration (active decision)
 
 Приложение мигрирует на **обязательную авторизацию** (Sign in with Apple + magic-link fallback) с AI trial и платной sync. План: **[`todo/auth_model_C_migration.md`](todo/auth_model_C_migration.md)**.

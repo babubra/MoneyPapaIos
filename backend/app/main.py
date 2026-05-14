@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from openai import AsyncOpenAI
 
 from app.core.config import get_settings
+from app.core.idempotency import IdempotencyStore
 from app.db.models import Base
 from app.db.session import engine
 
@@ -36,6 +37,11 @@ async def lifespan(app: FastAPI):
         base_url=app_settings.AITUNNEL_BASE_URL,
     )
     logger.info(f"AI-клиент инициализирован → {app_settings.AITUNNEL_BASE_URL}, модель: {app_settings.AI_MODEL}")
+
+    # Idempotency-стор для дедупликации /parse и /parse-audio при retry на клиенте.
+    # In-memory, ttl=60s — окно достаточно для max retry-latency iOS (~34s).
+    app.state.idempotency_store = IdempotencyStore(ttl_seconds=app_settings.IDEMPOTENCY_TTL_SECONDS)
+    logger.info(f"Idempotency-стор инициализирован → ttl={app_settings.IDEMPOTENCY_TTL_SECONDS}s")
 
     yield  # приложение работает
 

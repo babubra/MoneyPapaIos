@@ -110,6 +110,13 @@ final class AIService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
+        // Idempotency-Key генерится ОДИН раз на user-action: при retry внутри
+        // executeWithRetry мы шлём тот же ключ → бэк дедуплицирует AI-вызов и
+        // не списывает trial повторно (см. #3 в todo/audit/C1_C2_ai_layer.md).
+        // Новый user-tap → новый вызов parseText → новый UUID = новая транзакция.
+        let idempotencyKey = UUID().uuidString
+        request.setValue(idempotencyKey, forHTTPHeaderField: "Idempotency-Key")
+
         let locale = Locale.current.language.languageCode?.identifier ?? "ru"
         let body = ParseTextRequest(
             text: text,
@@ -124,28 +131,14 @@ final class AIService {
         // (полезно, когда пользователь быстро шлёт два запроса подряд).
         let reqId = String(UUID().uuidString.prefix(8))
 
-        MPLog.service.info("📤 [\(reqId, privacy: .public)] parseText | text=\"\(text, privacy: .public)\" locale=\(locale, privacy: .public)")
+        MPLog.service.info("📤 [\(reqId, privacy: .public)] parseText | text=\"\(text, privacy: .public)\" locale=\(locale, privacy: .public) idemp=\(idempotencyKey.prefix(8), privacy: .public)")
         MPLog.service.debug("📤 [\(reqId, privacy: .public)] categories(\(categories.count)): \(categories.map { "\($0.name)[\($0.type)]" }.joined(separator: ", "), privacy: .public)")
         MPLog.service.debug("📤 [\(reqId, privacy: .public)] counterparts(\(counterparts.count)): \(counterparts.map(\.name).joined(separator: ", "), privacy: .public)")
         if let bodyStr = String(data: bodyData, encoding: .utf8) {
             MPLog.service.debug("📤 [\(reqId, privacy: .public)] body JSON: \(bodyStr, privacy: .public)")
         }
 
-        let startedAt = Date()
-        let (data, response): (Data, URLResponse)
-        do {
-            (data, response) = try await URLSession.shared.data(for: request)
-        } catch let urlError as URLError {
-            MPLog.service.error("❌ [\(reqId, privacy: .public)] parseText network error: \(urlError.code.rawValue) \(urlError.localizedDescription, privacy: .public)")
-            throw AIServiceError.networkError(urlError)
-        }
-        let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1000)
-
-        let httpStatus = (response as? HTTPURLResponse)?.statusCode ?? -1
-        MPLog.service.info("📥 [\(reqId, privacy: .public)] parseText HTTP \(httpStatus) | \(data.count) bytes | \(elapsedMs)ms")
-        if let bodyStr = String(data: data, encoding: .utf8) {
-            MPLog.service.debug("📥 [\(reqId, privacy: .public)] response body: \(bodyStr, privacy: .public)")
-        }
+        let (data, response) = try await executeWithRetry(request: request, reqId: reqId, label: "parseText")
 
         try validateResponse(response, data: data)
         let result = try decode(AiParseResult.self, from: data, reqId: reqId)
@@ -175,6 +168,10 @@ final class AIService {
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
+        // Idempotency-Key — см. комментарий в parseText.
+        let idempotencyKey = UUID().uuidString
+        request.setValue(idempotencyKey, forHTTPHeaderField: "Idempotency-Key")
+
         let audioData = try Data(contentsOf: fileURL)
         let categoriesJSON = (try? JSONEncoder().encode(categories)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
         let counterpartsJSON = (try? JSONEncoder().encode(counterparts)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
@@ -190,25 +187,11 @@ final class AIService {
         )
 
         let reqId = String(UUID().uuidString.prefix(8))
-        MPLog.service.info("📤 [\(reqId, privacy: .public)] parseAudio | file=\(fileURL.lastPathComponent, privacy: .public) size=\(audioData.count)B locale=\(locale, privacy: .public)")
+        MPLog.service.info("📤 [\(reqId, privacy: .public)] parseAudio | file=\(fileURL.lastPathComponent, privacy: .public) size=\(audioData.count)B locale=\(locale, privacy: .public) idemp=\(idempotencyKey.prefix(8), privacy: .public)")
         MPLog.service.debug("📤 [\(reqId, privacy: .public)] categories(\(categories.count)): \(categories.map { "\($0.name)[\($0.type)]" }.joined(separator: ", "), privacy: .public)")
         MPLog.service.debug("📤 [\(reqId, privacy: .public)] counterparts(\(counterparts.count)): \(counterparts.map(\.name).joined(separator: ", "), privacy: .public)")
 
-        let startedAt = Date()
-        let (data, response): (Data, URLResponse)
-        do {
-            (data, response) = try await URLSession.shared.data(for: request)
-        } catch let urlError as URLError {
-            MPLog.service.error("❌ [\(reqId, privacy: .public)] parseAudio network error: \(urlError.code.rawValue) \(urlError.localizedDescription, privacy: .public)")
-            throw AIServiceError.networkError(urlError)
-        }
-        let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1000)
-
-        let httpStatus = (response as? HTTPURLResponse)?.statusCode ?? -1
-        MPLog.service.info("📥 [\(reqId, privacy: .public)] parseAudio HTTP \(httpStatus) | \(data.count) bytes | \(elapsedMs)ms")
-        if let bodyStr = String(data: data, encoding: .utf8) {
-            MPLog.service.debug("📥 [\(reqId, privacy: .public)] response body: \(bodyStr, privacy: .public)")
-        }
+        let (data, response) = try await executeWithRetry(request: request, reqId: reqId, label: "parseAudio")
 
         try validateResponse(response, data: data)
         let result = try decode(AiParseResult.self, from: data, reqId: reqId)
@@ -219,6 +202,81 @@ final class AIService {
     }
 
     // MARK: - Приватные хелперы
+
+    /// Выполняет HTTP-запрос с exponential backoff на flaky-network ошибках.
+    ///
+    /// Ретраит только то, что имеет смысл повторять:
+    ///  - URLError: timeout, потеря соединения, DNS, нет хоста — сеть была не дошла
+    ///  - HTTP 502/503/504 — upstream временно недоступен (aitunnel + Gemini)
+    ///
+    /// НЕ ретраит:
+    ///  - 4xx (401/402/409/422/429) — валидные отказы, повторять бессмысленно
+    ///  - 5xx, кроме 502/503/504 — другие сервер-ошибки не считаем флапающими
+    ///  - URLError других категорий (cancelled, etc.)
+    ///
+    /// Idempotency-Key уже выставлен в request, при retry letит тот же ключ →
+    /// бэк дедуплицирует AI-вызов и не списывает trial повторно.
+    ///
+    /// Параметры:
+    ///  - request: подготовленный URLRequest (с body, headers, idempotency-key)
+    ///  - reqId: 8-char correlation ID для логов
+    ///  - label: "parseText" / "parseAudio" для прозрачности логов
+    private func executeWithRetry(
+        request: URLRequest,
+        reqId: String,
+        label: String
+    ) async throws -> (Data, URLResponse) {
+        // 3 попытки = первая (без паузы) + 2 ретрая с backoff 1s/3s.
+        // Покрывает типичный 502-flap aitunnel (~секунды). Max общая latency
+        // для текста: 15s timeout + 1s + 15s + 3s + 15s = до ~49s в худшем
+        // случае; обычно <2s на первом attempt.
+        let backoffs: [TimeInterval] = [0, 1.0, 3.0]
+        var lastError: Error = AIServiceError.invalidResponse
+
+        for (attemptIdx, backoff) in backoffs.enumerated() {
+            let attemptNum = attemptIdx + 1
+            if backoff > 0 {
+                MPLog.service.info("⏳ [\(reqId, privacy: .public)] \(label, privacy: .public) retry \(attemptNum)/\(backoffs.count) после \(Int(backoff))s")
+                try await Task.sleep(nanoseconds: UInt64(backoff * 1_000_000_000))
+            }
+            let startedAt = Date()
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1000)
+                let httpStatus = (response as? HTTPURLResponse)?.statusCode ?? -1
+
+                // Upstream временно недоступен — retry если ещё есть попытки.
+                if [502, 503, 504].contains(httpStatus), attemptNum < backoffs.count {
+                    MPLog.service.warning("⚠️ [\(reqId, privacy: .public)] \(label, privacy: .public) HTTP \(httpStatus) attempt \(attemptNum)/\(backoffs.count) | \(elapsedMs)ms — retry")
+                    lastError = AIServiceError.serverError(httpStatus, "upstream temporary")
+                    continue
+                }
+
+                // Любой другой ответ (2xx, 4xx, terminal 5xx) — возвращаем,
+                // validateResponse ниже разберётся как трактовать.
+                MPLog.service.info("📥 [\(reqId, privacy: .public)] \(label, privacy: .public) HTTP \(httpStatus) | \(data.count) bytes | \(elapsedMs)ms attempt=\(attemptNum)")
+                if let bodyStr = String(data: data, encoding: .utf8) {
+                    MPLog.service.debug("📥 [\(reqId, privacy: .public)] response body: \(bodyStr, privacy: .public)")
+                }
+                return (data, response)
+            } catch let urlError as URLError {
+                // Сетевые ошибки, которые имеет смысл повторить.
+                let retryable: Set<URLError.Code> = [
+                    .timedOut, .networkConnectionLost, .notConnectedToInternet,
+                    .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed,
+                ]
+                if retryable.contains(urlError.code), attemptNum < backoffs.count {
+                    MPLog.service.warning("⚠️ [\(reqId, privacy: .public)] \(label, privacy: .public) network \(urlError.code.rawValue) attempt \(attemptNum)/\(backoffs.count) — retry")
+                    lastError = AIServiceError.networkError(urlError)
+                    continue
+                }
+                MPLog.service.error("❌ [\(reqId, privacy: .public)] \(label, privacy: .public) network error: \(urlError.code.rawValue) \(urlError.localizedDescription, privacy: .public)")
+                throw AIServiceError.networkError(urlError)
+            }
+        }
+        // Все попытки исчерпаны на retry-able ошибках.
+        throw lastError
+    }
 
     private func validateResponse(_ response: URLResponse, data: Data) throws {
         guard let http = response as? HTTPURLResponse else {

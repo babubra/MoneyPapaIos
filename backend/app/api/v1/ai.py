@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_user
 from app.core.config import get_settings
+from app.core.idempotency import IdempotencyState, IdempotencyStore
 from app.core.system_prompt import SYSTEM_PROMPT, build_ai_prompt
 from app.db.models import CategoryMapping, User
 from app.db.session import get_db
@@ -58,6 +59,41 @@ _MAX_AUDIO_BYTES: int = settings.AI_MAX_AUDIO_SIZE_MB * 1024 * 1024
 def get_ai_client(request: Request) -> AsyncOpenAI:
     """Dependency: возвращает singleton AsyncOpenAI-клиент из app.state."""
     return request.app.state.ai_client
+
+
+def get_idempotency_store(request: Request) -> IdempotencyStore:
+    """Dependency: возвращает singleton in-memory стор идемпотентности из app.state."""
+    return request.app.state.idempotency_store
+
+
+# Максимальная длина Idempotency-Key. UUID в hex = 36 символов; даём с запасом для
+# нестандартных форматов (UUID без дефисов, ULID, etc.), но отсекаем мусорные ключи
+# на 1KB чтобы не раздувать память стора и не открывать DoS-вектор «зловредный
+# клиент шлёт миллион уникальных ключей».
+_IDEMPOTENCY_KEY_MAX_LEN = 128
+
+
+def _resolve_idempotency_key(request: Request, user_id: int) -> str | None:
+    """Извлекает Idempotency-Key из header'а и формирует составной ключ.
+
+    Возвращает:
+      • `None` если header отсутствует или невалиден (старые клиенты без поддержки
+        идемпотентности работают как раньше — нет cache, нет 409).
+      • `f"{user_id}:{key}"` для изоляции между юзерами (один юзер не может
+        прочитать кэшированный ответ другого через коллизию ключа).
+
+    Невалидным считается пустой ключ или ключ длиннее `_IDEMPOTENCY_KEY_MAX_LEN`.
+    На невалид НЕ кидаем 422 — back-compat-policy: header опциональный, мусорный
+    игнорируется как отсутствующий.
+    """
+    raw = request.headers.get("Idempotency-Key")
+    if not raw:
+        return None
+    key = raw.strip()
+    if not key or len(key) > _IDEMPOTENCY_KEY_MAX_LEN:
+        logger.warning("Invalid Idempotency-Key (len=%s) — ignored", len(raw))
+        return None
+    return f"{user_id}:{key}"
 
 
 # ── Trial gate ────────────────────────────────────────────────────
@@ -398,13 +434,18 @@ async def _call_ai_audio(
 @router.post("/parse", summary="Парсинг текстовой транзакции")
 async def parse_text(
     body: ParseTextRequest,
+    request: Request,
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
     ai_client: AsyncOpenAI = Depends(get_ai_client),
+    idempotency_store: IdempotencyStore = Depends(get_idempotency_store),
 ):
     """Парсит текстовое описание транзакции через Gemini (via aitunnel.ru).
 
     Trial-gate: free-юзеры расходуют 1 запрос за каждый вызов; при исчерпании — 402.
+    Поддерживает header `Idempotency-Key`: повторный запрос с тем же ключом в окне
+    60s вернёт закэшированный ответ без повторного AI-вызова и без двойного
+    списания trial (см. #3 в audit/C1_C2_ai_layer.md).
     """
     # PII-минимизация: на INFO — только метаданные. Сам текст транзакции
     # (PII + финансовая информация) пишется только на DEBUG.
@@ -425,56 +466,86 @@ async def parse_text(
             detail=f"Текст слишком длинный. Максимум {settings.AI_MAX_TEXT_LENGTH} символов.",
         )
 
-    # Trial-gate: 402 если free и trial исчерпан. Инкремент НЕ здесь — после AI.
-    await _check_trial(user, db)
+    # Idempotency-check: до trial-gate, потому что cached response не должен
+    # списать trial повторно. Если ключа в header нет — работаем как раньше,
+    # без идемпотентности (back-compat для старых iOS-клиентов).
+    composite_key = _resolve_idempotency_key(request, user.id)
+    if composite_key is not None:
+        state, payload = await idempotency_store.acquire(composite_key)
+        if state is IdempotencyState.CACHED:
+            logger.info("PARSE TEXT idempotent | user_id=%s state=cached", user.id)
+            return payload
+        if state is IdempotencyState.IN_FLIGHT:
+            logger.info("PARSE TEXT idempotent | user_id=%s state=in_flight → 409", user.id)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Дубликат запроса: предыдущая попытка ещё выполняется. Подождите.",
+            )
 
-    mappings = await _load_user_mappings(user.id, db)
-    # Счётчик — на INFO (без PII). Сам список phrase→category — DEBUG.
-    logger.info(
-        "PARSE TEXT mappings | user_id=%s count=%s/%s",
-        user.id, len(mappings), settings.AI_MAPPINGS_PROMPT_LIMIT,
-    )
-    if mappings:
-        # item_phrase — слово, которое юзер произнёс/набрал (PII). На DEBUG.
-        logger.debug(
-            "Mappings (%s): %s",
-            len(mappings),
-            [(m["item_phrase"], m["category_name"], m["weight"]) for m in mappings[:5]],
+    try:
+        # Trial-gate: 402 если free и trial исчерпан. Инкремент НЕ здесь — после AI.
+        await _check_trial(user, db)
+
+        mappings = await _load_user_mappings(user.id, db)
+        # Счётчик — на INFO (без PII). Сам список phrase→category — DEBUG.
+        logger.info(
+            "PARSE TEXT mappings | user_id=%s count=%s/%s",
+            user.id, len(mappings), settings.AI_MAPPINGS_PROMPT_LIMIT,
+        )
+        if mappings:
+            # item_phrase — слово, которое юзер произнёс/набрал (PII). На DEBUG.
+            logger.debug(
+                "Mappings (%s): %s",
+                len(mappings),
+                [(m["item_phrase"], m["category_name"], m["weight"]) for m in mappings[:5]],
+            )
+
+        user_prompt = build_ai_prompt(
+            user_text=body.text,
+            categories=[c.model_dump() for c in body.categories],
+            counterparts=[cp.model_dump() for cp in body.counterparts],
+            today=_today_str(),
+            locale=body.locale,
+            mappings=mappings or None,
         )
 
-    user_prompt = build_ai_prompt(
-        user_text=body.text,
-        categories=[c.model_dump() for c in body.categories],
-        counterparts=[cp.model_dump() for cp in body.counterparts],
-        today=_today_str(),
-        locale=body.locale,
-        mappings=mappings or None,
-    )
+        # Если AI упадёт (502/503/timeout), exception пробросится наверх и
+        # _consume_trial НЕ выполнится — trial остаётся целым.
+        result = await _call_ai_text(ai_client, user_prompt, user_id=user.id)
 
-    # Если AI упадёт (502/503/timeout), exception пробросится наверх и
-    # _consume_trial НЕ выполнится — trial остаётся целым.
-    result = await _call_ai_text(ai_client, user_prompt, user_id=user.id)
+        # Списываем trial только если AI реально отработал и вернул валидный JSON.
+        # Off-topic ответ ("вопрос не в тему") тоже считается успехом — мы за токены
+        # уже заплатили.
+        await _consume_trial(user, db)
 
-    # Списываем trial только если AI реально отработал и вернул валидный JSON.
-    # Off-topic ответ ("вопрос не в тему") тоже считается успехом — мы за токены
-    # уже заплатили.
-    await _consume_trial(user, db)
+        # Фиксируем результат в idempotency-store, чтобы дубликат-retry получил
+        # закэшированный ответ без повторного AI-call и без двойного trial-списания.
+        if composite_key is not None:
+            await idempotency_store.commit(composite_key, result)
 
-    # Финансовые поля и текст транзакции — на DEBUG, на INFO только статус.
-    logger.info(
-        "PARSE TEXT done | user_id=%s status=%s new=%s",
-        user.id, result.get("status"), result.get("category_is_new"),
-    )
-    logger.debug(
-        "Result: type=%s amount=%s cat=%r item_phrase=%r",
-        result.get("type"), result.get("amount"),
-        result.get("category_name"), result.get("item_phrase"),
-    )
-    return result
+        # Финансовые поля и текст транзакции — на DEBUG, на INFO только статус.
+        logger.info(
+            "PARSE TEXT done | user_id=%s status=%s new=%s",
+            user.id, result.get("status"), result.get("category_is_new"),
+        )
+        logger.debug(
+            "Result: type=%s amount=%s cat=%r item_phrase=%r",
+            result.get("type"), result.get("amount"),
+            result.get("category_name"), result.get("item_phrase"),
+        )
+        return result
+    except Exception:
+        # AI упал / trial исчерпан / любая другая ошибка после acquire — снимаем
+        # in-flight-запись, чтобы юзер мог явно ретраить с тем же ключом. Иначе
+        # фейл одного вызова блокирует юзера на ttl_seconds.
+        if composite_key is not None:
+            await idempotency_store.release_failure(composite_key)
+        raise
 
 
 @router.post("/parse-audio", summary="Парсинг голосовой транзакции")
 async def parse_audio(
+    request: Request,
     audio: UploadFile = File(..., description="Аудиофайл (m4a, wav, webm)"),
     categories: str = Form(default="[]", description="JSON-массив категорий"),
     counterparts: str = Form(default="[]", description="JSON-массив контрагентов"),
@@ -482,11 +553,13 @@ async def parse_audio(
     user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
     ai_client: AsyncOpenAI = Depends(get_ai_client),
+    idempotency_store: IdempotencyStore = Depends(get_idempotency_store),
 ):
     """Парсит голосовое описание транзакции через Gemini (via aitunnel.ru).
 
     Trial-gate: free-юзеры расходуют 1 запрос за каждый вызов; при исчерпании — 402.
     Принимает аудиофайл + категории/контрагенты как multipart/form-data.
+    Idempotency через header `Idempotency-Key` — см. docstring /parse.
     """
     logger.info(
         "PARSE AUDIO | user_id=%s sub=%s trial=%s/%s locale=%s size=%s type=%s",
@@ -514,75 +587,97 @@ async def parse_audio(
             detail=f"Аудиофайл слишком большой. Максимум {settings.AI_MAX_AUDIO_SIZE_MB} MB.",
         )
 
-    # Trial-gate: 402 если free и trial исчерпан. Инкремент НЕ здесь — после AI.
-    await _check_trial(user, db)
-
-    audio_data = await audio.read()
-    if len(audio_data) > _MAX_AUDIO_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Аудиофайл слишком большой. Максимум {settings.AI_MAX_AUDIO_SIZE_MB} MB.",
-        )
-    mime_type = content_type or "audio/m4a"
+    # Idempotency-check (до trial-gate, чтобы cached response не списал trial повторно).
+    composite_key = _resolve_idempotency_key(request, user.id)
+    if composite_key is not None:
+        state, payload = await idempotency_store.acquire(composite_key)
+        if state is IdempotencyState.CACHED:
+            logger.info("PARSE AUDIO idempotent | user_id=%s state=cached", user.id)
+            return payload
+        if state is IdempotencyState.IN_FLIGHT:
+            logger.info("PARSE AUDIO idempotent | user_id=%s state=in_flight → 409", user.id)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Дубликат запроса: предыдущая попытка ещё выполняется. Подождите.",
+            )
 
     try:
-        categories_list = json.loads(categories)
-        counterparts_list = json.loads(counterparts)
-    except json.JSONDecodeError:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Невалидный JSON в categories или counterparts",
+        # Trial-gate: 402 если free и trial исчерпан. Инкремент НЕ здесь — после AI.
+        await _check_trial(user, db)
+
+        audio_data = await audio.read()
+        if len(audio_data) > _MAX_AUDIO_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"Аудиофайл слишком большой. Максимум {settings.AI_MAX_AUDIO_SIZE_MB} MB.",
+            )
+        mime_type = content_type or "audio/m4a"
+
+        try:
+            categories_list = json.loads(categories)
+            counterparts_list = json.loads(counterparts)
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Невалидный JSON в categories или counterparts",
+            )
+
+        # Дублируем cap из ParseTextRequest (Pydantic-схема не применяется к Form-полям).
+        # См. C2.7 в todo/audit/C1_C2_ai_layer.md.
+        if len(categories_list) > 200 or len(counterparts_list) > 200:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Слишком много категорий или контрагентов (максимум 200).",
+            )
+
+        logger.debug("Категории (%s): %s", len(categories_list), [c.get("name") for c in categories_list])
+
+        mappings = await _load_user_mappings(user.id, db)
+        # Счётчик — на INFO (без PII). Сам список phrase→category — DEBUG.
+        logger.info(
+            "PARSE AUDIO mappings | user_id=%s count=%s/%s",
+            user.id, len(mappings), settings.AI_MAPPINGS_PROMPT_LIMIT,
+        )
+        if mappings:
+            logger.debug(
+                "Mappings (%s): %s",
+                len(mappings),
+                [(m["item_phrase"], m["category_name"]) for m in mappings[:5]],
+            )
+
+        user_prompt = build_ai_prompt(
+            user_text="[аудиозапись — расшифруй и распарси]",
+            categories=categories_list,
+            counterparts=counterparts_list,
+            today=_today_str(),
+            locale=locale,
+            mappings=mappings or None,
         )
 
-    # Дублируем cap из ParseTextRequest (Pydantic-схема не применяется к Form-полям).
-    # См. C2.7 в todo/audit/C1_C2_ai_layer.md.
-    if len(categories_list) > 200 or len(counterparts_list) > 200:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Слишком много категорий или контрагентов (максимум 200).",
+        # Если AI упадёт (502/503/timeout), exception пробросится наверх и
+        # _consume_trial НЕ выполнится — trial остаётся целым.
+        result = await _call_ai_audio(ai_client, audio_data, mime_type, user_prompt, user_id=user.id)
+
+        # Списываем trial только если AI реально отработал (включая off-topic responses).
+        await _consume_trial(user, db)
+
+        if composite_key is not None:
+            await idempotency_store.commit(composite_key, result)
+
+        logger.info(
+            "PARSE AUDIO done | user_id=%s status=%s",
+            user.id, result.get("status"),
         )
-
-    logger.debug("Категории (%s): %s", len(categories_list), [c.get("name") for c in categories_list])
-
-    mappings = await _load_user_mappings(user.id, db)
-    # Счётчик — на INFO (без PII). Сам список phrase→category — DEBUG.
-    logger.info(
-        "PARSE AUDIO mappings | user_id=%s count=%s/%s",
-        user.id, len(mappings), settings.AI_MAPPINGS_PROMPT_LIMIT,
-    )
-    if mappings:
         logger.debug(
-            "Mappings (%s): %s",
-            len(mappings),
-            [(m["item_phrase"], m["category_name"]) for m in mappings[:5]],
+            "Result: type=%s amount=%s cat=%r item_phrase=%r",
+            result.get("type"), result.get("amount"),
+            result.get("category_name"), result.get("item_phrase"),
         )
-
-    user_prompt = build_ai_prompt(
-        user_text="[аудиозапись — расшифруй и распарси]",
-        categories=categories_list,
-        counterparts=counterparts_list,
-        today=_today_str(),
-        locale=locale,
-        mappings=mappings or None,
-    )
-
-    # Если AI упадёт (502/503/timeout), exception пробросится наверх и
-    # _consume_trial НЕ выполнится — trial остаётся целым.
-    result = await _call_ai_audio(ai_client, audio_data, mime_type, user_prompt, user_id=user.id)
-
-    # Списываем trial только если AI реально отработал (включая off-topic responses).
-    await _consume_trial(user, db)
-
-    logger.info(
-        "PARSE AUDIO done | user_id=%s status=%s",
-        user.id, result.get("status"),
-    )
-    logger.debug(
-        "Result: type=%s amount=%s cat=%r item_phrase=%r",
-        result.get("type"), result.get("amount"),
-        result.get("category_name"), result.get("item_phrase"),
-    )
-    return result
+        return result
+    except Exception:
+        if composite_key is not None:
+            await idempotency_store.release_failure(composite_key)
+        raise
 
 
 # ── UPSERT Mapping ─────────────────────────────────────────────────

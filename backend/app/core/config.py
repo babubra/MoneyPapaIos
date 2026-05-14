@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     # Общий cap количества маппингов на пользователя в БД.
     # Превышающие удаляются по `(weight ASC, updated_at ASC)` в /mapping upsert.
     AI_MAPPINGS_TOTAL_LIMIT: int = 200
+
+    # ── Idempotency для AI-эндпоинтов (#3 в audit/C1_C2_ai_layer.md) ──
+    # TTL in-memory кэша. iOS-клиент при retry шлёт тот же Idempotency-Key,
+    # бэк отдаёт закэшированный ответ без повторного AI-call. Окно 60s покрывает
+    # max retry-latency (timeout 15s + backoff 1s + backoff 3s + timeout 15s ≈ 34s).
+    IDEMPOTENCY_TTL_SECONDS: float = 60.0
     # Bundle ID для верификации Apple identity_token (audience claim).
     APPLE_BUNDLE_ID: str = "fatau.Monpapa"
 

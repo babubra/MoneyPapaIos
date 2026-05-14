@@ -33,6 +33,11 @@ check_cache.py
 test_db_*.py
 dev.sh
 
+# Test infrastructure (не нужна в production-образе)
+tests/
+pytest.ini
+requirements-dev.txt
+
 # Git / IDE / OS
 .git
 .gitignore
