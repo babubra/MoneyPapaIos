@@ -32,9 +32,7 @@ class Settings(BaseSettings):
     # ── PostgreSQL ──────────────────────────────────────────────────
     DATABASE_URL: str = "postgresql+asyncpg://monpapa:monpapa_dev_secret@localhost:5432/monpapa"
 
-    # ── Rate limiting (legacy, остаются для совместимости — не используются после Auth Model C) ──
-    AI_RATE_LIMIT_DAILY: int = 50
-    AI_RATE_LIMIT_AUDIO_HOURLY: int = 5
+    # ── AI input limits ─────────────────────────────────────────────
     AI_MAX_TEXT_LENGTH: int = 500
     AI_MAX_AUDIO_SECONDS: int = 30
     # Лимит размера аудио-файла на /parse-audio (в мегабайтах). Защита от OOM
@@ -44,6 +42,13 @@ class Settings(BaseSettings):
     # ── Auth Model C ────────────────────────────────────────────────
     # Лимит бесплатных AI-запросов на пользователя (lifetime).
     AI_TRIAL_LIMIT: int = 50
+
+    # ── Premium daily-cap (C1+C2 #15) ───────────────────────────────
+    # Soft-cap для Premium-юзеров на сутки UTC. Защита от утечки денег
+    # при угнанном JWT, бажном auto-retry на клиенте или модифицированном
+    # клиенте. Легитимный юзер не упрётся (10× больше типичного use).
+    AI_PREMIUM_DAILY_CAP_TEXT: int = 200
+    AI_PREMIUM_DAILY_CAP_AUDIO: int = 50
 
     # ── Auto-learn mappings caps (см. C1.5 в audit/C1_C2_ai_layer.md) ──
     # Сколько маппингов из БД попадает в AI-prompt (топ-N по weight).

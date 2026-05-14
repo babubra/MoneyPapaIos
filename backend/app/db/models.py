@@ -56,6 +56,14 @@ class User(Base):
         String(100), nullable=True
     )
 
+    # ── Premium daily-cap (safety-net против угнанного JWT / клиентского retry-loop) ──
+    # Счётчик AI-запросов за текущие UTC-сутки. Применяется только к Premium.
+    # Free-юзеров отсекает ai_trial_used (lifetime), Premium ограничивается
+    # AI_PREMIUM_DAILY_CAP_TEXT/AUDIO в config.
+    ai_requests_today: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    ai_audio_requests_today: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    ai_requests_reset_date: Mapped[str | None] = mapped_column(String(10), nullable=True)  # YYYY-MM-DD UTC
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

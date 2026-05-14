@@ -115,18 +115,63 @@ def _is_premium(user: User) -> bool:
     return expires > now
 
 
-async def _check_trial(user: User, db: AsyncSession) -> None:
-    """Гейт ПЕРЕД вызовом AI: 402 если trial исчерпан, иначе пропускаем дальше.
+def _utc_today_str() -> str:
+    """YYYY-MM-DD в UTC. Используется для Premium daily-cap reset-logic.
 
-    НЕ инкрементирует счётчик — это делается отдельно через _consume_trial()
-    ПОСЛЕ успешного AI-вызова. Раньше эти две вещи были в одном методе, что
-    приводило к несправедливому списанию trial при сбоях AI-сервиса (502/503,
-    невалидный JSON после ретраев, AITUNNEL_API_KEY не настроен — юзер не
-    виноват, но trial уже потерян).
+    Отличается от _today_str() (local date) тем, что детерминирован — не зависит
+    от TZ сервера. Premium-юзер не должен получать «бесплатные» дополнительные
+    запросы при перезагрузке сервера в другую TZ.
+    """
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    Premium-юзеры пропускают check полностью.
+
+def _reset_premium_counters_if_needed(user: User) -> None:
+    """Обнуляет Premium daily-cap счётчики при наступлении новых UTC-суток.
+
+    Идемпотентно: повторный вызов в тот же день — no-op. Mutates `user` in-place,
+    но НЕ flushe'ит — flush делает вызывающий после своих собственных мутаций.
+    """
+    today = _utc_today_str()
+    if user.ai_requests_reset_date != today:
+        user.ai_requests_today = 0
+        user.ai_audio_requests_today = 0
+        user.ai_requests_reset_date = today
+
+
+async def _check_trial(user: User, db: AsyncSession, *, is_audio: bool = False) -> None:
+    """Гейт ПЕРЕД вызовом AI: 402 (free trial исчерпан) либо 429 (Premium daily-cap).
+
+    НЕ инкрементирует счётчики — это делается через _consume_trial() ПОСЛЕ
+    успешного AI-вызова. Раньше check и consume были в одном методе, что
+    приводило к несправедливому списанию при сбоях AI-сервиса (502/503,
+    невалидный JSON, AITUNNEL_API_KEY не настроен — юзер не виноват).
+
+    Free-юзеры: 402 если ai_trial_used >= AI_TRIAL_LIMIT (lifetime).
+    Premium-юзеры: 429 если соответствующий daily-counter >= cap. Сброс
+    в полночь UTC. Это safety-net против угнанного JWT и retry-loop'ов
+    на клиенте — легитимный Premium-юзер с типичным use не упирается.
     """
     if _is_premium(user):
+        _reset_premium_counters_if_needed(user)
+        if is_audio:
+            used = user.ai_audio_requests_today
+            limit = settings.AI_PREMIUM_DAILY_CAP_AUDIO
+            kind = "audio"
+        else:
+            used = user.ai_requests_today
+            limit = settings.AI_PREMIUM_DAILY_CAP_TEXT
+            kind = "text"
+        if used >= limit:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=(
+                    f"Дневной лимит Premium ({kind}) достигнут: {used}/{limit}. "
+                    "Сброс в полночь UTC."
+                ),
+                headers={"X-AI-Daily-Used": str(used),
+                         "X-AI-Daily-Limit": str(limit),
+                         "X-AI-Daily-Kind": kind},
+            )
         return
 
     if user.ai_trial_used >= settings.AI_TRIAL_LIMIT:
@@ -141,8 +186,8 @@ async def _check_trial(user: User, db: AsyncSession) -> None:
         )
 
 
-async def _consume_trial(user: User, db: AsyncSession) -> None:
-    """Инкрементирует ai_trial_used ПОСЛЕ успешного AI-вызова.
+async def _consume_trial(user: User, db: AsyncSession, *, is_audio: bool = False) -> None:
+    """Инкрементирует соответствующий счётчик ПОСЛЕ успешного AI-вызова.
 
     Что считается "успешным": _call_ai_text/_call_ai_audio вернул валидный
     JSON-ответ от Gemini — даже если status="off_topic" / "вопрос не в тему".
@@ -155,9 +200,16 @@ async def _consume_trial(user: User, db: AsyncSession) -> None:
       • HTTPException 422 — слишком длинный текст / битый multipart
       • Любой exception до возврата result юзеру
 
-    Premium-юзеры пропускают (их trial-счётчик не имеет смысла).
+    Free: ai_trial_used (lifetime).
+    Premium: ai_requests_today либо ai_audio_requests_today (UTC daily).
     """
     if _is_premium(user):
+        _reset_premium_counters_if_needed(user)
+        if is_audio:
+            user.ai_audio_requests_today += 1
+        else:
+            user.ai_requests_today += 1
+        await db.flush()
         return
     user.ai_trial_used += 1
     await db.flush()
@@ -483,8 +535,8 @@ async def parse_text(
             )
 
     try:
-        # Trial-gate: 402 если free и trial исчерпан. Инкремент НЕ здесь — после AI.
-        await _check_trial(user, db)
+        # Gate: 402 если free trial исчерпан, 429 если Premium daily-cap исчерпан.
+        await _check_trial(user, db, is_audio=False)
 
         mappings = await _load_user_mappings(user.id, db)
         # Счётчик — на INFO (без PII). Сам список phrase→category — DEBUG.
@@ -516,7 +568,7 @@ async def parse_text(
         # Списываем trial только если AI реально отработал и вернул валидный JSON.
         # Off-topic ответ ("вопрос не в тему") тоже считается успехом — мы за токены
         # уже заплатили.
-        await _consume_trial(user, db)
+        await _consume_trial(user, db, is_audio=False)
 
         # Фиксируем результат в idempotency-store, чтобы дубликат-retry получил
         # закэшированный ответ без повторного AI-call и без двойного trial-списания.
@@ -602,8 +654,8 @@ async def parse_audio(
             )
 
     try:
-        # Trial-gate: 402 если free и trial исчерпан. Инкремент НЕ здесь — после AI.
-        await _check_trial(user, db)
+        # Gate: 402 если free trial исчерпан, 429 если Premium daily-audio-cap исчерпан.
+        await _check_trial(user, db, is_audio=True)
 
         audio_data = await audio.read()
         if len(audio_data) > _MAX_AUDIO_BYTES:
@@ -658,8 +710,8 @@ async def parse_audio(
         # _consume_trial НЕ выполнится — trial остаётся целым.
         result = await _call_ai_audio(ai_client, audio_data, mime_type, user_prompt, user_id=user.id)
 
-        # Списываем trial только если AI реально отработал (включая off-topic responses).
-        await _consume_trial(user, db)
+        # Списываем trial / Premium daily-audio только если AI реально отработал.
+        await _consume_trial(user, db, is_audio=True)
 
         if composite_key is not None:
             await idempotency_store.commit(composite_key, result)
